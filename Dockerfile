@@ -4,6 +4,8 @@
 
 FROM node:20-alpine AS builder
 
+RUN apk add --no-cache openssl
+
 WORKDIR /app
 
 # Install dependencies
@@ -21,6 +23,8 @@ RUN NODE_OPTIONS=--max-old-space-size=1024 npm run build
 
 # ─── Production image ─────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
+
+RUN apk add --no-cache openssl
 
 WORKDIR /app
 
