@@ -1,6 +1,6 @@
 name = "RoCourier"
 client_id = "ec62c461418f2a1ece3f6e5fccc99154"
-application_url = "https://YOUR-APP-URL.railway.app"
+application_url = "https://rocourier-production.up.railway.app"
 embedded = true
 handle = "rocourier"
 
@@ -13,7 +13,7 @@ scopes = "read_orders,write_orders,read_shipping,write_shipping,write_fulfillmen
 
 [auth]
 redirect_urls = [
-  "https://YOUR-APP-URL.railway.app/auth/callback"
+  "https://rocourier-production.up.railway.app/auth/callback"
 ]
 
 [webhooks]
@@ -28,7 +28,7 @@ api_version = "2025-01"
   uri = "/webhooks/orders-updated"
 
 [app_proxy]
-url = "https://YOUR-APP-URL.railway.app/proxy"
+url = "https://rocourier-production.up.railway.app/proxy"
 subpath = "rocourier"
 prefix = "apps"
 
