@@ -17,7 +17,7 @@ COPY . .
 RUN npx prisma generate
 
 # Build Remix
-RUN npm run build
+RUN NODE_OPTIONS=--max-old-space-size=1024 npm run build
 
 # ─── Production image ─────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
@@ -39,7 +39,7 @@ COPY shopify.app.toml ./
 RUN addgroup -S rocourier && adduser -S rocourier -G rocourier
 USER rocourier
 
-EXPOSE ${PORT:-3000}
+EXPOSE 3000
 
 # Run migrations then start server
 CMD ["sh", "-c", "npx prisma migrate deploy && npm start"]
