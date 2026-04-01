@@ -1,0 +1,7 @@
+[[extensions]]
+type = "theme"
+name = "RoCourier Cart Widget"
+handle = "rocourier-cart"
+
+[settings]
+locales_path = "./locales"

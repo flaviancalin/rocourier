@@ -1,0 +1,234 @@
+{% comment %}
+  RoCourier — Cart Shipping Selector
+  File: extensions/rocourier-cart/blocks/shipping-selector.liquid
+  
+  HOW TO INSTALL IN THEME:
+  1. In Shopify admin → Online Store → Themes → Customize
+  2. Navigate to the Cart page
+  3. Add Block → RoCourier Shipping Selector
+  4. The widget appears in the cart page automatically
+{% endcomment %}
+
+<div
+  id="rocourier-widget"
+  class="rocourier-widget"
+  data-shop="{{ shop.permanent_domain }}"
+  data-app-url="{{ block.settings.app_url }}"
+  data-fan-enabled="{{ block.settings.fan_enabled }}"
+  data-sameday-enabled="{{ block.settings.sameday_enabled }}"
+  data-show-map="{{ block.settings.show_map }}"
+>
+
+  {%- comment -%} Widget Title {%- endcomment -%}
+  <div class="rocourier-header">
+    <span class="rocourier-icon">🚚</span>
+    <h3 class="rocourier-title">
+      {{ block.settings.title | default: 'Alege metoda de livrare' }}
+    </h3>
+  </div>
+
+  {%- comment -%} Delivery Method Options {%- endcomment -%}
+  <div class="rocourier-options" role="radiogroup" aria-label="Metoda de livrare">
+
+    <label class="rocourier-option" for="rocourier-home">
+      <input
+        type="radio"
+        id="rocourier-home"
+        name="rocourier_method"
+        value="home_delivery"
+        checked
+      >
+      <span class="rocourier-option-content">
+        <span class="rocourier-option-icon">🏠</span>
+        <span class="rocourier-option-text">
+          <strong>{{ block.settings.home_label | default: 'Livrare la adresă' }}</strong>
+          <small>{{ block.settings.home_sublabel | default: 'FAN Courier sau Sameday Standard' }}</small>
+        </span>
+      </span>
+      <span class="rocourier-option-check"></span>
+    </label>
+
+    <label class="rocourier-option" for="rocourier-pickup">
+      <input
+        type="radio"
+        id="rocourier-pickup"
+        name="rocourier_method"
+        value="pickup_point"
+      >
+      <span class="rocourier-option-content">
+        <span class="rocourier-option-icon">📦</span>
+        <span class="rocourier-option-text">
+          <strong>{{ block.settings.pickup_label | default: 'Ridicare din FANbox / easybox' }}</strong>
+          <small>{{ block.settings.pickup_sublabel | default: 'Alege un punct de ridicare de lângă tine' }}</small>
+        </span>
+      </span>
+      <span class="rocourier-option-check"></span>
+    </label>
+
+  </div>
+
+  {%- comment -%} Pickup Point Selector (shown when pickup selected) {%- endcomment -%}
+  <div id="rocourier-pickup-section" class="rocourier-pickup-section" style="display:none;">
+
+    {%- comment -%} Selected point display {%- endcomment -%}
+    <div id="rocourier-selected-display" class="rocourier-selected" style="display:none;">
+      <div class="rocourier-selected-inner">
+        <span id="rocourier-selected-badge" class="rocourier-badge"></span>
+        <div>
+          <strong id="rocourier-selected-name"></strong>
+          <span id="rocourier-selected-address"></span>
+        </div>
+        <button
+          id="rocourier-change-btn"
+          type="button"
+          class="rocourier-change-btn"
+          aria-label="Schimbă punctul de ridicare"
+        >
+          ✏️ Schimbă
+        </button>
+      </div>
+    </div>
+
+    {%- comment -%} Open map button {%- endcomment -%}
+    <button
+      id="rocourier-open-map-btn"
+      type="button"
+      class="rocourier-open-map-btn"
+    >
+      🗺️ {{ block.settings.map_btn_label | default: 'Alege punct de ridicare pe hartă' }}
+    </button>
+
+  </div>
+
+  {%- comment -%} Error display {%- endcomment -%}
+  <div id="rocourier-error" class="rocourier-error" style="display:none;"></div>
+
+</div>
+
+{%- comment -%} ── MAP MODAL ─────────────────────────────────────────────────── {%- endcomment -%}
+<div
+  id="rocourier-modal"
+  class="rocourier-modal"
+  style="display:none;"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="rocourier-modal-title"
+>
+  <div class="rocourier-modal-backdrop"></div>
+  <div class="rocourier-modal-inner">
+
+    {%- comment -%} Modal header {%- endcomment -%}
+    <div class="rocourier-modal-header">
+      <h4 id="rocourier-modal-title">
+        📦 {{ block.settings.modal_title | default: 'Selectează punct de ridicare' }}
+      </h4>
+      <div class="rocourier-modal-filters">
+        <input
+          type="text"
+          id="rocourier-search"
+          placeholder="{{ block.settings.search_placeholder | default: 'Caută după oraș sau județ...' }}"
+          class="rocourier-search-input"
+        >
+        <select id="rocourier-courier-filter" class="rocourier-filter-select">
+          <option value="all">Toți curierii</option>
+          {% if block.settings.fan_enabled %}
+            <option value="fan">FANbox (FAN Courier)</option>
+          {% endif %}
+          {% if block.settings.sameday_enabled %}
+            <option value="sameday">Easybox (Sameday)</option>
+          {% endif %}
+        </select>
+      </div>
+      <button id="rocourier-modal-close" class="rocourier-modal-close" type="button" aria-label="Închide">
+        ✕
+      </button>
+    </div>
+
+    {%- comment -%} Map + List split view {%- endcomment -%}
+    <div class="rocourier-modal-body">
+
+      {%- comment -%} Map container (Leaflet renders here) {%- endcomment -%}
+      <div class="rocourier-map-wrap">
+        <div id="rocourier-map"></div>
+        <div id="rocourier-map-loading" class="rocourier-map-loading">
+          <span>Se încarcă harta...</span>
+        </div>
+      </div>
+
+      {%- comment -%} Points list sidebar {%- endcomment -%}
+      <div class="rocourier-list-wrap">
+        <div id="rocourier-list-loading" class="rocourier-list-loading">
+          <div class="rocourier-spinner"></div>
+          <span>Se încarcă punctele de ridicare...</span>
+        </div>
+        <div id="rocourier-list-empty" class="rocourier-list-empty" style="display:none;">
+          Niciun punct găsit în această zonă.
+        </div>
+        <ul id="rocourier-points-list" class="rocourier-points-list"></ul>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+{%- comment -%} ── HIDDEN CART ATTRIBUTE INPUTS ─────────────────────────────── {%- endcomment -%}
+{%- comment -%}
+  These are submitted with the cart form and stored as note_attributes on the order.
+  They are picked up by our webhook handler to know the delivery choice.
+{%- endcomment -%}
+<input type="hidden" id="rc-method"       name="attributes[_rocourier_method]"        value="home_delivery">
+<input type="hidden" id="rc-courier"      name="attributes[_rocourier_courier]"        value="">
+<input type="hidden" id="rc-point-id"     name="attributes[_rocourier_point_id]"       value="">
+<input type="hidden" id="rc-point-name"   name="attributes[_rocourier_point_name]"     value="">
+<input type="hidden" id="rc-point-addr"   name="attributes[_rocourier_point_address]"  value="">
+
+{%- comment -%} Leaflet CSS {%- endcomment -%}
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+  crossorigin=""
+>
+
+{%- comment -%} Our widget CSS + JS {%- endcomment -%}
+<link rel="stylesheet" href="{{ 'rocourier.css' | asset_url }}">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN2GqM="
+  crossorigin="" defer></script>
+<script src="{{ 'rocourier.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "RoCourier Shipping",
+  "target": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "app_url",
+      "label": "App URL",
+      "default": "https://YOUR-APP-URL.railway.app",
+      "info": "URL-ul aplicației tale RoCourier (Railway / Render / Fly.io)"
+    },
+    {
+      "type": "header",
+      "content": "Texte widget"
+    },
+    { "type": "text", "id": "title",           "label": "Titlu widget",        "default": "Alege metoda de livrare" },
+    { "type": "text", "id": "home_label",      "label": "Eticheta livrare acasă", "default": "Livrare la adresă" },
+    { "type": "text", "id": "home_sublabel",   "label": "Sub-text livrare acasă", "default": "FAN Courier sau Sameday Standard" },
+    { "type": "text", "id": "pickup_label",    "label": "Eticheta punct ridicare", "default": "Ridicare din FANbox / easybox" },
+    { "type": "text", "id": "pickup_sublabel", "label": "Sub-text punct ridicare", "default": "Alege un punct de ridicare de lângă tine" },
+    { "type": "text", "id": "map_btn_label",   "label": "Text buton hartă",        "default": "Alege punct de ridicare pe hartă" },
+    { "type": "text", "id": "modal_title",     "label": "Titlu modal hartă",        "default": "Selectează punct de ridicare" },
+    { "type": "text", "id": "search_placeholder", "label": "Placeholder căutare",  "default": "Caută după oraș sau județ..." },
+    {
+      "type": "header",
+      "content": "Curieri activi"
+    },
+    { "type": "checkbox", "id": "fan_enabled",     "label": "Activează FANbox (FAN Courier)", "default": true },
+    { "type": "checkbox", "id": "sameday_enabled",  "label": "Activează easybox (Sameday)",   "default": true },
+    { "type": "checkbox", "id": "show_map",         "label": "Afișează harta interactivă",     "default": true }
+  ]
+}
+{% endschema %}

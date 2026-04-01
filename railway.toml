@@ -1,0 +1,18 @@
+# railway.toml
+# Railway deployment configuration
+# Deploy with: railway up
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "npm run docker-start"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# Healthcheck — Railway will restart if this fails
+[[deploy.healthchecks]]
+type = "PATH"
+path = "/health"
+timeoutSeconds = 10

@@ -1,0 +1,472 @@
+/* extensions/rocourier-cart/assets/rocourier.css
+   RoCourier — Cart Widget Styles
+   Works with any Shopify theme (no conflicts — all classes scoped to .rocourier-*) */
+
+/* ── Reset inside widget ───────────────────────────────────────────────────── */
+.rocourier-widget *,
+.rocourier-modal * {
+  box-sizing: border-box;
+}
+
+/* ── Widget container ──────────────────────────────────────────────────────── */
+.rocourier-widget {
+  font-family: inherit;
+  margin: 20px 0;
+  padding: 0;
+}
+
+.rocourier-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.rocourier-icon { font-size: 1.3rem; }
+
+.rocourier-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: inherit;
+}
+
+/* ── Options ───────────────────────────────────────────────────────────────── */
+.rocourier-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.rocourier-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  background: #fff;
+  position: relative;
+}
+
+.rocourier-option:hover {
+  border-color: #aaa;
+}
+
+.rocourier-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.rocourier-option:has(input:checked) {
+  border-color: #000;
+  background: #fafafa;
+}
+
+.rocourier-option-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.rocourier-option-icon { font-size: 1.4rem; flex-shrink: 0; }
+
+.rocourier-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rocourier-option-text strong {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: inherit;
+}
+
+.rocourier-option-text small {
+  font-size: 0.8rem;
+  color: #777;
+}
+
+.rocourier-option-check {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #ccc;
+  flex-shrink: 0;
+  transition: all 0.15s;
+  position: relative;
+}
+
+.rocourier-option:has(input:checked) .rocourier-option-check {
+  border-color: #000;
+  background: #000;
+}
+
+.rocourier-option:has(input:checked) .rocourier-option-check::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -55%) rotate(45deg);
+  width: 5px;
+  height: 9px;
+  border: 2px solid #fff;
+  border-top: none;
+  border-left: none;
+}
+
+/* ── Pickup section ────────────────────────────────────────────────────────── */
+.rocourier-pickup-section {
+  margin-top: 8px;
+  animation: rcFadeIn 0.2s ease;
+}
+
+@keyframes rcFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Selected point display ────────────────────────────────────────────────── */
+.rocourier-selected {
+  border: 2px solid #000;
+  border-radius: 10px;
+  padding: 12px 16px;
+  background: #fafafa;
+  margin-bottom: 10px;
+}
+
+.rocourier-selected-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.rocourier-selected-inner strong { font-size: 0.9rem; display: block; }
+.rocourier-selected-inner span   { font-size: 0.8rem; color: #555; display: block; }
+
+.rocourier-change-btn {
+  margin-left: auto;
+  background: none;
+  border: 1px solid #ccc;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  transition: border-color 0.15s;
+}
+
+.rocourier-change-btn:hover { border-color: #000; }
+
+/* ── Open map button ───────────────────────────────────────────────────────── */
+.rocourier-open-map-btn {
+  width: 100%;
+  padding: 12px 16px;
+  background: #fff;
+  border: 2px dashed #ccc;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: inherit;
+  text-align: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.rocourier-open-map-btn:hover {
+  border-color: #000;
+  background: #fafafa;
+}
+
+/* ── Error box ─────────────────────────────────────────────────────────────── */
+.rocourier-error {
+  margin-top: 8px;
+  padding: 10px 14px;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #664d03;
+}
+
+/* ── Badge ─────────────────────────────────────────────────────────────────── */
+.rocourier-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.rc-badge-fan     { background: #fff3e0; color: #e65100; border: 1px solid #e65100aa; }
+.rc-badge-sameday { background: #e3f2fd; color: #1565c0; border: 1px solid #1565c0aa; }
+
+/* ── Modal ─────────────────────────────────────────────────────────────────── */
+.rocourier-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.rocourier-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.rocourier-modal-inner {
+  position: relative;
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 860px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.2);
+  animation: rcModalIn 0.25s ease;
+}
+
+@keyframes rcModalIn {
+  from { transform: scale(0.96) translateY(10px); opacity: 0; }
+  to   { transform: scale(1)    translateY(0);     opacity: 1; }
+}
+
+/* Modal header */
+.rocourier-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #eee;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.rocourier-modal-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.rocourier-modal-filters {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.rocourier-search-input,
+.rocourier-filter-select {
+  flex: 1;
+  padding: 7px 12px;
+  border: 1px solid #ddd;
+  border-radius: 7px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.rocourier-search-input:focus,
+.rocourier-filter-select:focus {
+  border-color: #000;
+}
+
+.rocourier-modal-close {
+  margin-left: auto;
+  background: #f5f5f5;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.rocourier-modal-close:hover { background: #e0e0e0; }
+
+/* Modal body */
+.rocourier-modal-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Map */
+.rocourier-map-wrap {
+  flex: 1.5;
+  position: relative;
+  min-height: 320px;
+}
+
+#rocourier-map {
+  width: 100%;
+  height: 100%;
+  min-height: 320px;
+}
+
+.rocourier-map-loading {
+  position: absolute;
+  inset: 0;
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  color: #888;
+  z-index: 1;
+}
+
+/* List */
+.rocourier-list-wrap {
+  width: 300px;
+  flex-shrink: 0;
+  border-left: 1px solid #eee;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.rocourier-list-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 20px;
+  color: #888;
+  font-size: 0.85rem;
+}
+
+.rocourier-list-empty {
+  padding: 24px;
+  text-align: center;
+  color: #888;
+  font-size: 0.85rem;
+}
+
+.rocourier-points-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Spinner */
+.rocourier-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #f0f0f0;
+  border-top-color: #000;
+  border-radius: 50%;
+  animation: rcSpin 0.8s linear infinite;
+}
+
+@keyframes rcSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Point list item ────────────────────────────────────────────────────────── */
+.rocourier-point-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  position: relative;
+}
+
+.rocourier-point-item:hover {
+  border-color: #ccc;
+  background: #fafafa;
+}
+
+.rocourier-point-item.is-selected {
+  border-color: #000;
+  background: #f9f9f9;
+}
+
+.rc-point-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  margin-bottom: 2px;
+  align-self: flex-start;
+}
+
+.rc-point-info { display: flex; flex-direction: column; gap: 2px; }
+.rc-point-name { font-size: 0.85rem; font-weight: 600; }
+.rc-point-addr { font-size: 0.78rem; color: #666; }
+
+.rc-select-btn {
+  align-self: flex-end;
+  padding: 5px 12px;
+  background: #000;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-top: 4px;
+  transition: opacity 0.15s;
+}
+
+.rc-select-btn:hover    { opacity: 0.8; }
+.rc-selected-btn        { background: #108043; }
+
+/* ── Responsive ────────────────────────────────────────────────────────────── */
+@media (max-width: 680px) {
+  .rocourier-modal-body {
+    flex-direction: column;
+  }
+  .rocourier-map-wrap {
+    flex: none;
+    height: 240px;
+  }
+  .rocourier-list-wrap {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #eee;
+    max-height: 260px;
+  }
+  .rocourier-modal-filters {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 420px) {
+  .rocourier-option { padding: 10px 12px; gap: 8px; }
+  .rocourier-modal-header { padding: 12px 14px; }
+}

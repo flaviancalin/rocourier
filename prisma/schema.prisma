@@ -1,0 +1,175 @@
+// prisma/schema.prisma
+// RoCourier - Full Database Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Shopify Session Storage (required by @shopify/shopify-app-session-storage-prisma) ───
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+}
+
+// ─── Shop Settings (one row per installed shop) ───────────────────────────────
+model ShopSettings {
+  id    String @id @default(cuid())
+  shop  String @unique
+
+  // ── FAN Courier ──────────────────────────────────────────────────────────────
+  // Get from: selfawb.ro → Profil → Generare Token API
+  fanClientId  String?   // Your client ID (numeric, e.g. "7032158")
+  fanUsername  String?   // selfAWB username
+  fanPassword  String?   // selfAWB password (stored encrypted in prod – see .env AES_KEY)
+  fanToken     String?   // cached JWT – auto-refreshed
+  fanTokenExp  DateTime?
+  fanEnabled   Boolean   @default(true)
+
+  // ── Sameday Courier ──────────────────────────────────────────────────────────
+  // Get from: eawb.sameday.ro → contact software@sameday.ro for API access
+  samedayUsername  String?
+  samedayPassword  String?
+  samedayToken     String?
+  samedayTokenExp  DateTime?
+  samedayEnabled   Boolean  @default(true)
+
+  // ── xConnector Note ──────────────────────────────────────────────────────────
+  // xConnector is a separate Shopify App (by InfoQuest, apps.shopify.com/xconnector)
+  // Your app can PUSH order data to xConnector via Shopify Order metafields/notes,
+  // which xConnector reads. Direct API key below is for their future partner API.
+  xconnectorApiKey  String?
+  xconnectorEnabled Boolean  @default(false)
+
+  // ── Sender / Warehouse Info ──────────────────────────────────────────────────
+  senderName    String?
+  senderCity    String?
+  senderZip     String?
+  senderAddress String?
+  senderPhone   String?
+  senderEmail   String?
+  senderCounty  String?  @default("Bucuresti")
+
+  // ── App Settings ─────────────────────────────────────────────────────────────
+  defaultWeight      Float    @default(1.0)  // kg
+  defaultCourier     String   @default("fan") // "fan" | "sameday"
+  autoGenerateAwb    Boolean  @default(false)
+  widgetPosition     String   @default("before_checkout") // position in cart
+  codSurcharge       Float    @default(0)   // extra fee for COD orders
+  showPickupMap      Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Orders (synced from Shopify via webhook) ─────────────────────────────────
+model Order {
+  id   String @id @default(cuid())
+  shop String
+
+  // Shopify data
+  shopifyOrderId    String
+  shopifyOrderName  String   // e.g. "#38952"
+  shopifyOrderToken String?
+
+  // Customer
+  customerName    String?
+  customerPhone   String?
+  customerEmail   String?
+
+  // Shipping address
+  shippingAddress1 String?
+  shippingCity     String?
+  shippingCounty   String?
+  shippingZip      String?
+  shippingCountry  String?  @default("RO")
+
+  // Delivery choice (set by cart widget)
+  shippingMethod    String   @default("home_delivery") // "home_delivery" | "pickup_point"
+  courierType       String   @default("fan")           // "fan" | "sameday"
+  pickupPointId     String?
+  pickupPointName   String?
+  pickupPointAddress String?
+
+  // AWB
+  awbNumber   String?
+  awbPdfUrl   String?
+  awbStatus   String   @default("pending")
+  // Statuses: pending → generated → picked_up → in_transit → out_for_delivery → delivered | returned | failed
+
+  // Financials
+  codAmount     Float   @default(0)
+  orderTotal    Float   @default(0)
+  weight        Float   @default(1)
+  packageCount  Int     @default(1)
+
+  // xConnector sync status
+  xconnectorSynced  Boolean  @default(false)
+  xconnectorSyncAt  DateTime?
+
+  // Timestamps
+  shopifyCreatedAt DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // AWB events log
+  events AwbEvent[]
+
+  @@unique([shop, shopifyOrderId])
+  @@index([shop])
+  @@index([shop, awbStatus])
+  @@index([shop, courierType])
+  @@index([createdAt])
+}
+
+// ─── AWB Tracking Events ──────────────────────────────────────────────────────
+model AwbEvent {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  eventCode String
+  eventDesc String
+  eventDate DateTime
+  location  String?
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+}
+
+// ─── Pickup Points Cache (refreshed every 24h) ───────────────────────────────
+model PickupPoint {
+  id        String @id @default(cuid())
+  externalId String  // ID from courier API
+  courier   String   // "fan" | "sameday"
+  name      String
+  address   String
+  city      String?
+  county    String?
+  zip       String?
+  lat       Float?
+  lng       Float?
+  type      String?  // "fanbox" | "easybox" | "pudo"
+  isActive  Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+
+  @@unique([courier, externalId])
+  @@index([courier])
+  @@index([county])
+}
