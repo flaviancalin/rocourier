@@ -39,7 +39,7 @@ COPY shopify.app.toml ./
 RUN addgroup -S rocourier && adduser -S rocourier -G rocourier
 USER rocourier
 
-EXPOSE 3000
+EXPOSE ${PORT:-3000}
 
 # Run migrations then start server
 CMD ["sh", "-c", "npx prisma migrate deploy && npm start"]
