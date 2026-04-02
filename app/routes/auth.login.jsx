@@ -6,13 +6,13 @@ import { login } from "../shopify.server.js";
 export async function loader({ request }) {
   const url = new URL(request.url);
   if (url.searchParams.get("shop")) {
-    return login(request);
+    throw await login(request);
   }
   return json({ showForm: true });
 }
 
 export async function action({ request }) {
-  return login(request);
+  throw await login(request);
 }
 
 export default function AuthLogin() {
