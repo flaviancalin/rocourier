@@ -134,6 +134,9 @@ export default function Settings() {
   const [showPickupMap,   setShowPickupMap]   = useState(settings.showPickupMap !== false);
   const [autoGenerateAwb, setAutoGenerateAwb] = useState(!!settings.autoGenerateAwb);
 
+  const [carrierStatus, setCarrierStatus] = useState(null); // null | "loading" | "registered" | "error"
+  const [carrierMsg,    setCarrierMsg]    = useState("");
+
   // ── Toasts ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (actionData?.saved) setToast("✅ Setările au fost salvate!");
@@ -175,6 +178,28 @@ export default function Settings() {
   const handleRefresh = useCallback(() => {
     submit({ intent: "refresh-pickup-points" }, { method: "post" });
   }, [submit]);
+
+  const handleCarrierRegister = useCallback(async () => {
+    setCarrierStatus("loading");
+    try {
+      const res = await fetch("/api/carrier-setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ intent: "register" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCarrierStatus("registered");
+        setCarrierMsg(data.alreadyRegistered ? "Serviciul era deja înregistrat." : "Serviciu de transport înregistrat cu succes!");
+      } else {
+        setCarrierStatus("error");
+        setCarrierMsg(data.error || "Eroare necunoscută.");
+      }
+    } catch (e) {
+      setCarrierStatus("error");
+      setCarrierMsg(e.message);
+    }
+  }, []);
 
   const tabs = [
     { id: "sender",     content: "📦 Expeditor"   },
@@ -363,6 +388,36 @@ export default function Settings() {
                           </Banner>
                         )}
                         <Button onClick={handleRefresh} loading={saving}>🔄 Reîmprospătează puncte ridicare</Button>
+                      </BlockStack>
+                    </Card>
+
+                    <Card>
+                      <BlockStack gap="300">
+                        <Text variant="headingMd" fontWeight="semibold">Serviciu de transport (checkout)</Text>
+                        <Banner tone="info">
+                          <BlockStack gap="100">
+                            <Text>Înregistrează RoCourier ca furnizor de transport în Shopify. După activare, metoda de livrare aleasă de client (cu numele punctului de ridicare) va apărea direct în pagina de checkout.</Text>
+                            <Text>Apasă butonul o singură dată per magazin.</Text>
+                          </BlockStack>
+                        </Banner>
+                        {carrierStatus === "registered" && (
+                          <Banner tone="success" title="Serviciu activ">
+                            <Text>{carrierMsg}</Text>
+                          </Banner>
+                        )}
+                        {carrierStatus === "error" && (
+                          <Banner tone="critical" title="Eroare">
+                            <Text>{carrierMsg}</Text>
+                          </Banner>
+                        )}
+                        <Button
+                          variant="primary"
+                          onClick={handleCarrierRegister}
+                          loading={carrierStatus === "loading"}
+                          disabled={carrierStatus === "registered"}
+                        >
+                          🚚 Activează serviciu de transport în checkout
+                        </Button>
                       </BlockStack>
                     </Card>
                   </BlockStack>
