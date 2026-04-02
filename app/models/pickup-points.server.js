@@ -69,6 +69,7 @@ export async function refreshPickupPointsCache({ settings, couriers = ["fan", "s
       const samedayPoints = await samedayGetLockers({
         username: settings.samedayUsername,
         password: settings.samedayPassword,
+        sandbox: false,
       });
 
       for (const p of samedayPoints) {

@@ -116,17 +116,36 @@ export async function samedayGetLockers({ username, password, sandbox = false, c
   // Try /api/geolocation/pickup-points first (standard contract)
   // Fall back to /api/locker/list (requires special contract tier)
   let lockers = [];
+  let lastError = null;
+
   try {
     const params = new URLSearchParams({ perPage: 500, type: 2 }); // type 2 = easybox/locker
     if (county) params.append("county", county);
     const data = await samedayRequest(base, `/api/geolocation/pickup-points?${params}`, { token });
-    lockers = data.data || data || [];
-  } catch {
-    // fallback to locker list endpoint
-    const params = new URLSearchParams({ perPage: 500 });
-    if (county) params.append("county", county);
-    const data = await samedayRequest(base, `/api/locker/list?${params}`, { token });
-    lockers = data.data || [];
+    lockers = data.data || (Array.isArray(data) ? data : []);
+  } catch (e) {
+    lastError = e;
+    try {
+      // fallback to locker list endpoint
+      const params = new URLSearchParams({ perPage: 500 });
+      if (county) params.append("county", county);
+      const data = await samedayRequest(base, `/api/locker/list?${params}`, { token });
+      lockers = data.data || [];
+      lastError = null;
+    } catch (e2) {
+      lastError = e2;
+    }
+  }
+
+  if (lastError) {
+    const is403 = lastError.message?.includes("[403]");
+    if (is403) {
+      throw new Error(
+        "Contractul Sameday nu include accesul la lista de easybox-uri (403 Forbidden). " +
+        "Contactați Sameday (software@sameday.ro) pentru activarea accesului API la lockerele easybox."
+      );
+    }
+    throw lastError;
   }
 
   return lockers.map((l) => ({
