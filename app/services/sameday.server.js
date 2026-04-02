@@ -113,11 +113,21 @@ export async function samedayGetLockers({ username, password, sandbox = false, c
   const token = await samedayAuthenticate({ username, password, sandbox });
   const base = getBase(sandbox);
 
-  const params = new URLSearchParams({ perPage: 500 });
-  if (county) params.append("county", county);
-
-  const data = await samedayRequest(base, `/api/locker/list?${params}`, { token });
-  const lockers = data.data || [];
+  // Try /api/geolocation/pickup-points first (standard contract)
+  // Fall back to /api/locker/list (requires special contract tier)
+  let lockers = [];
+  try {
+    const params = new URLSearchParams({ perPage: 500, type: 2 }); // type 2 = easybox/locker
+    if (county) params.append("county", county);
+    const data = await samedayRequest(base, `/api/geolocation/pickup-points?${params}`, { token });
+    lockers = data.data || data || [];
+  } catch {
+    // fallback to locker list endpoint
+    const params = new URLSearchParams({ perPage: 500 });
+    if (county) params.append("county", county);
+    const data = await samedayRequest(base, `/api/locker/list?${params}`, { token });
+    lockers = data.data || [];
+  }
 
   return lockers.map((l) => ({
     id: String(l.id),
