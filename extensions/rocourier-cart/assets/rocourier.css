@@ -1,102 +1,114 @@
-/* extensions/rocourier-cart/assets/rocourier.css
-   RoCourier — Cart Widget Styles
-   Works with any Shopify theme (no conflicts — all classes scoped to .rocourier-*) */
+/* RoCourier Cart Widget — scoped to .rc-* to avoid theme conflicts */
 
-/* ── Reset inside widget ───────────────────────────────────────────────────── */
+/* ── Reset ─────────────────────────────────────────────────────────────────── */
 .rocourier-widget *,
-.rocourier-modal * {
-  box-sizing: border-box;
-}
+.rc-modal * { box-sizing: border-box; }
 
-/* ── Widget container ──────────────────────────────────────────────────────── */
+/* ── Widget ─────────────────────────────────────────────────────────────────── */
 .rocourier-widget {
   font-family: inherit;
-  margin: 20px 0;
-  padding: 0;
+  margin: 16px 0;
 }
 
-.rocourier-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-
-.rocourier-icon { font-size: 1.3rem; }
-
-.rocourier-title {
-  margin: 0;
-  font-size: 1rem;
+.rc-section-title {
+  font-size: 0.9rem;
   font-weight: 600;
   color: inherit;
+  margin: 0 0 10px;
+  letter-spacing: 0.01em;
 }
 
-/* ── Options ───────────────────────────────────────────────────────────────── */
-.rocourier-options {
+/* ── Method rows ─────────────────────────────────────────────────────────────  */
+.rc-methods {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 14px;
+  gap: 0;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  overflow: hidden;
 }
 
-.rocourier-option {
+.rc-method-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 16px;
-  border: 2px solid #e0e0e0;
-  border-radius: 10px;
+  padding: 13px 15px;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
   background: #fff;
+  transition: background 0.12s;
+  border-bottom: 1px solid #e8e8e8;
   position: relative;
 }
 
-.rocourier-option:hover {
-  border-color: #aaa;
-}
+.rc-method-row:last-child { border-bottom: none; }
 
-.rocourier-option input[type="radio"] {
+.rc-method-row:hover { background: #f9f9f9; }
+
+.rc-method-row input[type="radio"] {
   position: absolute;
   opacity: 0;
   width: 0;
   height: 0;
+  pointer-events: none;
 }
 
-.rocourier-option:has(input:checked) {
-  border-color: #000;
-  background: #fafafa;
+.rc-method-row:has(input:checked) {
+  background: #f5f5f5;
 }
 
-.rocourier-option-content {
+/* Courier icon */
+.rc-method-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #fff3e0;
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex: 1;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid #ffe0b2;
 }
 
-.rocourier-option-icon { font-size: 1.4rem; flex-shrink: 0; }
+.rc-method-icon svg {
+  width: 18px;
+  height: 18px;
+  color: #e65100;
+  stroke: #e65100;
+}
 
-.rocourier-option-text {
+.rc-method-icon.rc-icon-sameday {
+  background: #e3f2fd;
+  border-color: #b3d9f7;
+}
+.rc-method-icon.rc-icon-sameday svg { color: #0277bd; stroke: #0277bd; }
+
+.rc-method-icon.rc-icon-box {
+  /* locker icon styling override handled via parent class order */
+}
+
+/* Text */
+.rc-method-text {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
-.rocourier-option-text strong {
-  font-size: 0.95rem;
+.rc-method-text strong {
+  font-size: 0.9rem;
   font-weight: 600;
   color: inherit;
 }
 
-.rocourier-option-text small {
-  font-size: 0.8rem;
+.rc-method-text small {
+  font-size: 0.78rem;
   color: #777;
 }
 
-.rocourier-option-check {
-  width: 20px;
-  height: 20px;
+/* Custom radio indicator */
+.rc-method-radio {
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   border: 2px solid #ccc;
   flex-shrink: 0;
@@ -104,254 +116,244 @@
   position: relative;
 }
 
-.rocourier-option:has(input:checked) .rocourier-option-check {
-  border-color: #000;
-  background: #000;
+.rc-method-row:has(input:checked) .rc-method-radio {
+  border-color: #222;
+  background: #222;
 }
 
-.rocourier-option:has(input:checked) .rocourier-option-check::after {
+.rc-method-row:has(input:checked) .rc-method-radio::after {
   content: "";
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -55%) rotate(45deg);
-  width: 5px;
-  height: 9px;
+  width: 4px;
+  height: 8px;
   border: 2px solid #fff;
   border-top: none;
   border-left: none;
 }
 
-/* ── Pickup section ────────────────────────────────────────────────────────── */
-.rocourier-pickup-section {
-  margin-top: 8px;
-  animation: rcFadeIn 0.2s ease;
-}
-
-@keyframes rcFadeIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ── Selected point display ────────────────────────────────────────────────── */
-.rocourier-selected {
-  border: 2px solid #000;
-  border-radius: 10px;
-  padding: 12px 16px;
-  background: #fafafa;
-  margin-bottom: 10px;
-}
-
-.rocourier-selected-inner {
+/* ── Selected point display ──────────────────────────────────────────────────  */
+.rc-point-selected {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-top: 10px;
+  padding: 11px 14px;
+  border: 1.5px solid #222;
+  border-radius: 8px;
+  background: #fafafa;
   flex-wrap: wrap;
 }
 
-.rocourier-selected-inner strong { font-size: 0.9rem; display: block; }
-.rocourier-selected-inner span   { font-size: 0.8rem; color: #555; display: block; }
+.rc-point-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 
-.rocourier-change-btn {
-  margin-left: auto;
+.rc-badge-fan     { background: #fff3e0; color: #e65100; border: 1px solid #e65100; }
+.rc-badge-sameday { background: #e3f2fd; color: #0277bd; border: 1px solid #0277bd; }
+
+.rc-point-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.rc-point-info strong {
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rc-point-info span {
+  font-size: 0.77rem;
+  color: #666;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rc-change-btn {
+  flex-shrink: 0;
   background: none;
   border: 1px solid #ccc;
   padding: 5px 12px;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 0.82rem;
-  white-space: nowrap;
+  font-size: 0.8rem;
   transition: border-color 0.15s;
 }
+.rc-change-btn:hover { border-color: #222; }
 
-.rocourier-change-btn:hover { border-color: #000; }
-
-/* ── Open map button ───────────────────────────────────────────────────────── */
-.rocourier-open-map-btn {
-  width: 100%;
-  padding: 12px 16px;
-  background: #fff;
-  border: 2px dashed #ccc;
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: inherit;
-  text-align: center;
-  transition: border-color 0.15s, background 0.15s;
-}
-
-.rocourier-open-map-btn:hover {
-  border-color: #000;
-  background: #fafafa;
-}
-
-/* ── Error box ─────────────────────────────────────────────────────────────── */
-.rocourier-error {
+/* ── Error ───────────────────────────────────────────────────────────────────  */
+.rc-error {
   margin-top: 8px;
   padding: 10px 14px;
-  background: #fff3cd;
-  border: 1px solid #ffc107;
+  background: #fdecea;
+  border: 1px solid #f44336;
   border-radius: 8px;
-  font-size: 0.85rem;
-  color: #664d03;
+  font-size: 0.84rem;
+  color: #b71c1c;
+  font-weight: 500;
 }
 
-/* ── Badge ─────────────────────────────────────────────────────────────────── */
-.rocourier-badge {
-  display: inline-block;
-  padding: 2px 9px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.rc-badge-fan     { background: #fff3e0; color: #e65100; border: 1px solid #e65100aa; }
-.rc-badge-sameday { background: #e3f2fd; color: #1565c0; border: 1px solid #1565c0aa; }
-
-/* ── Modal ─────────────────────────────────────────────────────────────────── */
-.rocourier-modal {
+/* ── Modal ───────────────────────────────────────────────────────────────────  */
+.rc-modal {
   position: fixed;
   inset: 0;
   z-index: 100000;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 12px;
 }
 
-.rocourier-modal-backdrop {
+.rc-modal-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(2px);
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(3px);
 }
 
-.rocourier-modal-inner {
+.rc-modal-inner {
   position: relative;
   background: #fff;
-  border-radius: 16px;
+  border-radius: 14px;
   width: 100%;
-  max-width: 860px;
-  max-height: 90vh;
+  max-width: 920px;
+  height: 88vh;
+  max-height: 680px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.2);
-  animation: rcModalIn 0.25s ease;
+  box-shadow: 0 24px 80px rgba(0,0,0,.22);
+  animation: rcIn .22s ease;
 }
 
-@keyframes rcModalIn {
-  from { transform: scale(0.96) translateY(10px); opacity: 0; }
-  to   { transform: scale(1)    translateY(0);     opacity: 1; }
+@keyframes rcIn {
+  from { transform: scale(.97) translateY(8px); opacity: 0; }
+  to   { transform: scale(1) translateY(0);     opacity: 1; }
 }
 
-/* Modal header */
-.rocourier-modal-header {
+/* Header */
+.rc-modal-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px 20px;
-  border-bottom: 1px solid #eee;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #ececec;
   flex-shrink: 0;
   flex-wrap: wrap;
 }
 
-.rocourier-modal-header h4 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
+.rc-modal-search-wrap {
+  flex: 1;
+  min-width: 180px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.rc-search-icon {
+  position: absolute;
+  left: 10px;
+  width: 16px;
+  height: 16px;
+  color: #999;
+  pointer-events: none;
+}
+
+.rc-search-input {
+  width: 100%;
+  padding: 8px 12px 8px 34px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.86rem;
+  font-family: inherit;
+  background: #f9f9f9;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+.rc-search-input:focus {
+  border-color: #222;
+  background: #fff;
+}
+
+/* Filter buttons */
+.rc-modal-filters {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.rc-filter-btn {
+  padding: 6px 13px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  background: #fff;
+  transition: all 0.15s;
+  font-family: inherit;
   white-space: nowrap;
 }
-
-.rocourier-modal-filters {
-  display: flex;
-  gap: 8px;
-  flex: 1;
-  min-width: 200px;
+.rc-filter-btn:hover      { border-color: #aaa; background: #f5f5f5; }
+.rc-filter-btn.rc-filter-active {
+  background: #222;
+  color: #fff;
+  border-color: #222;
 }
 
-.rocourier-search-input,
-.rocourier-filter-select {
-  flex: 1;
-  padding: 7px 12px;
-  border: 1px solid #ddd;
-  border-radius: 7px;
-  font-size: 0.85rem;
-  font-family: inherit;
-  background: #fff;
-  outline: none;
-  transition: border-color 0.15s;
-}
-
-.rocourier-search-input:focus,
-.rocourier-filter-select:focus {
-  border-color: #000;
-}
-
-.rocourier-modal-close {
-  margin-left: auto;
-  background: #f5f5f5;
-  border: none;
-  width: 32px;
-  height: 32px;
+/* Close button */
+.rc-modal-close {
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
+  border: none;
+  background: #f0f0f0;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.9rem;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   transition: background 0.15s;
 }
+.rc-modal-close:hover { background: #e0e0e0; }
 
-.rocourier-modal-close:hover { background: #e0e0e0; }
-
-/* Modal body */
-.rocourier-modal-body {
+/* Body: list + map */
+.rc-modal-body {
   display: flex;
   flex: 1;
   overflow: hidden;
   min-height: 0;
 }
 
-/* Map */
-.rocourier-map-wrap {
-  flex: 1.5;
-  position: relative;
-  min-height: 320px;
-}
-
-#rocourier-map {
-  width: 100%;
-  height: 100%;
-  min-height: 320px;
-}
-
-.rocourier-map-loading {
-  position: absolute;
-  inset: 0;
-  background: #f5f5f5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.9rem;
-  color: #888;
-  z-index: 1;
-}
-
-/* List */
-.rocourier-list-wrap {
-  width: 300px;
+/* List panel (left) */
+.rc-list-panel {
+  width: 320px;
   flex-shrink: 0;
-  border-left: 1px solid #eee;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border-right: 1px solid #ececec;
 }
 
-.rocourier-list-loading {
+.rc-list-loading {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -360,16 +362,25 @@
   padding: 40px 20px;
   color: #888;
   font-size: 0.85rem;
+  flex: 1;
 }
 
-.rocourier-list-empty {
-  padding: 24px;
+.rc-list-empty {
+  padding: 28px 20px;
   text-align: center;
-  color: #888;
-  font-size: 0.85rem;
+  color: #999;
+  font-size: 0.84rem;
 }
 
-.rocourier-points-list {
+.rc-list-count {
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  color: #999;
+  border-top: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+
+.rc-points-list {
   list-style: none;
   margin: 0;
   padding: 8px;
@@ -378,95 +389,92 @@
 }
 
 /* Spinner */
-.rocourier-spinner {
-  width: 28px;
-  height: 28px;
-  border: 3px solid #f0f0f0;
-  border-top-color: #000;
+.rc-spinner {
+  width: 26px;
+  height: 26px;
+  border: 3px solid #eee;
+  border-top-color: #222;
   border-radius: 50%;
-  animation: rcSpin 0.8s linear infinite;
+  animation: rcSpin .75s linear infinite;
 }
+@keyframes rcSpin { to { transform: rotate(360deg); } }
 
-@keyframes rcSpin {
-  to { transform: rotate(360deg); }
-}
-
-/* ── Point list item ────────────────────────────────────────────────────────── */
-.rocourier-point-item {
+/* Point item */
+.rc-item {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   padding: 10px 12px;
   border: 1px solid #eee;
   border-radius: 8px;
   margin-bottom: 6px;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
-  position: relative;
 }
+.rc-item:hover          { border-color: #ccc; background: #fafafa; }
+.rc-item.rc-item-selected { border-color: #222; background: #f9f9f9; }
 
-.rocourier-point-item:hover {
-  border-color: #ccc;
-  background: #fafafa;
-}
+.rc-item-top  { display: flex; align-items: center; }
 
-.rocourier-point-item.is-selected {
-  border-color: #000;
-  background: #f9f9f9;
-}
-
-.rc-point-badge {
+.rc-item-badge {
   display: inline-block;
   padding: 1px 7px;
   border-radius: 12px;
   font-size: 10px;
   font-weight: 700;
-  margin-bottom: 2px;
-  align-self: flex-start;
 }
 
-.rc-point-info { display: flex; flex-direction: column; gap: 2px; }
-.rc-point-name { font-size: 0.85rem; font-weight: 600; }
-.rc-point-addr { font-size: 0.78rem; color: #666; }
+.rc-item-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: inherit;
+}
 
-.rc-select-btn {
+.rc-item-addr {
+  font-size: 0.77rem;
+  color: #777;
+}
+
+.rc-item-btn {
   align-self: flex-end;
-  padding: 5px 12px;
-  background: #000;
+  margin-top: 4px;
+  padding: 5px 13px;
+  background: #222;
   color: #fff;
   border: none;
   border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.79rem;
   font-weight: 600;
-  margin-top: 4px;
+  cursor: pointer;
+  font-family: inherit;
   transition: opacity 0.15s;
 }
+.rc-item-btn:hover    { opacity: .8; }
+.rc-item-btn-sel      { background: #2e7d32; }
 
-.rc-select-btn:hover    { opacity: 0.8; }
-.rc-selected-btn        { background: #108043; }
-
-/* ── Responsive ────────────────────────────────────────────────────────────── */
-@media (max-width: 680px) {
-  .rocourier-modal-body {
-    flex-direction: column;
-  }
-  .rocourier-map-wrap {
-    flex: none;
-    height: 240px;
-  }
-  .rocourier-list-wrap {
-    width: 100%;
-    border-left: none;
-    border-top: 1px solid #eee;
-    max-height: 260px;
-  }
-  .rocourier-modal-filters {
-    flex-direction: column;
-  }
+/* Map panel (right) */
+.rc-map-panel {
+  flex: 1;
+  position: relative;
+  min-width: 0;
 }
 
-@media (max-width: 420px) {
-  .rocourier-option { padding: 10px 12px; gap: 8px; }
-  .rocourier-modal-header { padding: 12px 14px; }
+#rc-map {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────────  */
+@media (max-width: 680px) {
+  .rc-modal-inner  { height: 95vh; max-height: none; border-radius: 10px; }
+  .rc-modal-body   { flex-direction: column-reverse; }
+  .rc-list-panel   { width: 100%; border-right: none; border-top: 1px solid #ececec; max-height: 45vh; }
+  .rc-map-panel    { flex: none; height: 240px; }
+  .rc-modal-filters { gap: 4px; }
+  .rc-filter-btn   { padding: 5px 10px; font-size: 0.75rem; }
+}
+
+@media (max-width: 400px) {
+  .rc-method-row { padding: 11px 12px; gap: 10px; }
+  .rc-method-icon { width: 30px; height: 30px; }
 }
