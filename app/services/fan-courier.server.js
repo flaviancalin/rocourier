@@ -72,20 +72,42 @@ export async function fanAuthenticate({ clientId, username, password }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PUDO / FANbox pickup points
-// GET /pudo-points?type=fanbox
+// GET /pudo-points  (type parameter varies by API version)
 // Returns array of { id, name, address, city, county, zip, lat, long }
 // ─────────────────────────────────────────────────────────────────────────────
-export async function fanGetPickupPoints({ clientId, username, password, type = "fanbox" }) {
+export async function fanGetPickupPoints({ clientId, username, password }) {
   const token = await fanAuthenticate({ clientId, username, password });
 
-  const data = await fanRequest(`/pudo-points?type=${type}`, { token });
-  const points = data.data || [];
+  // Try endpoints in order until one works
+  let points = [];
+  const endpoints = [
+    "/pudo-points",          // no filter — returns all PUDO points
+    "/pudo-points?type=1",   // numeric type 1 = FANbox lockers
+    "/pudo-points?type=2",   // numeric type 2 = PUDO partner shops
+  ];
+
+  let lastError = null;
+  for (const ep of endpoints) {
+    try {
+      const data = await fanRequest(ep, { token });
+      const raw = data.data || data;
+      if (Array.isArray(raw) && raw.length > 0) {
+        points = raw;
+        lastError = null;
+        break;
+      }
+    } catch (e) {
+      lastError = e;
+    }
+  }
+
+  if (lastError && points.length === 0) throw lastError;
 
   return points.map((p) => ({
     id: String(p.id),
     externalId: String(p.id),
     courier: "fan",
-    type: type,
+    type: "fanbox",
     name: p.name || p.alias || "FANbox",
     address: [p.address, p.city, p.county].filter(Boolean).join(", "),
     city: p.city,
