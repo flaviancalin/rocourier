@@ -126,8 +126,11 @@
       attempts = attempts || 0;
       if (typeof L !== "undefined") {
         initMap();
-        setTimeout(() => { if (mapInst) mapInst.invalidateSize(); }, 100);
-      } else if (attempts < 20) {
+        // invalidateSize multiple times to handle CSS transitions/layout
+        setTimeout(() => { if (mapInst) mapInst.invalidateSize(); }, 50);
+        setTimeout(() => { if (mapInst) mapInst.invalidateSize(); }, 200);
+        setTimeout(() => { if (mapInst) mapInst.invalidateSize(); }, 500);
+      } else if (attempts < 30) {
         setTimeout(() => tryInitMap(attempts + 1), 100);
       }
     }
@@ -175,7 +178,10 @@
         allPoints    = data.points || [];
         pointsLoaded = true;
         applyFilters();
-        if (mapInst) renderMarkers(filtered);
+        if (mapInst) {
+          mapInst.invalidateSize();
+          renderMarkers(filtered);
+        }
       } catch (err) {
         if (listEmpty) { listEmpty.textContent = "Nu s-au putut încărca lockerele. Încearcă din nou."; listEmpty.style.display = "block"; }
         console.error("RoCourier:", err);
