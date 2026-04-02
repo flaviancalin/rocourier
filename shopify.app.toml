@@ -5,7 +5,6 @@ embedded = true
 handle = "rocourier"
 
 [build]
-include_config_on_deploy = true
 
 [access_scopes]
 # Full list of required scopes
@@ -18,14 +17,6 @@ redirect_urls = [
 
 [webhooks]
 api_version = "2025-01"
-
-  [[webhooks.subscriptions]]
-  topics = ["orders/create"]
-  uri = "/webhooks/orders-create"
-
-  [[webhooks.subscriptions]]
-  topics = ["orders/updated"]
-  uri = "/webhooks/orders-updated"
 
 [app_proxy]
 url = "https://rocourier-production.up.railway.app/proxy"
