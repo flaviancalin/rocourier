@@ -6,7 +6,6 @@
 // delivery method as a shipping rate (with the pickup point name embedded).
 
 import { createHmac } from "crypto";
-import { prisma } from "../db.server.js";
 
 // Shopify sends this header so we can verify the request is genuine
 function verifyHmac(body, hmacHeader) {
