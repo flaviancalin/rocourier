@@ -118,10 +118,18 @@
       if (!pointsLoaded) fetchPoints();
       else applyFilters();
 
-      requestAnimationFrame(() => {
+      // Try immediately, then retry until Leaflet is available
+      tryInitMap();
+    }
+
+    function tryInitMap(attempts) {
+      attempts = attempts || 0;
+      if (typeof L !== "undefined") {
         initMap();
-        if (mapInst) setTimeout(() => mapInst.invalidateSize(), 150);
-      });
+        setTimeout(() => { if (mapInst) mapInst.invalidateSize(); }, 100);
+      } else if (attempts < 20) {
+        setTimeout(() => tryInitMap(attempts + 1), 100);
+      }
     }
 
     function closeModal() {
