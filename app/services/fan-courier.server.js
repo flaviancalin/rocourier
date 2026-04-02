@@ -72,49 +72,32 @@ export async function fanAuthenticate({ clientId, username, password }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PUDO / FANbox pickup points
-// GET /pudo-points  (type parameter varies by API version)
-// Returns array of { id, name, address, city, county, zip, lat, long }
+// GET /reports/pickup-points?type=fanbox&perPage=1000
+// Returns paginated list of { id, name, address, locality, county, lat, lng }
 // ─────────────────────────────────────────────────────────────────────────────
 export async function fanGetPickupPoints({ clientId, username, password }) {
   const token = await fanAuthenticate({ clientId, username, password });
 
-  // Try endpoints in order until one works
-  let points = [];
-  const endpoints = [
-    "/pudo-points",          // no filter — returns all PUDO points
-    "/pudo-points?type=1",   // numeric type 1 = FANbox lockers
-    "/pudo-points?type=2",   // numeric type 2 = PUDO partner shops
-  ];
+  // Fetch all FANbox lockers (paginated, up to 1000 per page)
+  const data = await fanRequest(
+    "/reports/pickup-points?type=fanbox&perPage=1000&currentPage=1",
+    { token }
+  );
 
-  let lastError = null;
-  for (const ep of endpoints) {
-    try {
-      const data = await fanRequest(ep, { token });
-      const raw = data.data || data;
-      if (Array.isArray(raw) && raw.length > 0) {
-        points = raw;
-        lastError = null;
-        break;
-      }
-    } catch (e) {
-      lastError = e;
-    }
-  }
-
-  if (lastError && points.length === 0) throw lastError;
+  const points = data.data || [];
 
   return points.map((p) => ({
     id: String(p.id),
     externalId: String(p.id),
     courier: "fan",
     type: "fanbox",
-    name: p.name || p.alias || "FANbox",
-    address: [p.address, p.city, p.county].filter(Boolean).join(", "),
-    city: p.city,
+    name: p.name || p.description || "FANbox",
+    address: [p.street || p.address, p.locality || p.city, p.county].filter(Boolean).join(", "),
+    city: p.locality || p.city,
     county: p.county,
-    zip: p.zip || p.postal_code,
+    zip: p.zip || p.postal_code || null,
     lat: parseFloat(p.lat) || null,
-    lng: parseFloat(p.long || p.lng) || null,
+    lng: parseFloat(p.long || p.lng || p.lon) || null,
   }));
 }
 
