@@ -86,19 +86,27 @@ export async function fanGetPickupPoints({ clientId, username, password }) {
 
   const points = data.data || [];
 
-  return points.map((p) => ({
-    id: String(p.id),
-    externalId: String(p.id),
-    courier: "fan",
-    type: "fanbox",
-    name: p.name || p.description || "FANbox",
-    address: [p.street || p.address, p.locality || p.city, p.county].filter(Boolean).join(", "),
-    city: p.locality || p.city,
-    county: p.county,
-    zip: p.zip || p.postal_code || null,
-    lat: parseFloat(p.lat) || null,
-    lng: parseFloat(p.long || p.lng || p.lon) || null,
-  }));
+  return points.map((p) => {
+    const addr = p.address || {};
+    const street = [addr.street, addr.streetNo].filter(Boolean).join(" ");
+    const city   = addr.locality || "";
+    const county = addr.county   || "";
+    const zip    = addr.zipCode  || "";
+
+    return {
+      id: String(p.id),
+      externalId: String(p.id),
+      courier: "fan",
+      type: "fanbox",
+      name: p.name || "FANbox",
+      address: [street, city, county].filter(Boolean).join(", "),
+      city,
+      county,
+      zip: zip || null,
+      lat: parseFloat(p.latitude)  || null,
+      lng: parseFloat(p.longitude) || null,
+    };
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
