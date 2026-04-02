@@ -1,22 +1,22 @@
 // app/routes/auth.login.jsx
 import { json } from "@remix-run/node";
-import { Form, useActionData } from "@remix-run/react";
+import { Form, useLoaderData } from "@remix-run/react";
 import { login } from "../shopify.server.js";
 
 export async function loader({ request }) {
-  const url = new URL(request.url);
-  if (url.searchParams.get("shop")) {
-    throw await login(request);
-  }
-  return json({ showForm: true });
+  const result = await login(request);
+  // login() throws a redirect if shop param is present and valid
+  // If we get here, no shop param was provided
+  return json(result ?? {});
 }
 
 export async function action({ request }) {
-  throw await login(request);
+  const result = await login(request);
+  return json(result ?? {});
 }
 
 export default function AuthLogin() {
-  const actionData = useActionData();
+  const data = useLoaderData();
   return (
     <div style={{
       display: "flex", alignItems: "center", justifyContent: "center",
@@ -42,8 +42,8 @@ export default function AuthLogin() {
             }}
             required
           />
-          {actionData?.error && (
-            <p style={{ color: "red", marginBottom: 8 }}>{actionData.error}</p>
+          {data?.errors?.shop && (
+            <p style={{ color: "red", marginBottom: 8 }}>{data.errors.shop}</p>
           )}
           <button type="submit" style={{
             width: "100%", padding: "10px 0", background: "#008060",
