@@ -1,0 +1,1 @@
+ALTER TABLE "ShopSettings" ADD COLUMN IF NOT EXISTS "samedaySandbox" BOOLEAN NOT NULL DEFAULT false;

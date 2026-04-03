@@ -41,7 +41,7 @@ export async function action({ request }) {
   if (intent === "test-sameday") {
     const settings = await prisma.shopSettings.findUnique({ where: { shop: session.shop } });
     try {
-      await samedayAuthenticate({ username: settings.samedayUsername, password: settings.samedayPassword });
+      await samedayAuthenticate({ username: settings.samedayUsername, password: settings.samedayPassword, sandbox: !!settings.samedaySandbox });
       return json({ testResult: { courier: "sameday", success: true } });
     } catch (e) {
       return json({ testResult: { courier: "sameday", success: false, error: e.message } });
@@ -114,6 +114,7 @@ export async function action({ request }) {
       fanEnabled:    get("fanEnabled") === "true",
       samedayUsername: get("samedayUsername") || "",
       samedayEnabled:  get("samedayEnabled") === "true",
+      samedaySandbox:  get("samedaySandbox") === "true",
       xconnectorEnabled: get("xconnectorEnabled") === "true",
       defaultCourier:  get("defaultCourier") || "fan",
       defaultWeight:   parseFloat(get("defaultWeight")) || 1,
@@ -168,6 +169,7 @@ export default function Settings() {
   const [fanPassword, setFanPassword] = useState("");
 
   const [samedayEnabled,  setSamedayEnabled]  = useState(!!settings.samedayEnabled);
+  const [samedaySandbox,  setSamedaySandbox]  = useState(!!settings.samedaySandbox);
   const [samedayUsername, setSamedayUsername] = useState(settings.samedayUsername || "");
   const [samedayPassword, setSamedayPassword] = useState("");
 
@@ -216,7 +218,7 @@ export default function Settings() {
       intent: "save",
       senderName, senderCounty, senderCity, senderZip, senderAddress, senderPhone, senderEmail,
       fanEnabled: String(fanEnabled), fanClientId, fanUsername,
-      samedayEnabled: String(samedayEnabled), samedayUsername,
+      samedayEnabled: String(samedayEnabled), samedaySandbox: String(samedaySandbox), samedayUsername,
       xconnectorEnabled: String(xconnectorEnabled),
       defaultCourier, defaultWeight,
       showPickupMap: String(showPickupMap),
@@ -229,7 +231,7 @@ export default function Settings() {
     submit(data, { method: "post" });
   }, [senderName, senderCounty, senderCity, senderZip, senderAddress, senderPhone, senderEmail,
       fanEnabled, fanClientId, fanUsername, fanPassword, samedayEnabled, samedayUsername,
-      samedayPassword, xconnectorEnabled, xconnectorApiKey, defaultCourier, defaultWeight,
+      samedayPassword, samedaySandbox, xconnectorEnabled, xconnectorApiKey, defaultCourier, defaultWeight,
       showPickupMap, autoGenerateAwb,
       fanHomeDeliveryFee, fanPickupFee, samedayHomeDeliveryFee, samedayPickupFee, submit]);
 
@@ -352,6 +354,12 @@ export default function Settings() {
                         <Divider />
                         <FormLayout>
                           <Checkbox label="Activează Sameday" checked={samedayEnabled} onChange={setSamedayEnabled} />
+                          <Checkbox
+                            label="Folosește mediul SANDBOX (demo/test)"
+                            checked={samedaySandbox}
+                            onChange={setSamedaySandbox}
+                            helpText={samedaySandbox ? "Conectat la: sameday-api.demo.zitec.com" : "Conectat la: api.sameday.ro (producție)"}
+                          />
                           <FormLayout.Group>
                             <TextField label="Username eAWB" value={samedayUsername} onChange={setSamedayUsername} autoComplete="off" />
                             <TextField label="Parolă eAWB" value={samedayPassword} onChange={setSamedayPassword} type="password" placeholder="Lasă gol pentru a păstra parola existentă" autoComplete="new-password" />

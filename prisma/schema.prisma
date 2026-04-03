@@ -51,6 +51,7 @@ model ShopSettings {
   samedayToken     String?
   samedayTokenExp  DateTime?
   samedayEnabled   Boolean  @default(true)
+  samedaySandbox   Boolean  @default(false)
 
   // ── xConnector Note ──────────────────────────────────────────────────────────
   // xConnector is a separate Shopify App (by InfoQuest, apps.shopify.com/xconnector)
