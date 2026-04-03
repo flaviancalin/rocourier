@@ -25,6 +25,41 @@
     const APP_URL = (widget.dataset.appUrl || "").replace(/\/$/, "");
     const FAN_ON  = widget.dataset.fanEnabled  !== "false";
     const SAM_ON  = widget.dataset.samedayEnabled !== "false";
+    const CURRENCY = widget.dataset.currency || "RON";
+
+    const FEES = {
+      fanHome:      parseFloat(widget.dataset.fanHomeFee)      || 0,
+      fanPickup:    parseFloat(widget.dataset.fanPickupFee)    || 0,
+      samedayHome:  parseFloat(widget.dataset.samedayHomeFee)  || 0,
+      samedayPickup:parseFloat(widget.dataset.samedayPickupFee)|| 0,
+    };
+
+    function feeLabel(amount) {
+      if (!amount || amount === 0) return "Gratuit";
+      return amount.toLocaleString("ro-RO", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + " " + CURRENCY;
+    }
+
+    // Inject fee labels into the method rows
+    function applyFeeLabels() {
+      const map = {
+        "rc-fan-home":     FEES.fanHome,
+        "rc-fan-box":      FEES.fanPickup,
+        "rc-sameday-home": FEES.samedayHome,
+        "rc-sameday-box":  FEES.samedayPickup,
+      };
+      Object.entries(map).forEach(([id, fee]) => {
+        const row = document.querySelector(`label[for="${id}"]`);
+        if (!row) return;
+        let badge = row.querySelector(".rc-method-fee");
+        if (!badge) {
+          badge = document.createElement("span");
+          badge.className = "rc-method-fee";
+          row.appendChild(badge);
+        }
+        badge.textContent = feeLabel(fee);
+      });
+    }
+    applyFeeLabels();
 
     // ── Radio buttons ─────────────────────────────────────────────────────────
     const radios = document.querySelectorAll('input[name="rc_delivery"]');

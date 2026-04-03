@@ -437,20 +437,28 @@ export default function Settings() {
                     </Card>
 
                     <Card>
-                      <BlockStack gap="300">
-                        <Text variant="headingMd" fontWeight="semibold">Transport în checkout</Text>
-                        <Banner tone="info" title="Cum configurezi tarifele de transport">
-                          <BlockStack gap="200">
-                            <Text>Widgetul salvează alegerea clientului (metodă + punct de ridicare) în atributele coșului. Acestea apar pe comandă în Shopify Admin.</Text>
-                            <Text>Pentru a afișa tarifele de transport în checkout, configurează <strong>rate manuale</strong> în Shopify:</Text>
-                            <BlockStack gap="100">
-                              <Text>1. Shopify Admin → <strong>Settings → Shipping and delivery</strong></Text>
-                              <Text>2. Click <strong>Manage rates</strong> pe profilul tău de livrare</Text>
-                              <Text>3. Adaugă o zonă <strong>Romania</strong> (dacă nu există)</Text>
-                              <Text>4. Click <strong>Add rate</strong> → introdu tariful fix (ex: "Livrare standard — 15 RON")</Text>
-                            </BlockStack>
-                            <Text>Metoda de livrare aleasă de client (FAN / Sameday / locker) va fi vizibilă pe comandă în secțiunea <strong>Note</strong> și <strong>Atribute</strong>.</Text>
+                      <BlockStack gap="400">
+                        <Text variant="headingMd" fontWeight="semibold">Tarife transport afișate în widget</Text>
+                        <Banner tone="info" title="Cum funcționează">
+                          <BlockStack gap="100">
+                            <Text>1. Configurează tarifele fixe în <strong>Shopify Admin → Settings → Shipping and delivery</strong> (zona Romania)</Text>
+                            <Text>2. Introdu aceleași valori mai jos — vor apărea în widget lângă fiecare opțiune de livrare</Text>
+                            <Text>3. Clientul vede prețul corect în coș, apoi alege rata potrivită în checkout</Text>
                           </BlockStack>
+                        </Banner>
+                        <Divider />
+                        <FormLayout>
+                          <FormLayout.Group>
+                            <TextField label="FAN Courier — livrare la domiciliu (RON)" value={fanHomeDeliveryFee} onChange={setFanHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" helpText="0 = Gratuit" autoComplete="off" />
+                            <TextField label="FANbox — ridicare locker (RON)" value={fanPickupFee} onChange={setFanPickupFee} type="number" min="0" step="0.5" suffix="RON" helpText="0 = Gratuit" autoComplete="off" />
+                          </FormLayout.Group>
+                          <FormLayout.Group>
+                            <TextField label="Sameday — livrare la domiciliu (RON)" value={samedayHomeDeliveryFee} onChange={setSamedayHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" helpText="0 = Gratuit" autoComplete="off" />
+                            <TextField label="Sameday easybox — ridicare locker (RON)" value={samedayPickupFee} onChange={setSamedayPickupFee} type="number" min="0" step="0.5" suffix="RON" helpText="0 = Gratuit" autoComplete="off" />
+                          </FormLayout.Group>
+                        </FormLayout>
+                        <Banner tone="warning" title="Nu uita!">
+                          <Text>După salvare, mergi în <strong>Themes → Customize → Cart page → RoCourier</strong> și introdu aceleași valori și acolo (câmpurile "Tarif..."). Sunt necesare în ambele locuri.</Text>
                         </Banner>
                       </BlockStack>
                     </Card>

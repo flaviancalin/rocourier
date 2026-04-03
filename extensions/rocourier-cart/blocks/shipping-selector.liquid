@@ -20,6 +20,11 @@
   data-app-url="{{ block.settings.app_url }}"
   data-fan-enabled="{{ block.settings.fan_enabled }}"
   data-sameday-enabled="{{ block.settings.sameday_enabled }}"
+  data-fan-home-fee="{{ block.settings.fan_home_fee | default: 0 }}"
+  data-fan-pickup-fee="{{ block.settings.fan_pickup_fee | default: 0 }}"
+  data-sameday-home-fee="{{ block.settings.sameday_home_fee | default: 0 }}"
+  data-sameday-pickup-fee="{{ block.settings.sameday_pickup_fee | default: 0 }}"
+  data-currency="{{ cart.currency.iso_code | default: 'RON' }}"
 >
 
   <p class="rc-section-title">
@@ -195,13 +200,17 @@
     { "type": "checkbox", "id": "fan_enabled",    "label": "Activează FAN Courier",          "default": true },
     { "type": "text",     "id": "fan_home_sub",   "label": "Sub-text livrare acasă FAN",      "default": "Livrare la domiciliu" },
     { "type": "text",     "id": "fan_box_sub",    "label": "Sub-text FANbox",                 "default": "Ridicare din locker FAN" },
+    { "type": "number",   "id": "fan_home_fee",   "label": "Tarif livrare acasă FAN (RON)",   "default": 0 },
+    { "type": "number",   "id": "fan_pickup_fee", "label": "Tarif FANbox locker (RON)",       "default": 0 },
     {
       "type": "header",
       "content": "Sameday"
     },
-    { "type": "checkbox", "id": "sameday_enabled",   "label": "Activează Sameday",              "default": true },
-    { "type": "text",     "id": "sameday_home_sub",  "label": "Sub-text livrare acasă Sameday", "default": "Livrare la domiciliu" },
-    { "type": "text",     "id": "sameday_box_sub",   "label": "Sub-text easybox",               "default": "Ridicare din locker Sameday" },
+    { "type": "checkbox", "id": "sameday_enabled",     "label": "Activează Sameday",                "default": true },
+    { "type": "text",     "id": "sameday_home_sub",    "label": "Sub-text livrare acasă Sameday",   "default": "Livrare la domiciliu" },
+    { "type": "text",     "id": "sameday_box_sub",     "label": "Sub-text easybox",                 "default": "Ridicare din locker Sameday" },
+    { "type": "number",   "id": "sameday_home_fee",    "label": "Tarif livrare acasă Sameday (RON)","default": 0 },
+    { "type": "number",   "id": "sameday_pickup_fee",  "label": "Tarif Sameday easybox (RON)",      "default": 0 },
     {
       "type": "header",
       "content": "Hartă"

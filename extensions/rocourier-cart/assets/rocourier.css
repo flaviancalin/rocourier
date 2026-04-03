@@ -101,6 +101,15 @@
   color: #777;
 }
 
+/* Fee label */
+.rc-method-fee {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #222;
+  flex-shrink: 0;
+  margin-right: 6px;
+}
+
 /* Custom radio indicator */
 .rc-method-radio {
   width: 20px;
