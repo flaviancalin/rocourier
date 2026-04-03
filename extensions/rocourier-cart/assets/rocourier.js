@@ -125,11 +125,12 @@
     function tryInitMap(attempts) {
       attempts = attempts || 0;
       if (typeof L !== "undefined") {
-        initMap();
-        // invalidateSize multiple times to handle CSS transitions/layout
-        setTimeout(() => { if (mapInst) mapInst.invalidateSize(); }, 50);
-        setTimeout(() => { if (mapInst) mapInst.invalidateSize(); }, 200);
-        setTimeout(() => { if (mapInst) mapInst.invalidateSize(); }, 500);
+        // Use double rAF so the browser fully lays out the modal before Leaflet measures it
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          initMap();
+          if (mapInst) mapInst.invalidateSize();
+          setTimeout(() => { if (mapInst) mapInst.invalidateSize(); }, 300);
+        }));
       } else if (attempts < 30) {
         setTimeout(() => tryInitMap(attempts + 1), 100);
       }

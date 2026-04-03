@@ -24,7 +24,7 @@ export async function loader({ request }) {
 
 // ─── Action ───────────────────────────────────────────────────────────────────
 export async function action({ request }) {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const formData = await request.formData();
   const intent = formData.get("intent");
 
@@ -45,6 +45,47 @@ export async function action({ request }) {
       return json({ testResult: { courier: "sameday", success: true } });
     } catch (e) {
       return json({ testResult: { courier: "sameday", success: false, error: e.message } });
+    }
+  }
+
+  if (intent === "carrier-register") {
+    const APP_URL = (process.env.SHOPIFY_APP_URL || "https://rocourier-production.up.railway.app").replace(/\/$/, "");
+    const CALLBACK_URL = `${APP_URL}/carrier-service`;
+    try {
+      // Use Shopify Admin REST API via fetch with the session token
+      const shop = session.shop;
+      const token = session.accessToken;
+      const apiVersion = "2024-10";
+
+      // Check existing carrier services
+      const checkRes = await fetch(
+        `https://${shop}/admin/api/${apiVersion}/carrier_services.json`,
+        { headers: { "X-Shopify-Access-Token": token, "Content-Type": "application/json" } }
+      );
+      const checkData = await checkRes.json();
+      const existing = checkData.carrier_services || [];
+      const ours = existing.find((cs) => cs.callback_url === CALLBACK_URL);
+      if (ours) {
+        return json({ carrierResult: { success: true, alreadyRegistered: true, id: ours.id } });
+      }
+
+      // Register new carrier service
+      const createRes = await fetch(
+        `https://${shop}/admin/api/${apiVersion}/carrier_services.json`,
+        {
+          method: "POST",
+          headers: { "X-Shopify-Access-Token": token, "Content-Type": "application/json" },
+          body: JSON.stringify({ carrier_service: { name: "RoCourier", callback_url: CALLBACK_URL, service_discovery: true } }),
+        }
+      );
+      const createData = await createRes.json();
+      const cs = createData.carrier_service;
+      if (cs?.id) {
+        return json({ carrierResult: { success: true, id: cs.id } });
+      }
+      return json({ carrierResult: { success: false, error: JSON.stringify(createData) } });
+    } catch (e) {
+      return json({ carrierResult: { success: false, error: String(e) } });
     }
   }
 
@@ -78,6 +119,10 @@ export async function action({ request }) {
       defaultWeight:   parseFloat(get("defaultWeight")) || 1,
       autoGenerateAwb: get("autoGenerateAwb") === "true",
       showPickupMap:   get("showPickupMap") === "true",
+      fanHomeDeliveryFee:     parseFloat(get("fanHomeDeliveryFee"))     || 0,
+      fanPickupFee:           parseFloat(get("fanPickupFee"))           || 0,
+      samedayHomeDeliveryFee: parseFloat(get("samedayHomeDeliveryFee")) || 0,
+      samedayPickupFee:       parseFloat(get("samedayPickupFee"))       || 0,
     };
     const fanPw = get("fanPassword");
     if (fanPw) data.fanPassword = fanPw;
@@ -134,6 +179,11 @@ export default function Settings() {
   const [showPickupMap,   setShowPickupMap]   = useState(settings.showPickupMap !== false);
   const [autoGenerateAwb, setAutoGenerateAwb] = useState(!!settings.autoGenerateAwb);
 
+  const [fanHomeDeliveryFee,     setFanHomeDeliveryFee]     = useState(String(settings.fanHomeDeliveryFee     ?? 0));
+  const [fanPickupFee,           setFanPickupFee]           = useState(String(settings.fanPickupFee           ?? 0));
+  const [samedayHomeDeliveryFee, setSamedayHomeDeliveryFee] = useState(String(settings.samedayHomeDeliveryFee ?? 0));
+  const [samedayPickupFee,       setSamedayPickupFee]       = useState(String(settings.samedayPickupFee       ?? 0));
+
   const [carrierStatus, setCarrierStatus] = useState(null); // null | "loading" | "registered" | "error"
   const [carrierMsg,    setCarrierMsg]    = useState("");
 
@@ -142,6 +192,16 @@ export default function Settings() {
     if (actionData?.saved) setToast("✅ Setările au fost salvate!");
     else if (actionData?.testResult?.success) setToast("✅ Conexiune reușită!");
     else if (actionData?.testResult?.success === false) setToast(`❌ ${actionData.testResult.error}`);
+    else if (actionData?.carrierResult) {
+      const r = actionData.carrierResult;
+      if (r.success) {
+        setCarrierStatus("registered");
+        setCarrierMsg(r.alreadyRegistered ? "Serviciul era deja înregistrat." : "Serviciu de transport înregistrat cu succes!");
+      } else {
+        setCarrierStatus("error");
+        setCarrierMsg(r.error || "Eroare necunoscută.");
+      }
+    }
     else if (actionData?.refreshResult) {
       const r = actionData.refreshResult;
       setToast(r.errors?.length
@@ -161,6 +221,7 @@ export default function Settings() {
       defaultCourier, defaultWeight,
       showPickupMap: String(showPickupMap),
       autoGenerateAwb: String(autoGenerateAwb),
+      fanHomeDeliveryFee, fanPickupFee, samedayHomeDeliveryFee, samedayPickupFee,
     };
     if (fanPassword) data.fanPassword = fanPassword;
     if (samedayPassword) data.samedayPassword = samedayPassword;
@@ -169,7 +230,8 @@ export default function Settings() {
   }, [senderName, senderCounty, senderCity, senderZip, senderAddress, senderPhone, senderEmail,
       fanEnabled, fanClientId, fanUsername, fanPassword, samedayEnabled, samedayUsername,
       samedayPassword, xconnectorEnabled, xconnectorApiKey, defaultCourier, defaultWeight,
-      showPickupMap, autoGenerateAwb, submit]);
+      showPickupMap, autoGenerateAwb,
+      fanHomeDeliveryFee, fanPickupFee, samedayHomeDeliveryFee, samedayPickupFee, submit]);
 
   const handleTest = useCallback((courier) => {
     submit({ intent: `test-${courier}` }, { method: "post" });
@@ -179,27 +241,10 @@ export default function Settings() {
     submit({ intent: "refresh-pickup-points" }, { method: "post" });
   }, [submit]);
 
-  const handleCarrierRegister = useCallback(async () => {
+  const handleCarrierRegister = useCallback(() => {
     setCarrierStatus("loading");
-    try {
-      const res = await fetch("/api/carrier-setup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ intent: "register" }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setCarrierStatus("registered");
-        setCarrierMsg(data.alreadyRegistered ? "Serviciul era deja înregistrat." : "Serviciu de transport înregistrat cu succes!");
-      } else {
-        setCarrierStatus("error");
-        setCarrierMsg(data.error || "Eroare necunoscută.");
-      }
-    } catch (e) {
-      setCarrierStatus("error");
-      setCarrierMsg(e.message);
-    }
-  }, []);
+    submit({ intent: "carrier-register" }, { method: "post" });
+  }, [submit]);
 
   const tabs = [
     { id: "sender",     content: "📦 Expeditor"   },
@@ -388,6 +433,24 @@ export default function Settings() {
                           </Banner>
                         )}
                         <Button onClick={handleRefresh} loading={saving}>🔄 Reîmprospătează puncte ridicare</Button>
+                      </BlockStack>
+                    </Card>
+
+                    <Card>
+                      <BlockStack gap="400">
+                        <Text variant="headingMd" fontWeight="semibold">Tarife transport (RON)</Text>
+                        <Text tone="subdued">Suma afișată clientului în checkout pentru fiecare metodă de livrare. Pune 0 pentru transport gratuit.</Text>
+                        <Divider />
+                        <FormLayout>
+                          <FormLayout.Group>
+                            <TextField label="FAN Courier — livrare la domiciliu (RON)" value={fanHomeDeliveryFee} onChange={setFanHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" autoComplete="off" />
+                            <TextField label="FANbox — ridicare locker (RON)" value={fanPickupFee} onChange={setFanPickupFee} type="number" min="0" step="0.5" suffix="RON" autoComplete="off" />
+                          </FormLayout.Group>
+                          <FormLayout.Group>
+                            <TextField label="Sameday — livrare la domiciliu (RON)" value={samedayHomeDeliveryFee} onChange={setSamedayHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" autoComplete="off" />
+                            <TextField label="Sameday easybox — ridicare locker (RON)" value={samedayPickupFee} onChange={setSamedayPickupFee} type="number" min="0" step="0.5" suffix="RON" autoComplete="off" />
+                          </FormLayout.Group>
+                        </FormLayout>
                       </BlockStack>
                     </Card>
 

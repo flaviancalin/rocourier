@@ -76,6 +76,12 @@ model ShopSettings {
   codSurcharge       Float    @default(0)   // extra fee for COD orders
   showPickupMap      Boolean  @default(true)
 
+  // ── Shipping fees (in RON, displayed and charged via carrier service) ─────────
+  fanHomeDeliveryFee       Float  @default(0)
+  fanPickupFee             Float  @default(0)
+  samedayHomeDeliveryFee   Float  @default(0)
+  samedayPickupFee         Float  @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
