@@ -5,6 +5,7 @@ import { json } from "@remix-run/node";
 import { useLoaderData, useNavigate, useSubmit, Form } from "@remix-run/react";
 import { authenticate } from "../shopify.server.js";
 import { getOrders } from "../models/order.server.js";
+import { prisma } from "../db.server.js";
 import { useState, useCallback } from "react";
 import {
   Page, Layout, Card, DataTable, Badge, Button, Text,
@@ -16,6 +17,55 @@ import {
 export async function loader({ request }) {
   const { session } = await authenticate.admin(request);
   const url = new URL(request.url);
+  const shop = session.shop;
+  const token = session.accessToken;
+
+  // Sync latest orders from Shopify API into our DB
+  try {
+    const res = await fetch(
+      `https://${shop}/admin/api/2024-10/orders.json?status=any&limit=50&fields=id,name,created_at,note_attributes,shipping_address,customer,total_price`,
+      { headers: { "X-Shopify-Access-Token": token } }
+    );
+    if (res.ok) {
+      const { orders: shopifyOrders } = await res.json();
+      for (const o of shopifyOrders || []) {
+        const attrs = {};
+        (o.note_attributes || []).forEach((a) => { attrs[a.name] = a.value; });
+
+        const method  = attrs["_rc_method"]   || attrs["_rocourier_method"]   || "home_delivery";
+        const courier = attrs["_rc_courier"]  || attrs["_rocourier_courier"]  || "fan";
+        const pid     = attrs["_rc_point_id"] || attrs["_rocourier_point_id"] || null;
+        const pname   = attrs["_rc_point_name"]    || attrs["_rocourier_point_name"]    || null;
+        const paddr   = attrs["_rc_point_address"] || attrs["_rocourier_point_address"] || null;
+
+        const data = {
+          shopifyOrderName:    o.name,
+          customerName:        [o.shipping_address?.first_name, o.shipping_address?.last_name].filter(Boolean).join(" ") || o.customer?.first_name || "Unknown",
+          customerPhone:       o.shipping_address?.phone || o.customer?.phone || "",
+          customerEmail:       o.customer?.email || "",
+          shippingAddress1:    o.shipping_address?.address1 || "",
+          shippingCity:        o.shipping_address?.city || "",
+          shippingCounty:      o.shipping_address?.province || "",
+          shippingZip:         o.shipping_address?.zip || "",
+          shippingCountry:     o.shipping_address?.country_code || "RO",
+          shippingMethod:      method,
+          courierType:         courier,
+          pickupPointId:       pid,
+          pickupPointName:     pname,
+          pickupPointAddress:  paddr,
+          codAmount:           parseFloat(o.total_price) || 0,
+          orderTotal:          parseFloat(o.total_price) || 0,
+          shopifyCreatedAt:    new Date(o.created_at),
+        };
+
+        await prisma.order.upsert({
+          where: { shop_shopifyOrderId: { shop, shopifyOrderId: String(o.id) } },
+          update: { shippingMethod: data.shippingMethod, courierType: data.courierType, pickupPointId: data.pickupPointId, pickupPointName: data.pickupPointName, pickupPointAddress: data.pickupPointAddress, codAmount: data.codAmount },
+          create: { shop, shopifyOrderId: String(o.id), awbStatus: "pending", ...data },
+        });
+      }
+    }
+  } catch (_) {}
 
   const page    = parseInt(url.searchParams.get("page")    || "1");
   const status  = url.searchParams.get("status")  || "";
@@ -24,7 +74,7 @@ export async function loader({ request }) {
   const search  = url.searchParams.get("search")  || "";
 
   const result = await getOrders({
-    shop: session.shop,
+    shop,
     page,
     perPage: 25,
     status:  status  || null,
