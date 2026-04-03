@@ -437,50 +437,21 @@ export default function Settings() {
                     </Card>
 
                     <Card>
-                      <BlockStack gap="400">
-                        <Text variant="headingMd" fontWeight="semibold">Tarife transport (RON)</Text>
-                        <Text tone="subdued">Suma afișată clientului în checkout pentru fiecare metodă de livrare. Pune 0 pentru transport gratuit.</Text>
-                        <Divider />
-                        <FormLayout>
-                          <FormLayout.Group>
-                            <TextField label="FAN Courier — livrare la domiciliu (RON)" value={fanHomeDeliveryFee} onChange={setFanHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" autoComplete="off" />
-                            <TextField label="FANbox — ridicare locker (RON)" value={fanPickupFee} onChange={setFanPickupFee} type="number" min="0" step="0.5" suffix="RON" autoComplete="off" />
-                          </FormLayout.Group>
-                          <FormLayout.Group>
-                            <TextField label="Sameday — livrare la domiciliu (RON)" value={samedayHomeDeliveryFee} onChange={setSamedayHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" autoComplete="off" />
-                            <TextField label="Sameday easybox — ridicare locker (RON)" value={samedayPickupFee} onChange={setSamedayPickupFee} type="number" min="0" step="0.5" suffix="RON" autoComplete="off" />
-                          </FormLayout.Group>
-                        </FormLayout>
-                      </BlockStack>
-                    </Card>
-
-                    <Card>
                       <BlockStack gap="300">
-                        <Text variant="headingMd" fontWeight="semibold">Serviciu de transport (checkout)</Text>
-                        <Banner tone="info">
-                          <BlockStack gap="100">
-                            <Text>Înregistrează RoCourier ca furnizor de transport în Shopify. După activare, metoda de livrare aleasă de client (cu numele punctului de ridicare) va apărea direct în pagina de checkout.</Text>
-                            <Text>Apasă butonul o singură dată per magazin.</Text>
+                        <Text variant="headingMd" fontWeight="semibold">Transport în checkout</Text>
+                        <Banner tone="info" title="Cum configurezi tarifele de transport">
+                          <BlockStack gap="200">
+                            <Text>Widgetul salvează alegerea clientului (metodă + punct de ridicare) în atributele coșului. Acestea apar pe comandă în Shopify Admin.</Text>
+                            <Text>Pentru a afișa tarifele de transport în checkout, configurează <strong>rate manuale</strong> în Shopify:</Text>
+                            <BlockStack gap="100">
+                              <Text>1. Shopify Admin → <strong>Settings → Shipping and delivery</strong></Text>
+                              <Text>2. Click <strong>Manage rates</strong> pe profilul tău de livrare</Text>
+                              <Text>3. Adaugă o zonă <strong>Romania</strong> (dacă nu există)</Text>
+                              <Text>4. Click <strong>Add rate</strong> → introdu tariful fix (ex: "Livrare standard — 15 RON")</Text>
+                            </BlockStack>
+                            <Text>Metoda de livrare aleasă de client (FAN / Sameday / locker) va fi vizibilă pe comandă în secțiunea <strong>Note</strong> și <strong>Atribute</strong>.</Text>
                           </BlockStack>
                         </Banner>
-                        {carrierStatus === "registered" && (
-                          <Banner tone="success" title="Serviciu activ">
-                            <Text>{carrierMsg}</Text>
-                          </Banner>
-                        )}
-                        {carrierStatus === "error" && (
-                          <Banner tone="critical" title="Eroare">
-                            <Text>{carrierMsg}</Text>
-                          </Banner>
-                        )}
-                        <Button
-                          variant="primary"
-                          onClick={handleCarrierRegister}
-                          loading={carrierStatus === "loading"}
-                          disabled={carrierStatus === "registered"}
-                        >
-                          🚚 Activează serviciu de transport în checkout
-                        </Button>
                       </BlockStack>
                     </Card>
                   </BlockStack>
