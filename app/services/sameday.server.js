@@ -138,12 +138,16 @@ export async function samedayGetLockers({ username, password, sandbox = false, c
   }
 
   if (lastError) {
-    const is403 = lastError.message?.includes("[403]");
-    if (is403) {
+    const msg = lastError.message || "";
+    if (msg.includes("[403]")) {
       throw new Error(
         "Contractul Sameday nu include accesul la lista de easybox-uri (403 Forbidden). " +
         "Contactați Sameday (software@sameday.ro) pentru activarea accesului API la lockerele easybox."
       );
+    }
+    if (msg.includes("[404]")) {
+      // Sandbox or contract without locker list — return empty silently
+      return [];
     }
     throw lastError;
   }

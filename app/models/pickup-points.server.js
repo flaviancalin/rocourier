@@ -81,7 +81,12 @@ export async function refreshPickupPointsCache({ settings, couriers = ["fan", "s
       }
       results.sameday = samedayPoints.length;
     } catch (e) {
-      results.errors.push(`Sameday: ${e.message}`);
+      // Sandbox environments often don't have locker data — treat 404 as empty, not an error
+      if (e.message?.includes("[404]")) {
+        results.sameday = 0;
+      } else {
+        results.errors.push(`Sameday: ${e.message}`);
+      }
     }
   }
 
