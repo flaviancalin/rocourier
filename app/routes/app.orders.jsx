@@ -17,8 +17,21 @@ import {
 export async function loader({ request }) {
   const { session } = await authenticate.admin(request);
   const url = new URL(request.url);
-  const shop = session.shop;
+
+  // session.shop can be null on Remix _data sub-requests; fall back to DB lookup via accessToken
+  let shop = session.shop;
   const token = session.accessToken;
+
+  if (!shop && token) {
+    // Find shop by access token from the sessions table
+    const found = await prisma.session.findFirst({ where: { accessToken: token } });
+    if (found) shop = found.shop;
+  }
+
+  if (!shop) {
+    // Still no shop — return empty state rather than crash
+    return json({ orders: [], total: 0, totalPages: 1, page: 1, filters: { status: "", courier: "", method: "", search: "" } });
+  }
 
   // Sync latest orders from Shopify API into our DB
   try {
