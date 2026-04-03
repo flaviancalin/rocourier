@@ -1,0 +1,11 @@
+api_version = "2025-07"
+uid = "f0f6ecd2-2763-011c-65dc-22a4510c71b65619e560"
+
+[[extensions]]
+type = "ui_extension"
+name = "RoCourier Checkout"
+handle = "rocourier-checkout"
+
+[[extensions.targeting]]
+module = "./src/index.jsx"
+target = "purchase.checkout.shipping-option-item.render-after"
