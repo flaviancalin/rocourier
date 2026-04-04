@@ -40,9 +40,50 @@
   position: relative;
 }
 
-.rc-method-row:last-child { border-bottom: none; }
+/* Last row (pickup) never has a bottom border */
+.rc-row-last { border-bottom: none; }
 
 .rc-method-row:hover { background: #f9f9f9; }
+
+/* ── Courier chip picker ──────────────────────────────────────────────────────  */
+.rc-courier-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 18px 16px;
+  background: #f9f9f9;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.rc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px 8px 10px;
+  border: 1.5px solid #ddd;
+  border-radius: 24px;
+  background: #fff;
+  font-size: 0.88rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.rc-chip:hover { border-color: #aaa; background: #f5f5f5; }
+
+.rc-chip-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 11px;
+  flex-shrink: 0;
+}
 
 .rc-method-row input[type="radio"] {
   position: absolute;
@@ -61,26 +102,34 @@
   width: 48px;
   height: 48px;
   border-radius: 10px;
-  background: #fff3e0;
+  background: #f0f4ff;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  border: 1px solid #ffe0b2;
+  border: 1px solid #d8e2ff;
 }
 
 .rc-method-icon svg {
   width: 24px;
   height: 24px;
-  color: #e65100;
-  stroke: #e65100;
+  color: #3d5afe;
+  stroke: #3d5afe;
 }
 
-.rc-method-icon.rc-icon-sameday {
-  background: #e3f2fd;
-  border-color: #b3d9f7;
+/* Home delivery icon */
+.rc-method-icon.rc-icon-home {
+  background: #f0f4ff;
+  border-color: #d8e2ff;
 }
-.rc-method-icon.rc-icon-sameday svg { color: #0277bd; stroke: #0277bd; }
+.rc-method-icon.rc-icon-home svg { color: #3d5afe; stroke: #3d5afe; }
+
+/* Pickup/locker icon */
+.rc-method-icon.rc-icon-box {
+  background: #f3e5f5;
+  border-color: #e1bee7;
+}
+.rc-method-icon.rc-icon-box svg { color: #7b1fa2; stroke: #7b1fa2; }
 
 /* Text */
 .rc-method-text {
@@ -162,8 +211,11 @@
   flex-shrink: 0;
 }
 
-.rc-badge-fan     { background: #fff3e0; color: #e65100; border: 1px solid #e65100; }
-.rc-badge-sameday { background: #e3f2fd; color: #0277bd; border: 1px solid #0277bd; }
+.rc-badge-fan     { background: #fff3e022; color: #e65100; border: 1px solid #e6510044; }
+.rc-badge-sameday { background: #e3f2fd22; color: #0277bd; border: 1px solid #0277bd44; }
+.rc-badge-cargus  { background: #ffebee22; color: #c62828; border: 1px solid #c6282844; }
+.rc-badge-gls     { background: #fff8e122; color: #f9a825; border: 1px solid #f9a82544; }
+.rc-badge-packeta { background: #ffebee22; color: #ba000d; border: 1px solid #ba000d44; }
 
 .rc-point-info {
   flex: 1;

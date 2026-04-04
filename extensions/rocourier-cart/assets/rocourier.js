@@ -1,41 +1,40 @@
-// RoCourier Cart Widget — supports FAN, Sameday, Cargus, GLS, Packeta
+// RoCourier Cart Widget — Unified: Home Delivery + Pickup Point
 (function () {
   "use strict";
 
-  // ── Courier config ───────────────────────────────────────────────────────────
+  // ── Courier config ────────────────────────────────────────────────────────────
   const COURIERS = {
-    fan:     { label: "FAN Courier", pickupLabel: "FANbox",            color: "#e65100", letter: "F", badgeClass: "rc-badge-fan"     },
-    sameday: { label: "Sameday",     pickupLabel: "Sameday easybox",   color: "#0277bd", letter: "S", badgeClass: "rc-badge-sameday" },
-    cargus:  { label: "Cargus",      pickupLabel: "Cargus Ship & Go",  color: "#c62828", letter: "C", badgeClass: "rc-badge-cargus"  },
-    gls:     { label: "GLS",         pickupLabel: "GLS ParcelShop",    color: "#f9a825", letter: "G", badgeClass: "rc-badge-gls"     },
-    packeta: { label: "Packeta",     pickupLabel: "Packeta / Z-BOX",   color: "#ba000d", letter: "P", badgeClass: "rc-badge-packeta" },
+    fan:     { label: "FAN Courier", pickupLabel: "FANbox",           color: "#e65100", letter: "F", badgeClass: "rc-badge-fan"     },
+    sameday: { label: "Sameday",     pickupLabel: "Sameday easybox",  color: "#0277bd", letter: "S", badgeClass: "rc-badge-sameday" },
+    cargus:  { label: "Cargus",      pickupLabel: "Cargus Ship & Go", color: "#c62828", letter: "C", badgeClass: "rc-badge-cargus"  },
+    gls:     { label: "GLS",         pickupLabel: "GLS ParcelShop",   color: "#f9a825", letter: "G", badgeClass: "rc-badge-gls"     },
+    packeta: { label: "Packeta",     pickupLabel: "Packeta / Z-BOX",  color: "#ba000d", letter: "P", badgeClass: "rc-badge-packeta" },
   };
 
-  // ── Helpers ──────────────────────────────────────────────────────────────────
+  // ── Helpers ───────────────────────────────────────────────────────────────────
   function esc(s) {
     return String(s || "")
       .replace(/&/g, "&amp;").replace(/</g, "&lt;")
       .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
-
   function $(id) { return document.getElementById(id); }
 
-  // ── Init ─────────────────────────────────────────────────────────────────────
+  // ── Init ──────────────────────────────────────────────────────────────────────
   function init() {
     const widget = $("rocourier-widget");
     if (!widget) return;
 
-    const SHOP    = widget.dataset.shop    || "";
-    const APP_URL = (widget.dataset.appUrl || "").replace(/\/$/, "");
+    const SHOP     = widget.dataset.shop    || "";
+    const APP_URL  = (widget.dataset.appUrl || "").replace(/\/$/, "");
     const CURRENCY = widget.dataset.currency || "RON";
 
-    // Which couriers are enabled (read from data attributes)
+    // Which couriers are enabled
     const ENABLED = {};
     Object.keys(COURIERS).forEach((c) => {
       ENABLED[c] = widget.dataset[c + "Enabled"] !== "false";
     });
 
-    // Fee lookup: { fan: { home: 0, pickup: 0 }, sameday: {...}, ... }
+    // Fee table: { fan: { home: 0, pickup: 0 }, ... }
     const FEES = {};
     Object.keys(COURIERS).forEach((c) => {
       FEES[c] = {
@@ -49,87 +48,152 @@
       return amount.toLocaleString("ro-RO", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + " " + CURRENCY;
     }
 
-    // Inject fee labels into method rows
-    function applyFeeLabels() {
-      Object.keys(COURIERS).forEach((c) => {
-        [["home", `rc-${c}-home`], ["pickup", `rc-${c}-box`]].forEach(([type, id]) => {
-          const row = document.querySelector(`label[for="${id}"]`);
-          if (!row) return;
-          let badge = row.querySelector(".rc-method-fee");
-          if (!badge) {
-            badge = document.createElement("span");
-            badge.className = "rc-method-fee";
-            row.appendChild(badge);
-          }
-          badge.textContent = feeLabel(FEES[c]?.[type] || 0);
-        });
-      });
+    // ── Build pickup sub-text dynamically from enabled couriers ───────────────
+    const pickupSubEl = $("rc-pickup-sub");
+    if (pickupSubEl) {
+      const pickupNames = Object.entries(COURIERS)
+        .filter(([c]) => ENABLED[c])
+        .map(([, cfg]) => cfg.pickupLabel);
+      pickupSubEl.textContent = pickupNames.length
+        ? pickupNames.join(", ")
+        : "Niciun curier activat";
     }
-    applyFeeLabels();
 
-    // ── DOM refs ──────────────────────────────────────────────────────────────
-    const radios        = document.querySelectorAll('input[name="rc_delivery"]');
-    const hMethod       = $("rc-h-method");
-    const hCourier      = $("rc-h-courier");
-    const hPointId      = $("rc-h-point-id");
-    const hPointNm      = $("rc-h-point-nm");
-    const hPointAd      = $("rc-h-point-ad");
-    const pointSelected = $("rc-point-selected");
-    const pointBadge    = $("rc-point-badge");
-    const pointName     = $("rc-point-name");
-    const pointAddr     = $("rc-point-addr");
-    const changeBtn     = $("rc-change-point");
-    const errorBox      = $("rc-error");
-    const modal         = $("rc-modal");
-    const backdrop      = $("rc-modal-backdrop");
-    const modalClose    = $("rc-modal-close");
-    const searchInput   = $("rc-search");
-    const pointsList    = $("rc-points-list");
-    const listLoading   = $("rc-list-loading");
-    const listEmpty     = $("rc-list-empty");
-    const listCount     = $("rc-list-count");
-    const filterBtns    = document.querySelectorAll(".rc-filter-btn");
+    // ── DOM refs ───────────────────────────────────────────────────────────────
+    const homeRadio      = $("rc-home");
+    const pickupRadio    = $("rc-pickup");
+    const radios         = document.querySelectorAll('input[name="rc_delivery"]');
+    const hMethod        = $("rc-h-method");
+    const hCourier       = $("rc-h-courier");
+    const hPointId       = $("rc-h-point-id");
+    const hPointNm       = $("rc-h-point-nm");
+    const hPointAd       = $("rc-h-point-ad");
+    const courierPicker  = $("rc-courier-picker");
+    const chipBtns       = courierPicker
+                           ? courierPicker.querySelectorAll(".rc-chip") : [];
+    const homeFeeEl      = $("rc-home-fee");
+    const pickupFeeEl    = $("rc-pickup-fee");
+    const pointSelected  = $("rc-point-selected");
+    const pointBadge     = $("rc-point-badge");
+    const pointName      = $("rc-point-name");
+    const pointAddr      = $("rc-point-addr");
+    const changeBtn      = $("rc-change-point");
+    const errorBox       = $("rc-error");
+    const modal          = $("rc-modal");
+    const backdrop       = $("rc-modal-backdrop");
+    const modalClose     = $("rc-modal-close");
+    const searchInput    = $("rc-search");
+    const pointsList     = $("rc-points-list");
+    const listLoading    = $("rc-list-loading");
+    const listEmpty      = $("rc-list-empty");
+    const listCount      = $("rc-list-count");
+    const filterBtns     = document.querySelectorAll(".rc-filter-btn");
 
-    // ── State ─────────────────────────────────────────────────────────────────
-    let allPoints      = [];
-    let filtered       = [];
-    let selected       = null;
-    let currentCourier = "all";
-    let mapInst        = null;
-    let mapReady       = false;
-    let pointsLoaded   = false;
-    let openForCourier = null; // courier that triggered map open
+    // ── State ──────────────────────────────────────────────────────────────────
+    let allPoints          = [];
+    let filtered           = [];
+    let selectedPoint      = null;   // chosen pickup point object
+    let selectedHomeCourier = null;  // chosen courier for home delivery
+    let currentFilter      = "all";
+    let mapInst            = null;
+    let mapReady           = false;
+    let pointsLoaded       = false;
 
-    // ── Radio change ──────────────────────────────────────────────────────────
-    function onRadioChange(val) {
-      // val format: "{courier}_home" or "{courier}_box"
-      const isBox    = val.endsWith("_box");
-      const courier  = val.replace(/_home$|_box$/, "");
+    // ── Radio change: Home ──────────────────────────────────────────────────────
+    function onHomeSelected() {
+      // Show courier picker
+      if (courierPicker) courierPicker.style.display = "flex";
+      // Hide pickup point summary
+      if (pointSelected) pointSelected.style.display = "none";
+      // Clear pickup-fee display
+      if (pickupFeeEl) pickupFeeEl.textContent = "";
+      hideError();
 
-      if (!isBox) {
-        clearPoint();
-        setHidden(courier, "home_delivery");
-        if (pointSelected) pointSelected.style.display = "none";
-        hideError();
+      // Auto-select first enabled courier if nothing chosen yet
+      if (!selectedHomeCourier) {
+        const firstChip = [...chipBtns][0];
+        if (firstChip) selectHomeCourier(firstChip.dataset.courier);
       } else {
-        openForCourier = courier;
-        currentCourier = courier;
-
-        // Highlight matching filter button
-        filterBtns.forEach((b) => b.classList.remove("rc-filter-active"));
-        const target = [...filterBtns].find((b) => b.dataset.courier === courier)
-                    || [...filterBtns].find((b) => b.dataset.courier === "all");
-        if (target) target.classList.add("rc-filter-active");
-
-        openModal();
+        // Re-sync hidden fields
+        setHiddenHome(selectedHomeCourier);
       }
     }
 
+    // ── Radio change: Pickup ────────────────────────────────────────────────────
+    function onPickupSelected() {
+      // Hide courier picker
+      if (courierPicker) courierPicker.style.display = "none";
+      // Clear home-fee display
+      if (homeFeeEl) homeFeeEl.textContent = "";
+      // If no point selected yet, open the map
+      if (!selectedPoint) {
+        clearHiddenPoint();
+        openModal();
+      } else {
+        // Restore the pickup-fee for previously selected courier
+        updatePickupFee(selectedPoint.courier);
+        if (hMethod)  hMethod.value  = "pickup_point";
+        if (hCourier) hCourier.value = selectedPoint.courier;
+        syncCart();
+      }
+      hideError();
+    }
+
     radios.forEach((r) => {
-      r.addEventListener("change", () => { if (r.checked) onRadioChange(r.value); });
+      r.addEventListener("change", () => {
+        if (!r.checked) return;
+        if (r.value === "home")   onHomeSelected();
+        if (r.value === "pickup") onPickupSelected();
+      });
     });
 
-    // ── Modal ─────────────────────────────────────────────────────────────────
+    // ── Courier chip selection ─────────────────────────────────────────────────
+    function selectHomeCourier(courier) {
+      selectedHomeCourier = courier;
+
+      // Update chip active state
+      chipBtns.forEach((btn) => {
+        const isActive = btn.dataset.courier === courier;
+        btn.classList.toggle("rc-chip-active", isActive);
+        if (isActive) {
+          const color = COURIERS[courier]?.color || "#222";
+          btn.style.borderColor  = color;
+          btn.style.color        = color;
+          btn.style.background   = color + "12";
+        } else {
+          btn.style.borderColor  = "";
+          btn.style.color        = "";
+          btn.style.background   = "";
+        }
+      });
+
+      // Update fee
+      if (homeFeeEl) homeFeeEl.textContent = feeLabel(FEES[courier]?.home || 0);
+
+      setHiddenHome(courier);
+    }
+
+    chipBtns.forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        selectHomeCourier(btn.dataset.courier);
+      });
+    });
+
+    function setHiddenHome(courier) {
+      if (hMethod)  hMethod.value  = "home_delivery";
+      if (hCourier) hCourier.value = courier;
+      if (hPointId) hPointId.value = "";
+      if (hPointNm) hPointNm.value = "";
+      if (hPointAd) hPointAd.value = "";
+      syncCart();
+    }
+
+    function updatePickupFee(courier) {
+      if (pickupFeeEl) pickupFeeEl.textContent = feeLabel(FEES[courier]?.pickup || 0);
+    }
+
+    // ── Modal ──────────────────────────────────────────────────────────────────
     function openModal() {
       if (!modal) return;
       modal.style.display = "flex";
@@ -156,9 +220,11 @@
       if (!modal) return;
       modal.style.display = "none";
       document.body.style.overflow = "";
-      if (!selected) {
-        radios.forEach((r) => { r.checked = false; });
-        clearPoint();
+      // If user closed without selecting a point, un-check the pickup radio
+      if (!selectedPoint) {
+        if (pickupRadio) pickupRadio.checked = false;
+        if (courierPicker) courierPicker.style.display = "none";
+        clearHiddenPoint();
       }
     }
 
@@ -169,7 +235,7 @@
       if (e.key === "Escape" && modal?.style.display === "flex") closeModal();
     });
 
-    // ── Fetch points ──────────────────────────────────────────────────────────
+    // ── Fetch pickup points ────────────────────────────────────────────────────
     async function fetchPoints() {
       if (!APP_URL || !SHOP) {
         if (listLoading) listLoading.style.display = "none";
@@ -183,7 +249,6 @@
       if (listCount)   listCount.style.display    = "none";
 
       try {
-        // Build list of enabled couriers that have pickup points
         const enabledWithPickup = Object.keys(COURIERS).filter((c) => ENABLED[c]);
         const couriersParam = enabledWithPickup.join(",") || "all";
         const url = `${APP_URL}/api/pickup-points?shop=${encodeURIComponent(SHOP)}&courier=${couriersParam}`;
@@ -202,11 +267,11 @@
       }
     }
 
-    // ── Filters ───────────────────────────────────────────────────────────────
+    // ── Filters ────────────────────────────────────────────────────────────────
     function applyFilters() {
       const q = (searchInput?.value || "").toLowerCase().trim();
       filtered = allPoints.filter((p) => {
-        if (currentCourier !== "all" && p.courier !== currentCourier) return false;
+        if (currentFilter !== "all" && p.courier !== currentFilter) return false;
         if (!q) return true;
         return (
           (p.name    || "").toLowerCase().includes(q) ||
@@ -226,19 +291,19 @@
       btn.addEventListener("click", () => {
         filterBtns.forEach((b) => b.classList.remove("rc-filter-active"));
         btn.classList.add("rc-filter-active");
-        currentCourier = btn.dataset.courier;
+        currentFilter = btn.dataset.courier;
         applyFilters();
       });
     });
 
-    // ── Render list ───────────────────────────────────────────────────────────
+    // ── Render list ────────────────────────────────────────────────────────────
     function renderList(points) {
       if (!pointsList) return;
       pointsList.innerHTML = "";
       points.forEach((p) => {
-        const cfg  = COURIERS[p.courier] || { pickupLabel: p.courier, color: "#888", badgeClass: "" };
-        const isSel = selected?.id === p.id;
-        const li   = document.createElement("li");
+        const cfg   = COURIERS[p.courier] || { pickupLabel: p.courier, color: "#888", badgeClass: "" };
+        const isSel = selectedPoint?.id === p.id;
+        const li    = document.createElement("li");
         li.className  = "rc-item" + (isSel ? " rc-item-selected" : "");
         li.dataset.id = p.id;
 
@@ -272,7 +337,7 @@
       });
     }
 
-    // ── Leaflet map ───────────────────────────────────────────────────────────
+    // ── Leaflet map ────────────────────────────────────────────────────────────
     function initMap() {
       if (mapReady || typeof L === "undefined") return;
       const el = $("rc-map");
@@ -306,7 +371,7 @@
       points.forEach((p) => {
         if (!p.lat || !p.lng) return;
         const cfg   = COURIERS[p.courier] || { color: "#888", letter: "?", pickupLabel: p.courier };
-        const isSel = selected?.id === p.id;
+        const isSel = selectedPoint?.id === p.id;
         const color = isSel ? "#108043" : cfg.color;
 
         const icon = L.divIcon({
@@ -347,9 +412,9 @@
       if (p) selectPoint(p);
     };
 
-    // ── Select point ──────────────────────────────────────────────────────────
+    // ── Select a pickup point ──────────────────────────────────────────────────
     function selectPoint(p) {
-      selected = p;
+      selectedPoint = p;
       const cfg = COURIERS[p.courier] || { pickupLabel: p.courier, badgeClass: "", color: "#888" };
 
       if (hMethod)  hMethod.value  = "pickup_point";
@@ -358,14 +423,16 @@
       if (hPointNm) hPointNm.value = p.name;
       if (hPointAd) hPointAd.value = p.address;
 
-      // Check the correct radio
-      const radio = $(`rc-${p.courier}-box`);
-      if (radio) radio.checked = true;
+      // Check the pickup radio
+      if (pickupRadio) pickupRadio.checked = true;
 
-      // Show selected summary
+      // Update pickup fee to this courier's fee
+      updatePickupFee(p.courier);
+
+      // Show selected summary bar
       if (pointBadge) {
-        pointBadge.textContent = cfg.pickupLabel;
-        pointBadge.className   = `rc-point-badge ${cfg.badgeClass}`;
+        pointBadge.textContent      = cfg.pickupLabel;
+        pointBadge.className        = `rc-point-badge ${cfg.badgeClass}`;
         pointBadge.style.background = `${cfg.color}22`;
         pointBadge.style.color      = cfg.color;
         pointBadge.style.border     = `1px solid ${cfg.color}44`;
@@ -381,8 +448,7 @@
       closeModal();
     }
 
-    function clearPoint() {
-      selected = null;
+    function clearHiddenPoint() {
       if (hMethod)  hMethod.value  = "";
       if (hCourier) hCourier.value = "";
       if (hPointId) hPointId.value = "";
@@ -390,16 +456,7 @@
       if (hPointAd) hPointAd.value = "";
     }
 
-    function setHidden(courier, method) {
-      if (hMethod)  hMethod.value  = method;
-      if (hCourier) hCourier.value = courier;
-      if (hPointId) hPointId.value = "";
-      if (hPointNm) hPointNm.value = "";
-      if (hPointAd) hPointAd.value = "";
-      syncCart();
-    }
-
-    // ── Sync cart attributes ──────────────────────────────────────────────────
+    // ── Sync cart attributes ───────────────────────────────────────────────────
     function syncCart() {
       fetch("/cart/update.js", {
         method: "POST",
@@ -416,18 +473,25 @@
       }).catch(() => {});
     }
 
-    // ── Checkout guard ────────────────────────────────────────────────────────
+    // ── Checkout guard ─────────────────────────────────────────────────────────
     function blockCheckout(e) {
-      const chosenRadio = [...radios].find((r) => r.checked);
+      const checkedRadio = [...radios].find((r) => r.checked);
 
-      if (!chosenRadio) {
+      if (!checkedRadio) {
         e.preventDefault(); e.stopPropagation();
         showError("Alege o metodă de livrare înainte de a continua!");
         widget.scrollIntoView({ behavior: "smooth", block: "center" });
         return false;
       }
 
-      if (chosenRadio.value.endsWith("_box") && !selected) {
+      if (checkedRadio.value === "home" && !selectedHomeCourier) {
+        e.preventDefault(); e.stopPropagation();
+        showError("Alege un curier pentru livrare la domiciliu!");
+        widget.scrollIntoView({ behavior: "smooth", block: "center" });
+        return false;
+      }
+
+      if (checkedRadio.value === "pickup" && !selectedPoint) {
         e.preventDefault(); e.stopPropagation();
         showError("Alege un punct de ridicare de pe hartă!");
         widget.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -459,39 +523,41 @@
     attachCheckoutGuard();
     new MutationObserver(attachCheckoutGuard).observe(document.body, { childList: true, subtree: true });
 
-    // ── Error ─────────────────────────────────────────────────────────────────
+    // ── Error helpers ──────────────────────────────────────────────────────────
     function showError(msg) { if (errorBox) { errorBox.textContent = msg; errorBox.style.display = "block"; } }
     function hideError()    { if (errorBox) errorBox.style.display = "none"; }
 
-    // ── Restore from cart ─────────────────────────────────────────────────────
+    // ── Restore from cart attributes ───────────────────────────────────────────
     async function restore() {
       try {
         const res  = await fetch("/cart.js");
         const cart = await res.json();
         const a    = cart.attributes || {};
 
-        const method  = a["_rc_method"]       || a["_rocourier_method"]        || "";
-        const courier = a["_rc_courier"]       || a["_rocourier_courier"]       || "";
-        const pid     = a["_rc_point_id"]      || a["_rocourier_point_id"]      || "";
-        const pname   = a["_rc_point_name"]    || a["_rocourier_point_name"]    || "";
-        const paddr   = a["_rc_point_address"] || a["_rocourier_point_address"] || "";
+        const method  = a["_rc_method"]       || "";
+        const courier = a["_rc_courier"]       || "";
+        const pid     = a["_rc_point_id"]      || "";
+        const pname   = a["_rc_point_name"]    || "";
+        const paddr   = a["_rc_point_address"] || "";
 
         if (!method || !courier) return;
 
         if (method === "home_delivery") {
-          const r = $(`rc-${courier}-home`);
-          if (r) r.checked = true;
-          setHidden(courier, "home_delivery");
+          if (homeRadio) homeRadio.checked = true;
+          if (courierPicker) courierPicker.style.display = "flex";
+          selectHomeCourier(courier);
         } else if (method === "pickup_point" && pid) {
-          const r = $(`rc-${courier}-box`);
-          if (r) r.checked = true;
+          if (pickupRadio) pickupRadio.checked = true;
 
-          selected = { id: pid, externalId: pid, courier, name: pname, address: paddr };
+          selectedPoint = { id: pid, externalId: pid, courier, name: pname, address: paddr };
+
           if (hMethod)  hMethod.value  = "pickup_point";
           if (hCourier) hCourier.value = courier;
           if (hPointId) hPointId.value = pid;
           if (hPointNm) hPointNm.value = pname;
           if (hPointAd) hPointAd.value = paddr;
+
+          updatePickupFee(courier);
 
           const cfg = COURIERS[courier] || { pickupLabel: courier, badgeClass: "", color: "#888" };
           if (pointBadge) {
