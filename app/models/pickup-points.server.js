@@ -2,13 +2,16 @@
 import { prisma } from "../db.server.js";
 import { fanGetPickupPoints } from "../services/fan-courier.server.js";
 import { samedayGetLockers } from "../services/sameday.server.js";
+import { cargusGetPickupPoints } from "../services/cargus.server.js";
+import { glsGetPickupPoints } from "../services/gls.server.js";
+import { packetaGetPickupPoints } from "../services/packeta.server.js";
 
 const CACHE_TTL_HOURS = 24;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Get pickup points from DB cache (refresh if stale)
 // ─────────────────────────────────────────────────────────────────────────────
-export async function getPickupPoints({ settings, couriers = ["fan", "sameday"] }) {
+export async function getPickupPoints({ settings, couriers = ["fan", "sameday", "cargus", "gls", "packeta"] }) {
   const staleThreshold = new Date(Date.now() - CACHE_TTL_HOURS * 3600 * 1000);
 
   // Check if cache is fresh
@@ -39,8 +42,8 @@ export async function getPickupPoints({ settings, couriers = ["fan", "sameday"] 
 // ─────────────────────────────────────────────────────────────────────────────
 // Refresh cache from courier APIs
 // ─────────────────────────────────────────────────────────────────────────────
-export async function refreshPickupPointsCache({ settings, couriers = ["fan", "sameday"] }) {
-  const results = { fan: 0, sameday: 0, errors: [] };
+export async function refreshPickupPointsCache({ settings, couriers = ["fan", "sameday", "cargus", "gls", "packeta"] }) {
+  const results = { fan: 0, sameday: 0, cargus: 0, gls: 0, packeta: 0, errors: [] };
 
   if (couriers.includes("fan") && settings.fanEnabled && settings.fanClientId) {
     try {
@@ -81,11 +84,75 @@ export async function refreshPickupPointsCache({ settings, couriers = ["fan", "s
       }
       results.sameday = samedayPoints.length;
     } catch (e) {
-      // Sandbox environments often don't have locker data — treat 404 as empty, not an error
       if (e.message?.includes("[404]")) {
         results.sameday = 0;
       } else {
         results.errors.push(`Sameday: ${e.message}`);
+      }
+    }
+  }
+
+  if (couriers.includes("cargus") && settings.cargusEnabled && settings.cargusSubscriptionKey) {
+    try {
+      const cargusPoints = await cargusGetPickupPoints({
+        subscriptionKey: settings.cargusSubscriptionKey,
+        username: settings.cargusUsername,
+        password: settings.cargusPassword,
+      });
+
+      for (const p of cargusPoints) {
+        await prisma.pickupPoint.upsert({
+          where: { courier_externalId: { courier: "cargus", externalId: p.externalId } },
+          update: { ...p, isActive: true, updatedAt: new Date() },
+          create: p,
+        });
+      }
+      results.cargus = cargusPoints.length;
+    } catch (e) {
+      results.errors.push(`Cargus: ${e.message}`);
+    }
+  }
+
+  if (couriers.includes("gls") && settings.glsEnabled && settings.glsUsername) {
+    try {
+      const glsPoints = await glsGetPickupPoints({
+        username: settings.glsUsername,
+        password: settings.glsPassword,
+        sandbox: !!settings.glsSandbox,
+      });
+
+      for (const p of glsPoints) {
+        await prisma.pickupPoint.upsert({
+          where: { courier_externalId: { courier: "gls", externalId: p.externalId } },
+          update: { ...p, isActive: true, updatedAt: new Date() },
+          create: p,
+        });
+      }
+      results.gls = glsPoints.length;
+    } catch (e) {
+      results.errors.push(`GLS: ${e.message}`);
+    }
+  }
+
+  if (couriers.includes("packeta") && settings.packetaEnabled && settings.packetaApiKey) {
+    try {
+      const packetaPoints = await packetaGetPickupPoints({
+        apiKey: settings.packetaApiKey,
+      });
+
+      for (const p of packetaPoints) {
+        await prisma.pickupPoint.upsert({
+          where: { courier_externalId: { courier: "packeta", externalId: p.externalId } },
+          update: { ...p, isActive: true, updatedAt: new Date() },
+          create: p,
+        });
+      }
+      results.packeta = packetaPoints.length;
+    } catch (e) {
+      if (e.message?.includes("[404]")) {
+        results.packeta = 0;
+      } else {
+        results.errors.push(`Packeta: ${e.message}`);
       }
     }
   }

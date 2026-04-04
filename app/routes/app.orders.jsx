@@ -114,6 +114,9 @@ const STATUS_MAP = {
 const COURIER_MAP = {
   fan:     { label: "FAN Courier", color: "#e65100" },
   sameday: { label: "Sameday",     color: "#1565c0" },
+  cargus:  { label: "Cargus",      color: "#c62828" },
+  gls:     { label: "GLS",         color: "#f9a825" },
+  packeta: { label: "Packeta",     color: "#ba000d" },
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────

@@ -5,6 +5,9 @@ import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
 import { fanAuthenticate } from "../services/fan-courier.server.js";
 import { samedayAuthenticate } from "../services/sameday.server.js";
+import { cargusAuthenticate } from "../services/cargus.server.js";
+import { glsTestConnection } from "../services/gls.server.js";
+import { packetaGetPickupPoints } from "../services/packeta.server.js";
 import { refreshPickupPointsCache } from "../models/pickup-points.server.js";
 import { useState, useCallback, useEffect } from "react";
 import {
@@ -45,6 +48,36 @@ export async function action({ request }) {
       return json({ testResult: { courier: "sameday", success: true } });
     } catch (e) {
       return json({ testResult: { courier: "sameday", success: false, error: e.message } });
+    }
+  }
+
+  if (intent === "test-cargus") {
+    const settings = await prisma.shopSettings.findUnique({ where: { shop: session.shop } });
+    try {
+      await cargusAuthenticate({ subscriptionKey: settings.cargusSubscriptionKey, username: settings.cargusUsername, password: settings.cargusPassword });
+      return json({ testResult: { courier: "cargus", success: true } });
+    } catch (e) {
+      return json({ testResult: { courier: "cargus", success: false, error: e.message } });
+    }
+  }
+
+  if (intent === "test-gls") {
+    const settings = await prisma.shopSettings.findUnique({ where: { shop: session.shop } });
+    try {
+      await glsTestConnection({ username: settings.glsUsername, password: settings.glsPassword, sandbox: !!settings.glsSandbox });
+      return json({ testResult: { courier: "gls", success: true } });
+    } catch (e) {
+      return json({ testResult: { courier: "gls", success: false, error: e.message } });
+    }
+  }
+
+  if (intent === "test-packeta") {
+    const settings = await prisma.shopSettings.findUnique({ where: { shop: session.shop } });
+    try {
+      await packetaGetPickupPoints({ apiKey: settings.packetaApiKey, country: "ro" });
+      return json({ testResult: { courier: "packeta", success: true } });
+    } catch (e) {
+      return json({ testResult: { courier: "packeta", success: false, error: e.message } });
     }
   }
 
@@ -115,20 +148,40 @@ export async function action({ request }) {
       samedayUsername: get("samedayUsername") || "",
       samedayEnabled:  get("samedayEnabled") === "true",
       samedaySandbox:  get("samedaySandbox") === "true",
+      cargusSubscriptionKey: get("cargusSubscriptionKey") || "",
+      cargusUsername:        get("cargusUsername") || "",
+      cargusEnabled:         get("cargusEnabled") === "true",
+      glsUsername:     get("glsUsername") || "",
+      glsClientNumber: get("glsClientNumber") || "",
+      glsEnabled:      get("glsEnabled") === "true",
+      glsSandbox:      get("glsSandbox") === "true",
+      packetaEnabled: get("packetaEnabled") === "true",
       xconnectorEnabled: get("xconnectorEnabled") === "true",
       defaultCourier:  get("defaultCourier") || "fan",
       defaultWeight:   parseFloat(get("defaultWeight")) || 1,
       autoGenerateAwb: get("autoGenerateAwb") === "true",
       showPickupMap:   get("showPickupMap") === "true",
-      fanHomeDeliveryFee:     parseFloat(get("fanHomeDeliveryFee"))     || 0,
-      fanPickupFee:           parseFloat(get("fanPickupFee"))           || 0,
-      samedayHomeDeliveryFee: parseFloat(get("samedayHomeDeliveryFee")) || 0,
-      samedayPickupFee:       parseFloat(get("samedayPickupFee"))       || 0,
+      fanHomeDeliveryFee:      parseFloat(get("fanHomeDeliveryFee"))      || 0,
+      fanPickupFee:            parseFloat(get("fanPickupFee"))            || 0,
+      samedayHomeDeliveryFee:  parseFloat(get("samedayHomeDeliveryFee"))  || 0,
+      samedayPickupFee:        parseFloat(get("samedayPickupFee"))        || 0,
+      cargusHomeDeliveryFee:   parseFloat(get("cargusHomeDeliveryFee"))   || 0,
+      cargusPickupFee:         parseFloat(get("cargusPickupFee"))         || 0,
+      glsHomeDeliveryFee:      parseFloat(get("glsHomeDeliveryFee"))      || 0,
+      glsPickupFee:            parseFloat(get("glsPickupFee"))            || 0,
+      packetaHomeDeliveryFee:  parseFloat(get("packetaHomeDeliveryFee"))  || 0,
+      packetaPickupFee:        parseFloat(get("packetaPickupFee"))        || 0,
     };
     const fanPw = get("fanPassword");
     if (fanPw) data.fanPassword = fanPw;
     const samedayPw = get("samedayPassword");
     if (samedayPw) data.samedayPassword = samedayPw;
+    const cargusPw = get("cargusPassword");
+    if (cargusPw) data.cargusPassword = cargusPw;
+    const glsPw = get("glsPassword");
+    if (glsPw) data.glsPassword = glsPw;
+    const packetaKey = get("packetaApiKey");
+    if (packetaKey) data.packetaApiKey = packetaKey;
     const xPw = get("xconnectorApiKey");
     if (xPw) data.xconnectorApiKey = xPw;
 
@@ -173,6 +226,20 @@ export default function Settings() {
   const [samedayUsername, setSamedayUsername] = useState(settings.samedayUsername || "");
   const [samedayPassword, setSamedayPassword] = useState("");
 
+  const [cargusEnabled,         setCargusEnabled]         = useState(!!settings.cargusEnabled);
+  const [cargusSubscriptionKey, setCargusSubscriptionKey] = useState(settings.cargusSubscriptionKey || "");
+  const [cargusUsername,        setCargusUsername]        = useState(settings.cargusUsername || "");
+  const [cargusPassword,        setCargusPassword]        = useState("");
+
+  const [glsEnabled,      setGlsEnabled]      = useState(!!settings.glsEnabled);
+  const [glsSandbox,      setGlsSandbox]      = useState(!!settings.glsSandbox);
+  const [glsClientNumber, setGlsClientNumber] = useState(settings.glsClientNumber || "");
+  const [glsUsername,     setGlsUsername]     = useState(settings.glsUsername || "");
+  const [glsPassword,     setGlsPassword]     = useState("");
+
+  const [packetaEnabled, setPacketaEnabled] = useState(!!settings.packetaEnabled);
+  const [packetaApiKey,  setPacketaApiKey]  = useState("");
+
   const [xconnectorEnabled, setXconnectorEnabled] = useState(!!settings.xconnectorEnabled);
   const [xconnectorApiKey,  setXconnectorApiKey]  = useState("");
 
@@ -185,6 +252,12 @@ export default function Settings() {
   const [fanPickupFee,           setFanPickupFee]           = useState(String(settings.fanPickupFee           ?? 0));
   const [samedayHomeDeliveryFee, setSamedayHomeDeliveryFee] = useState(String(settings.samedayHomeDeliveryFee ?? 0));
   const [samedayPickupFee,       setSamedayPickupFee]       = useState(String(settings.samedayPickupFee       ?? 0));
+  const [cargusHomeDeliveryFee,  setCargusHomeDeliveryFee]  = useState(String(settings.cargusHomeDeliveryFee  ?? 0));
+  const [cargusPickupFee,        setCargusPickupFee]        = useState(String(settings.cargusPickupFee        ?? 0));
+  const [glsHomeDeliveryFee,     setGlsHomeDeliveryFee]     = useState(String(settings.glsHomeDeliveryFee     ?? 0));
+  const [glsPickupFee,           setGlsPickupFee]           = useState(String(settings.glsPickupFee           ?? 0));
+  const [packetaHomeDeliveryFee, setPacketaHomeDeliveryFee] = useState(String(settings.packetaHomeDeliveryFee ?? 0));
+  const [packetaPickupFee,       setPacketaPickupFee]       = useState(String(settings.packetaPickupFee       ?? 0));
 
   const [carrierStatus, setCarrierStatus] = useState(null); // null | "loading" | "registered" | "error"
   const [carrierMsg,    setCarrierMsg]    = useState("");
@@ -206,9 +279,17 @@ export default function Settings() {
     }
     else if (actionData?.refreshResult) {
       const r = actionData.refreshResult;
-      setToast(r.errors?.length
-        ? `⚠️ Erori: ${r.errors.join(", ")}`
-        : `✅ ${r.fan || 0} FANbox + ${r.sameday || 0} Sameday puncte`);
+      if (r.errors?.length) {
+        setToast(`⚠️ Erori: ${r.errors.join(", ")}`);
+      } else {
+        const parts = [];
+        if (r.fan)     parts.push(`${r.fan} FANbox`);
+        if (r.sameday) parts.push(`${r.sameday} Sameday`);
+        if (r.cargus)  parts.push(`${r.cargus} Cargus`);
+        if (r.gls)     parts.push(`${r.gls} GLS`);
+        if (r.packeta) parts.push(`${r.packeta} Packeta`);
+        setToast(`✅ ${parts.join(" + ") || "0"} puncte reîmprospătate`);
+      }
     }
   }, [actionData]);
 
@@ -219,21 +300,36 @@ export default function Settings() {
       senderName, senderCounty, senderCity, senderZip, senderAddress, senderPhone, senderEmail,
       fanEnabled: String(fanEnabled), fanClientId, fanUsername,
       samedayEnabled: String(samedayEnabled), samedaySandbox: String(samedaySandbox), samedayUsername,
+      cargusEnabled: String(cargusEnabled), cargusSubscriptionKey, cargusUsername,
+      glsEnabled: String(glsEnabled), glsSandbox: String(glsSandbox),
+      glsClientNumber, glsUsername,
+      packetaEnabled: String(packetaEnabled),
       xconnectorEnabled: String(xconnectorEnabled),
       defaultCourier, defaultWeight,
       showPickupMap: String(showPickupMap),
       autoGenerateAwb: String(autoGenerateAwb),
       fanHomeDeliveryFee, fanPickupFee, samedayHomeDeliveryFee, samedayPickupFee,
+      cargusHomeDeliveryFee, cargusPickupFee, glsHomeDeliveryFee, glsPickupFee,
+      packetaHomeDeliveryFee, packetaPickupFee,
     };
     if (fanPassword) data.fanPassword = fanPassword;
     if (samedayPassword) data.samedayPassword = samedayPassword;
+    if (cargusPassword) data.cargusPassword = cargusPassword;
+    if (glsPassword) data.glsPassword = glsPassword;
+    if (packetaApiKey) data.packetaApiKey = packetaApiKey;
     if (xconnectorApiKey) data.xconnectorApiKey = xconnectorApiKey;
     submit(data, { method: "post" });
   }, [senderName, senderCounty, senderCity, senderZip, senderAddress, senderPhone, senderEmail,
-      fanEnabled, fanClientId, fanUsername, fanPassword, samedayEnabled, samedayUsername,
-      samedayPassword, samedaySandbox, xconnectorEnabled, xconnectorApiKey, defaultCourier, defaultWeight,
+      fanEnabled, fanClientId, fanUsername, fanPassword,
+      samedayEnabled, samedayUsername, samedayPassword, samedaySandbox,
+      cargusEnabled, cargusSubscriptionKey, cargusUsername, cargusPassword,
+      glsEnabled, glsClientNumber, glsUsername, glsPassword, glsSandbox,
+      packetaEnabled, packetaApiKey,
+      xconnectorEnabled, xconnectorApiKey, defaultCourier, defaultWeight,
       showPickupMap, autoGenerateAwb,
-      fanHomeDeliveryFee, fanPickupFee, samedayHomeDeliveryFee, samedayPickupFee, submit]);
+      fanHomeDeliveryFee, fanPickupFee, samedayHomeDeliveryFee, samedayPickupFee,
+      cargusHomeDeliveryFee, cargusPickupFee, glsHomeDeliveryFee, glsPickupFee,
+      packetaHomeDeliveryFee, packetaPickupFee, submit]);
 
   const handleTest = useCallback((courier) => {
     submit({ intent: `test-${courier}` }, { method: "post" });
@@ -252,6 +348,9 @@ export default function Settings() {
     { id: "sender",     content: "📦 Expeditor"   },
     { id: "fan",        content: "🚛 FAN Courier"  },
     { id: "sameday",    content: "📬 Sameday"      },
+    { id: "cargus",     content: "🚚 Cargus"       },
+    { id: "gls",        content: "🟡 GLS"          },
+    { id: "packeta",    content: "📮 Packeta"      },
     { id: "xconnector", content: "🔗 xConnector"  },
     { id: "widget",     content: "🛒 Widget coș"  },
   ];
@@ -375,8 +474,140 @@ export default function Settings() {
                   </BlockStack>
                 )}
 
-                {/* ── TAB 3: xConnector ─────────────────────────────────── */}
+                {/* ── TAB 3: Cargus ─────────────────────────────────────── */}
                 {tab === 3 && (
+                  <BlockStack gap="400">
+                    <Card>
+                      <BlockStack gap="400">
+                        <InlineStack align="space-between">
+                          <Text variant="headingMd" fontWeight="semibold">Cargus Urgent — API V3</Text>
+                          {cargusEnabled ? <Badge tone="success">Activ</Badge> : <Badge tone="critical">Inactiv</Badge>}
+                        </InlineStack>
+                        <Banner tone="info" title="Cum obții credențialele Cargus">
+                          <BlockStack gap="100">
+                            <Text>1. Semnează contract cu Cargus (urgentcargus.ro)</Text>
+                            <Text>2. Trimite email la <strong>software@urgentcargus.ro</strong> pentru acces API</Text>
+                            <Text>3. Vei primi <strong>Subscription Key</strong> din portalul Azure API</Text>
+                            <Text>4. Folosește username/parolă de la urgentcargus.ro</Text>
+                          </BlockStack>
+                        </Banner>
+                        <Divider />
+                        <FormLayout>
+                          <Checkbox label="Activează Cargus" checked={cargusEnabled} onChange={setCargusEnabled} />
+                          <TextField
+                            label="Subscription Key (Azure API)"
+                            value={cargusSubscriptionKey}
+                            onChange={setCargusSubscriptionKey}
+                            placeholder="ex: 1a2b3c4d5e6f..."
+                            helpText="Din portalul Azure API Management → Ocp-Apim-Subscription-Key"
+                            autoComplete="off"
+                          />
+                          <FormLayout.Group>
+                            <TextField label="Username Cargus" value={cargusUsername} onChange={setCargusUsername} autoComplete="off" />
+                            <TextField label="Parolă Cargus" value={cargusPassword} onChange={setCargusPassword} type="password" placeholder="Lasă gol pentru a păstra parola existentă" autoComplete="new-password" />
+                          </FormLayout.Group>
+                        </FormLayout>
+                        {actionData?.testResult?.courier === "cargus" && (
+                          <Banner tone={actionData.testResult.success ? "success" : "critical"} title={actionData.testResult.success ? "Conexiune Cargus reușită!" : "Eroare conexiune Cargus"}>
+                            {actionData.testResult.error && <Text>{actionData.testResult.error}</Text>}
+                          </Banner>
+                        )}
+                      </BlockStack>
+                    </Card>
+                  </BlockStack>
+                )}
+
+                {/* ── TAB 4: GLS ────────────────────────────────────────── */}
+                {tab === 4 && (
+                  <BlockStack gap="400">
+                    <Card>
+                      <BlockStack gap="400">
+                        <InlineStack align="space-between">
+                          <Text variant="headingMd" fontWeight="semibold">GLS Romania — MyGLS API</Text>
+                          {glsEnabled ? <Badge tone="success">Activ</Badge> : <Badge tone="critical">Inactiv</Badge>}
+                        </InlineStack>
+                        <Banner tone="info" title="Cum obții credențialele GLS">
+                          <BlockStack gap="100">
+                            <Text>1. Semnează contract cu GLS Romania (gls-romania.ro)</Text>
+                            <Text>2. Accesează portalul <strong>myGLS</strong> (mygls.ro)</Text>
+                            <Text>3. Mergi la <strong>Tools → API</strong> pentru a activa accesul</Text>
+                            <Text>4. Folosește username/parolă de la mygls.ro</Text>
+                          </BlockStack>
+                        </Banner>
+                        <Divider />
+                        <FormLayout>
+                          <Checkbox label="Activează GLS" checked={glsEnabled} onChange={setGlsEnabled} />
+                          <Checkbox
+                            label="Folosește mediul SANDBOX (test)"
+                            checked={glsSandbox}
+                            onChange={setGlsSandbox}
+                            helpText={glsSandbox ? "Conectat la: api.test.mygls.ro" : "Conectat la: api.mygls.ro (producție)"}
+                          />
+                          <TextField
+                            label="Client Number (număr client GLS)"
+                            value={glsClientNumber}
+                            onChange={setGlsClientNumber}
+                            placeholder="ex: 12345"
+                            helpText="Numărul de client primit de la GLS (din contractul GLS)"
+                            autoComplete="off"
+                          />
+                          <FormLayout.Group>
+                            <TextField label="Username myGLS (email)" value={glsUsername} onChange={setGlsUsername} autoComplete="off" />
+                            <TextField label="Parolă myGLS" value={glsPassword} onChange={setGlsPassword} type="password" placeholder="Lasă gol pentru a păstra parola existentă" autoComplete="new-password" />
+                          </FormLayout.Group>
+                        </FormLayout>
+                        {actionData?.testResult?.courier === "gls" && (
+                          <Banner tone={actionData.testResult.success ? "success" : "critical"} title={actionData.testResult.success ? "Conexiune GLS reușită!" : "Eroare conexiune GLS"}>
+                            {actionData.testResult.error && <Text>{actionData.testResult.error}</Text>}
+                          </Banner>
+                        )}
+                      </BlockStack>
+                    </Card>
+                  </BlockStack>
+                )}
+
+                {/* ── TAB 5: Packeta ────────────────────────────────────── */}
+                {tab === 5 && (
+                  <BlockStack gap="400">
+                    <Card>
+                      <BlockStack gap="400">
+                        <InlineStack align="space-between">
+                          <Text variant="headingMd" fontWeight="semibold">Packeta (Zásilkovna) — REST API</Text>
+                          {packetaEnabled ? <Badge tone="success">Activ</Badge> : <Badge tone="critical">Inactiv</Badge>}
+                        </InlineStack>
+                        <Banner tone="info" title="Cum obții credențialele Packeta">
+                          <BlockStack gap="100">
+                            <Text>1. Creează cont pe <strong>client.packeta.com</strong></Text>
+                            <Text>2. Semnează contractul cu Packeta Romania</Text>
+                            <Text>3. Mergi la <strong>Settings → API → API password</strong></Text>
+                            <Text>4. Copiază <strong>API Key</strong> (parolă API) mai jos</Text>
+                          </BlockStack>
+                        </Banner>
+                        <Divider />
+                        <FormLayout>
+                          <Checkbox label="Activează Packeta" checked={packetaEnabled} onChange={setPacketaEnabled} />
+                          <TextField
+                            label="API Key (parolă API)"
+                            value={packetaApiKey}
+                            onChange={setPacketaApiKey}
+                            type="password"
+                            placeholder="Lasă gol pentru a păstra cheia existentă"
+                            helpText="Din client.packeta.com → Settings → API"
+                            autoComplete="new-password"
+                          />
+                        </FormLayout>
+                        {actionData?.testResult?.courier === "packeta" && (
+                          <Banner tone={actionData.testResult.success ? "success" : "critical"} title={actionData.testResult.success ? "Conexiune Packeta reușită!" : "Eroare conexiune Packeta"}>
+                            {actionData.testResult.error && <Text>{actionData.testResult.error}</Text>}
+                          </Banner>
+                        )}
+                      </BlockStack>
+                    </Card>
+                  </BlockStack>
+                )}
+
+                {/* ── TAB 6: xConnector ─────────────────────────────────── */}
+                {tab === 6 && (
                   <BlockStack gap="400">
                     <Card>
                       <BlockStack gap="400">
@@ -397,8 +628,8 @@ export default function Settings() {
                   </BlockStack>
                 )}
 
-                {/* ── TAB 4: Widget ─────────────────────────────────────── */}
-                {tab === 4 && (
+                {/* ── TAB 7: Widget ─────────────────────────────────────── */}
+                {tab === 7 && (
                   <BlockStack gap="400">
                     <Card>
                       <BlockStack gap="400">
@@ -412,6 +643,9 @@ export default function Settings() {
                             options={[
                               { label: "FAN Courier", value: "fan" },
                               { label: "Sameday",     value: "sameday" },
+                              { label: "Cargus",      value: "cargus" },
+                              { label: "GLS",         value: "gls" },
+                              { label: "Packeta",     value: "packeta" },
                             ]}
                             helpText="Curier pre-selectat dacă clientul nu alege manual"
                           />
@@ -434,10 +668,10 @@ export default function Settings() {
                     <Card>
                       <BlockStack gap="300">
                         <Text variant="headingMd" fontWeight="semibold">Cache puncte de ridicare</Text>
-                        <Text tone="subdued">Punctele FANbox și Sameday easybox sunt salvate local și reîmprospătate automat la 24h.</Text>
+                        <Text tone="subdued">Punctele FANbox, Sameday easybox, Cargus ParcelShop, GLS ParcelShop și Packeta Z-BOX sunt salvate local și reîmprospătate automat la 24h.</Text>
                         {actionData?.refreshResult && (
                           <Banner tone={actionData.refreshResult.errors?.length ? "warning" : "success"} title="Rezultat reîmprospătare">
-                            <Text>FAN: {actionData.refreshResult.fan || 0} puncte, Sameday: {actionData.refreshResult.sameday || 0} puncte</Text>
+                            <Text>FAN: {actionData.refreshResult.fan || 0} | Sameday: {actionData.refreshResult.sameday || 0} | Cargus: {actionData.refreshResult.cargus || 0} | GLS: {actionData.refreshResult.gls || 0} | Packeta: {actionData.refreshResult.packeta || 0}</Text>
                           </Banner>
                         )}
                         <Button onClick={handleRefresh} loading={saving}>🔄 Reîmprospătează puncte ridicare</Button>
@@ -463,6 +697,18 @@ export default function Settings() {
                           <FormLayout.Group>
                             <TextField label="Sameday — livrare la domiciliu (RON)" value={samedayHomeDeliveryFee} onChange={setSamedayHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" helpText="0 = Gratuit" autoComplete="off" />
                             <TextField label="Sameday easybox — ridicare locker (RON)" value={samedayPickupFee} onChange={setSamedayPickupFee} type="number" min="0" step="0.5" suffix="RON" helpText="0 = Gratuit" autoComplete="off" />
+                          </FormLayout.Group>
+                          <FormLayout.Group>
+                            <TextField label="Cargus — livrare la domiciliu (RON)" value={cargusHomeDeliveryFee} onChange={setCargusHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" helpText="0 = Gratuit" autoComplete="off" />
+                            <TextField label="Cargus ParcelShop — ridicare (RON)" value={cargusPickupFee} onChange={setCargusPickupFee} type="number" min="0" step="0.5" suffix="RON" helpText="0 = Gratuit" autoComplete="off" />
+                          </FormLayout.Group>
+                          <FormLayout.Group>
+                            <TextField label="GLS — livrare la domiciliu (RON)" value={glsHomeDeliveryFee} onChange={setGlsHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" helpText="0 = Gratuit" autoComplete="off" />
+                            <TextField label="GLS ParcelShop — ridicare (RON)" value={glsPickupFee} onChange={setGlsPickupFee} type="number" min="0" step="0.5" suffix="RON" helpText="0 = Gratuit" autoComplete="off" />
+                          </FormLayout.Group>
+                          <FormLayout.Group>
+                            <TextField label="Packeta — livrare la domiciliu (RON)" value={packetaHomeDeliveryFee} onChange={setPacketaHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" helpText="0 = Gratuit" autoComplete="off" />
+                            <TextField label="Packeta Z-BOX / Point — ridicare (RON)" value={packetaPickupFee} onChange={setPacketaPickupFee} type="number" min="0" step="0.5" suffix="RON" helpText="0 = Gratuit" autoComplete="off" />
                           </FormLayout.Group>
                         </FormLayout>
                         <Banner tone="warning" title="Nu uita!">
@@ -492,6 +738,21 @@ export default function Settings() {
                 {tab === 2 && (
                   <Button onClick={() => handleTest("sameday")} loading={saving}>
                     🔌 Testează conexiunea Sameday
+                  </Button>
+                )}
+                {tab === 3 && (
+                  <Button onClick={() => handleTest("cargus")} loading={saving}>
+                    🔌 Testează conexiunea Cargus
+                  </Button>
+                )}
+                {tab === 4 && (
+                  <Button onClick={() => handleTest("gls")} loading={saving}>
+                    🔌 Testează conexiunea GLS
+                  </Button>
+                )}
+                {tab === 5 && (
+                  <Button onClick={() => handleTest("packeta")} loading={saving}>
+                    🔌 Testează conexiunea Packeta
                   </Button>
                 )}
               </InlineStack>

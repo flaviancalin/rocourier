@@ -5,6 +5,9 @@ import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
 import { fanCreateAwb } from "../services/fan-courier.server.js";
 import { samedayCreateAwb, samedayGetClientPickupPoints, samedayGetServices } from "../services/sameday.server.js";
+import { cargusCreateAwb, cargusGetSenderLocations } from "../services/cargus.server.js";
+import { glsCreateAwb } from "../services/gls.server.js";
+import { packetaCreatePacket } from "../services/packeta.server.js";
 import { syncAwbToShopify, writeOrderMetafields } from "../services/xconnector.server.js";
 import { updateOrderAwb } from "../models/order.server.js";
 
@@ -53,7 +56,6 @@ export async function action({ request }) {
         return json({ error: "Sameday API credentials not configured" }, { status: 400 });
       }
 
-      // Get sender pickup point and service IDs (Sameday uses numeric IDs)
       const [senderPickupPoints, services] = await Promise.all([
         samedayGetClientPickupPoints({
           username: settings.samedayUsername,
@@ -65,14 +67,13 @@ export async function action({ request }) {
         }),
       ]);
 
-      const senderPickupPoint = senderPickupPoints[0]; // use first configured sender location
+      const senderPickupPoint = senderPickupPoints[0];
       if (!senderPickupPoint) {
         return json({ error: "No sender pickup point configured in Sameday. Contact software@sameday.ro" }, { status: 400 });
       }
 
-      // Find appropriate service
       const isLocker = order.shippingMethod === "pickup_point";
-      const serviceCode = isLocker ? "LN" : "T"; // LN = Locker NextDay, T = Standard
+      const serviceCode = isLocker ? "LN" : "T";
       const service = services.find((s) => s.code === serviceCode) || services[0];
 
       awbResult = await samedayCreateAwb({
@@ -87,6 +88,62 @@ export async function action({ request }) {
         countyId: order.samedayCountyId || null,
         cityId: order.samedayCityId || null,
       });
+
+    } else if (courier === "cargus") {
+      if (!settings.cargusSubscriptionKey || !settings.cargusUsername || !settings.cargusPassword) {
+        return json({ error: "Cargus API credentials not configured" }, { status: 400 });
+      }
+
+      // Get sender's own warehouse locations for the LocationId
+      const senderLocations = await cargusGetSenderLocations({
+        subscriptionKey: settings.cargusSubscriptionKey,
+        username: settings.cargusUsername,
+        password: settings.cargusPassword,
+      });
+
+      const senderLocation = senderLocations[0];
+      if (!senderLocation) {
+        return json({ error: "No sender location configured in Cargus. Contact urgentcargus.ro" }, { status: 400 });
+      }
+
+      const isLocker = order.shippingMethod === "pickup_point";
+
+      awbResult = await cargusCreateAwb({
+        subscriptionKey: settings.cargusSubscriptionKey,
+        username: settings.cargusUsername,
+        password: settings.cargusPassword,
+        order: orderData,
+        settings,
+        senderLocationId: senderLocation.LocationId || senderLocation.locationId,
+        pudoPointId: isLocker ? order.pickupPointId : null,
+      });
+
+    } else if (courier === "gls") {
+      if (!settings.glsUsername || !settings.glsPassword) {
+        return json({ error: "GLS API credentials not configured" }, { status: 400 });
+      }
+
+      awbResult = await glsCreateAwb({
+        username: settings.glsUsername,
+        password: settings.glsPassword,
+        sandbox: !!settings.glsSandbox,
+        order: orderData,
+        settings,
+        clientNumber: parseInt(settings.glsClientNumber) || 0,
+        pickupPointId: order.shippingMethod === "pickup_point" ? order.pickupPointId : null,
+      });
+
+    } else if (courier === "packeta") {
+      if (!settings.packetaApiKey) {
+        return json({ error: "Packeta API key not configured" }, { status: 400 });
+      }
+
+      awbResult = await packetaCreatePacket({
+        apiKey: settings.packetaApiKey,
+        order: orderData,
+        settings,
+        pickupPointId: order.shippingMethod === "pickup_point" ? order.pickupPointId : null,
+      });
     }
 
     if (!awbResult?.success) {
@@ -97,6 +154,8 @@ export async function action({ request }) {
     const updatedOrder = await updateOrderAwb(order.id, {
       awbNumber: awbResult.awbNumber,
       awbStatus: "generated",
+      // Store GLS parcelId for later deletion (reuse awbPdfUrl field)
+      ...(awbResult.parcelId ? { awbPdfUrl: `gls_parcelid:${awbResult.parcelId}` } : {}),
     });
 
     // Sync to Shopify fulfillment (makes xConnector compatible)

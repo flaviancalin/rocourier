@@ -53,6 +53,27 @@ model ShopSettings {
   samedayEnabled   Boolean  @default(true)
   samedaySandbox   Boolean  @default(false)
 
+  // ── Cargus Courier ──────────────────────────────────────────────────────────
+  // Get from: urgentcargus.ro → contact software@urgentcargus.ro for API access
+  // Subscription key from Azure API Management portal
+  cargusSubscriptionKey  String?
+  cargusUsername         String?
+  cargusPassword         String?
+  cargusEnabled          Boolean  @default(false)
+
+  // ── GLS Romania ──────────────────────────────────────────────────────────────
+  // Get from: myGLS portal (mygls.ro) → Tools → API
+  glsUsername      String?
+  glsPassword      String?
+  glsClientNumber  String?   // GLS client number (integer, from GLS contract)
+  glsEnabled       Boolean  @default(false)
+  glsSandbox       Boolean  @default(false)
+
+  // ── Packeta (Zásilkovna) ─────────────────────────────────────────────────────
+  // Get from: client.packeta.com → Settings → API → API password
+  packetaApiKey  String?
+  packetaEnabled Boolean  @default(false)
+
   // ── xConnector Note ──────────────────────────────────────────────────────────
   // xConnector is a separate Shopify App (by InfoQuest, apps.shopify.com/xconnector)
   // Your app can PUSH order data to xConnector via Shopify Order metafields/notes,
@@ -82,6 +103,12 @@ model ShopSettings {
   fanPickupFee             Float  @default(0)
   samedayHomeDeliveryFee   Float  @default(0)
   samedayPickupFee         Float  @default(0)
+  cargusHomeDeliveryFee    Float  @default(0)
+  cargusPickupFee          Float  @default(0)
+  glsHomeDeliveryFee       Float  @default(0)
+  glsPickupFee             Float  @default(0)
+  packetaHomeDeliveryFee   Float  @default(0)
+  packetaPickupFee         Float  @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
