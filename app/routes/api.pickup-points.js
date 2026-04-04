@@ -42,14 +42,18 @@ export async function loader({ request }) {
     });
   }
 
+  const allCouriers = ["fan", "sameday", "cargus", "gls", "packeta"];
   const couriers = courierParam === "all"
-    ? ["fan", "sameday"]
+    ? allCouriers
     : [courierParam];
 
   // Filter by enabled couriers
   const enabledCouriers = couriers.filter((c) => {
-    if (c === "fan") return settings.fanEnabled;
+    if (c === "fan")     return settings.fanEnabled;
     if (c === "sameday") return settings.samedayEnabled;
+    if (c === "cargus")  return settings.cargusEnabled;
+    if (c === "gls")     return settings.glsEnabled;
+    if (c === "packeta") return settings.packetaEnabled;
     return false;
   });
 
