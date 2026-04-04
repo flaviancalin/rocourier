@@ -1,16 +1,7 @@
 {% comment %}
   RoCourier — Cart Shipping Selector
-  Adds 4 delivery options to the cart page:
-    1. FAN Courier – home delivery
-    2. FANbox – locker pickup (opens map)
-    3. Sameday – home delivery
-    4. Sameday easybox – locker pickup (opens map)
-
-  HOW TO ADD TO YOUR THEME:
-  1. Shopify Admin → Online Store → Themes → Customize
-  2. Navigate to the Cart page template
-  3. Click "Add block" inside the cart section → choose "RoCourier Shipping"
-  4. In block settings set the App URL to your Railway URL
+  Supports: FAN Courier, Sameday, Cargus, GLS, Packeta
+  Enable/disable each courier and set fees in Theme Customizer block settings.
 {% endcomment %}
 
 <div
@@ -18,13 +9,22 @@
   class="rocourier-widget"
   data-shop="{{ shop.permanent_domain }}"
   data-app-url="{{ block.settings.app_url }}"
+  data-currency="{{ cart.currency.iso_code | default: 'RON' }}"
   data-fan-enabled="{{ block.settings.fan_enabled }}"
-  data-sameday-enabled="{{ block.settings.sameday_enabled }}"
   data-fan-home-fee="{{ block.settings.fan_home_fee | default: 0 }}"
   data-fan-pickup-fee="{{ block.settings.fan_pickup_fee | default: 0 }}"
+  data-sameday-enabled="{{ block.settings.sameday_enabled }}"
   data-sameday-home-fee="{{ block.settings.sameday_home_fee | default: 0 }}"
   data-sameday-pickup-fee="{{ block.settings.sameday_pickup_fee | default: 0 }}"
-  data-currency="{{ cart.currency.iso_code | default: 'RON' }}"
+  data-cargus-enabled="{{ block.settings.cargus_enabled }}"
+  data-cargus-home-fee="{{ block.settings.cargus_home_fee | default: 0 }}"
+  data-cargus-pickup-fee="{{ block.settings.cargus_pickup_fee | default: 0 }}"
+  data-gls-enabled="{{ block.settings.gls_enabled }}"
+  data-gls-home-fee="{{ block.settings.gls_home_fee | default: 0 }}"
+  data-gls-pickup-fee="{{ block.settings.gls_pickup_fee | default: 0 }}"
+  data-packeta-enabled="{{ block.settings.packeta_enabled }}"
+  data-packeta-home-fee="{{ block.settings.packeta_home_fee | default: 0 }}"
+  data-packeta-pickup-fee="{{ block.settings.packeta_pickup_fee | default: 0 }}"
 >
 
   <p class="rc-section-title">
@@ -34,8 +34,6 @@
   <div class="rc-methods" role="radiogroup" aria-label="Metoda de livrare">
 
     {%- if block.settings.fan_enabled -%}
-
-      {%- comment -%} FAN Courier – home delivery {%- endcomment -%}
       <label class="rc-method-row" for="rc-fan-home">
         <input type="radio" id="rc-fan-home" name="rc_delivery" value="fan_home">
         <span class="rc-method-icon">
@@ -47,8 +45,6 @@
         </span>
         <span class="rc-method-radio"></span>
       </label>
-
-      {%- comment -%} FANbox – locker {%- endcomment -%}
       <label class="rc-method-row" for="rc-fan-box">
         <input type="radio" id="rc-fan-box" name="rc_delivery" value="fan_box">
         <span class="rc-method-icon rc-icon-box">
@@ -60,12 +56,9 @@
         </span>
         <span class="rc-method-radio"></span>
       </label>
-
     {%- endif -%}
 
     {%- if block.settings.sameday_enabled -%}
-
-      {%- comment -%} Sameday – home delivery {%- endcomment -%}
       <label class="rc-method-row" for="rc-sameday-home">
         <input type="radio" id="rc-sameday-home" name="rc_delivery" value="sameday_home">
         <span class="rc-method-icon rc-icon-sameday">
@@ -77,8 +70,6 @@
         </span>
         <span class="rc-method-radio"></span>
       </label>
-
-      {%- comment -%} Sameday easybox – locker {%- endcomment -%}
       <label class="rc-method-row" for="rc-sameday-box">
         <input type="radio" id="rc-sameday-box" name="rc_delivery" value="sameday_box">
         <span class="rc-method-icon rc-icon-sameday rc-icon-box">
@@ -90,12 +81,85 @@
         </span>
         <span class="rc-method-radio"></span>
       </label>
+    {%- endif -%}
 
+    {%- if block.settings.cargus_enabled -%}
+      <label class="rc-method-row" for="rc-cargus-home">
+        <input type="radio" id="rc-cargus-home" name="rc_delivery" value="cargus_home">
+        <span class="rc-method-icon rc-icon-cargus">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        </span>
+        <span class="rc-method-text">
+          <strong>Cargus</strong>
+          <small>{{ block.settings.cargus_home_sub | default: 'Livrare la domiciliu' }}</small>
+        </span>
+        <span class="rc-method-radio"></span>
+      </label>
+      <label class="rc-method-row" for="rc-cargus-box">
+        <input type="radio" id="rc-cargus-box" name="rc_delivery" value="cargus_box">
+        <span class="rc-method-icon rc-icon-cargus rc-icon-box">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="12" y1="9" x2="12" y2="21"/></svg>
+        </span>
+        <span class="rc-method-text">
+          <strong>Cargus Ship &amp; Go</strong>
+          <small>{{ block.settings.cargus_box_sub | default: 'Ridicare din punct Cargus' }}</small>
+        </span>
+        <span class="rc-method-radio"></span>
+      </label>
+    {%- endif -%}
+
+    {%- if block.settings.gls_enabled -%}
+      <label class="rc-method-row" for="rc-gls-home">
+        <input type="radio" id="rc-gls-home" name="rc_delivery" value="gls_home">
+        <span class="rc-method-icon rc-icon-gls">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        </span>
+        <span class="rc-method-text">
+          <strong>GLS</strong>
+          <small>{{ block.settings.gls_home_sub | default: 'Livrare la domiciliu' }}</small>
+        </span>
+        <span class="rc-method-radio"></span>
+      </label>
+      <label class="rc-method-row" for="rc-gls-box">
+        <input type="radio" id="rc-gls-box" name="rc_delivery" value="gls_box">
+        <span class="rc-method-icon rc-icon-gls rc-icon-box">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="12" y1="9" x2="12" y2="21"/></svg>
+        </span>
+        <span class="rc-method-text">
+          <strong>GLS ParcelShop</strong>
+          <small>{{ block.settings.gls_box_sub | default: 'Ridicare din ParcelShop GLS' }}</small>
+        </span>
+        <span class="rc-method-radio"></span>
+      </label>
+    {%- endif -%}
+
+    {%- if block.settings.packeta_enabled -%}
+      <label class="rc-method-row" for="rc-packeta-home">
+        <input type="radio" id="rc-packeta-home" name="rc_delivery" value="packeta_home">
+        <span class="rc-method-icon rc-icon-packeta">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        </span>
+        <span class="rc-method-text">
+          <strong>Packeta</strong>
+          <small>{{ block.settings.packeta_home_sub | default: 'Livrare la domiciliu' }}</small>
+        </span>
+        <span class="rc-method-radio"></span>
+      </label>
+      <label class="rc-method-row" for="rc-packeta-box">
+        <input type="radio" id="rc-packeta-box" name="rc_delivery" value="packeta_box">
+        <span class="rc-method-icon rc-icon-packeta rc-icon-box">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="12" y1="9" x2="12" y2="21"/></svg>
+        </span>
+        <span class="rc-method-text">
+          <strong>Packeta / Z-BOX</strong>
+          <small>{{ block.settings.packeta_box_sub | default: 'Ridicare din punct Packeta sau Z-BOX' }}</small>
+        </span>
+        <span class="rc-method-radio"></span>
+      </label>
     {%- endif -%}
 
   </div>
 
-  {%- comment -%} Selected pickup point (shown after choosing a locker) {%- endcomment -%}
   <div id="rc-point-selected" class="rc-point-selected" style="display:none;">
     <span id="rc-point-badge" class="rc-point-badge"></span>
     <div class="rc-point-info">
@@ -105,12 +169,11 @@
     <button type="button" id="rc-change-point" class="rc-change-btn">Schimbă</button>
   </div>
 
-  {%- comment -%} Error / validation message {%- endcomment -%}
   <div id="rc-error" class="rc-error" style="display:none;"></div>
 
 </div>
 
-{%- comment -%} ── MAP MODAL ──────────────────────────────────────────────── {%- endcomment -%}
+{%- comment -%} MAP MODAL {%- endcomment -%}
 <div id="rc-modal" class="rc-modal" style="display:none;" role="dialog" aria-modal="true">
   <div class="rc-modal-backdrop" id="rc-modal-backdrop"></div>
   <div class="rc-modal-inner">
@@ -127,20 +190,27 @@
         >
       </div>
       <div class="rc-modal-filters" id="rc-type-filters">
+        <button type="button" class="rc-filter-btn rc-filter-active" data-courier="all">Toate</button>
         {%- if block.settings.fan_enabled -%}
-          <button type="button" class="rc-filter-btn rc-filter-active" data-courier="all">Toate</button>
           <button type="button" class="rc-filter-btn" data-courier="fan">FANbox</button>
         {%- endif -%}
         {%- if block.settings.sameday_enabled -%}
           <button type="button" class="rc-filter-btn" data-courier="sameday">easybox</button>
+        {%- endif -%}
+        {%- if block.settings.cargus_enabled -%}
+          <button type="button" class="rc-filter-btn" data-courier="cargus">Cargus</button>
+        {%- endif -%}
+        {%- if block.settings.gls_enabled -%}
+          <button type="button" class="rc-filter-btn" data-courier="gls">GLS</button>
+        {%- endif -%}
+        {%- if block.settings.packeta_enabled -%}
+          <button type="button" class="rc-filter-btn" data-courier="packeta">Packeta</button>
         {%- endif -%}
       </div>
       <button type="button" id="rc-modal-close" class="rc-modal-close" aria-label="Închide">✕</button>
     </div>
 
     <div class="rc-modal-body">
-
-      {%- comment -%} Left: scrollable list {%- endcomment -%}
       <div class="rc-list-panel">
         <div id="rc-list-loading" class="rc-list-loading">
           <div class="rc-spinner"></div>
@@ -152,22 +222,18 @@
         <ul id="rc-points-list" class="rc-points-list"></ul>
         <div id="rc-list-count" class="rc-list-count" style="display:none;"></div>
       </div>
-
-      {%- comment -%} Right: Leaflet map {%- endcomment -%}
       <div class="rc-map-panel">
         <div id="rc-map"></div>
       </div>
-
     </div>
 
   </div>
 </div>
 
-{%- comment -%} Hidden cart attribute inputs (submitted with cart form) {%- endcomment -%}
-<input type="hidden" id="rc-h-method"    name="attributes[_rc_method]"       value="">
-<input type="hidden" id="rc-h-courier"   name="attributes[_rc_courier]"      value="">
-<input type="hidden" id="rc-h-point-id"  name="attributes[_rc_point_id]"     value="">
-<input type="hidden" id="rc-h-point-nm"  name="attributes[_rc_point_name]"   value="">
+<input type="hidden" id="rc-h-method"    name="attributes[_rc_method]"        value="">
+<input type="hidden" id="rc-h-courier"   name="attributes[_rc_courier]"       value="">
+<input type="hidden" id="rc-h-point-id"  name="attributes[_rc_point_id]"      value="">
+<input type="hidden" id="rc-h-point-nm"  name="attributes[_rc_point_name]"    value="">
 <input type="hidden" id="rc-h-point-ad"  name="attributes[_rc_point_address]" value="">
 
 <link rel="stylesheet" href="{{ 'leaflet.css' | asset_url }}">
@@ -180,42 +246,39 @@
   "name": "RoCourier Shipping",
   "target": "section",
   "settings": [
-    {
-      "type": "text",
-      "id": "app_url",
-      "label": "App URL",
-      "default": "https://rocourier-production.up.railway.app",
-      "info": "URL-ul aplicației RoCourier de pe Railway"
-    },
-    {
-      "type": "text",
-      "id": "title",
-      "label": "Titlu secțiune",
-      "default": "Metoda de livrare:"
-    },
-    {
-      "type": "header",
-      "content": "FAN Courier"
-    },
-    { "type": "checkbox", "id": "fan_enabled",    "label": "Activează FAN Courier",          "default": true },
-    { "type": "text",     "id": "fan_home_sub",   "label": "Sub-text livrare acasă FAN",      "default": "Livrare la domiciliu" },
-    { "type": "text",     "id": "fan_box_sub",    "label": "Sub-text FANbox",                 "default": "Ridicare din locker FAN" },
-    { "type": "number",   "id": "fan_home_fee",   "label": "Tarif livrare acasă FAN (RON)",   "default": 0 },
-    { "type": "number",   "id": "fan_pickup_fee", "label": "Tarif FANbox locker (RON)",       "default": 0 },
-    {
-      "type": "header",
-      "content": "Sameday"
-    },
-    { "type": "checkbox", "id": "sameday_enabled",     "label": "Activează Sameday",                "default": true },
-    { "type": "text",     "id": "sameday_home_sub",    "label": "Sub-text livrare acasă Sameday",   "default": "Livrare la domiciliu" },
-    { "type": "text",     "id": "sameday_box_sub",     "label": "Sub-text easybox",                 "default": "Ridicare din locker Sameday" },
-    { "type": "number",   "id": "sameday_home_fee",    "label": "Tarif livrare acasă Sameday (RON)","default": 0 },
-    { "type": "number",   "id": "sameday_pickup_fee",  "label": "Tarif Sameday easybox (RON)",      "default": 0 },
-    {
-      "type": "header",
-      "content": "Hartă"
-    },
-    { "type": "text", "id": "search_placeholder", "label": "Placeholder căutare", "default": "Oraș, cod poștal, adresă..." }
+    { "type": "text",     "id": "app_url",            "label": "App URL",                  "default": "https://rocourier-production.up.railway.app" },
+    { "type": "text",     "id": "title",              "label": "Titlu secțiune",           "default": "Metoda de livrare:" },
+    { "type": "text",     "id": "search_placeholder", "label": "Placeholder căutare",      "default": "Oraș, cod poștal, adresă..." },
+    { "type": "header",   "content": "FAN Courier" },
+    { "type": "checkbox", "id": "fan_enabled",        "label": "Activează FAN Courier",    "default": true },
+    { "type": "text",     "id": "fan_home_sub",       "label": "Sub-text livrare acasă",   "default": "Livrare la domiciliu" },
+    { "type": "text",     "id": "fan_box_sub",        "label": "Sub-text FANbox",          "default": "Ridicare din locker FAN" },
+    { "type": "number",   "id": "fan_home_fee",       "label": "Tarif acasă FAN (RON)",    "default": 0 },
+    { "type": "number",   "id": "fan_pickup_fee",     "label": "Tarif FANbox (RON)",       "default": 0 },
+    { "type": "header",   "content": "Sameday" },
+    { "type": "checkbox", "id": "sameday_enabled",    "label": "Activează Sameday",        "default": false },
+    { "type": "text",     "id": "sameday_home_sub",   "label": "Sub-text livrare acasă",   "default": "Livrare la domiciliu" },
+    { "type": "text",     "id": "sameday_box_sub",    "label": "Sub-text easybox",         "default": "Ridicare din locker Sameday" },
+    { "type": "number",   "id": "sameday_home_fee",   "label": "Tarif acasă Sameday (RON)","default": 0 },
+    { "type": "number",   "id": "sameday_pickup_fee", "label": "Tarif easybox (RON)",      "default": 0 },
+    { "type": "header",   "content": "Cargus" },
+    { "type": "checkbox", "id": "cargus_enabled",     "label": "Activează Cargus",         "default": false },
+    { "type": "text",     "id": "cargus_home_sub",    "label": "Sub-text livrare acasă",   "default": "Livrare la domiciliu" },
+    { "type": "text",     "id": "cargus_box_sub",     "label": "Sub-text Ship & Go",       "default": "Ridicare din punct Cargus" },
+    { "type": "number",   "id": "cargus_home_fee",    "label": "Tarif acasă Cargus (RON)", "default": 0 },
+    { "type": "number",   "id": "cargus_pickup_fee",  "label": "Tarif Ship & Go (RON)",    "default": 0 },
+    { "type": "header",   "content": "GLS" },
+    { "type": "checkbox", "id": "gls_enabled",        "label": "Activează GLS",            "default": false },
+    { "type": "text",     "id": "gls_home_sub",       "label": "Sub-text livrare acasă",   "default": "Livrare la domiciliu" },
+    { "type": "text",     "id": "gls_box_sub",        "label": "Sub-text ParcelShop",      "default": "Ridicare din ParcelShop GLS" },
+    { "type": "number",   "id": "gls_home_fee",       "label": "Tarif acasă GLS (RON)",    "default": 0 },
+    { "type": "number",   "id": "gls_pickup_fee",     "label": "Tarif ParcelShop (RON)",   "default": 0 },
+    { "type": "header",   "content": "Packeta" },
+    { "type": "checkbox", "id": "packeta_enabled",    "label": "Activează Packeta",        "default": false },
+    { "type": "text",     "id": "packeta_home_sub",   "label": "Sub-text livrare acasă",   "default": "Livrare la domiciliu" },
+    { "type": "text",     "id": "packeta_box_sub",    "label": "Sub-text Z-BOX / Point",   "default": "Ridicare din punct Packeta sau Z-BOX" },
+    { "type": "number",   "id": "packeta_home_fee",   "label": "Tarif acasă Packeta (RON)","default": 0 },
+    { "type": "number",   "id": "packeta_pickup_fee", "label": "Tarif Packeta Point (RON)","default": 0 }
   ]
 }
 {% endschema %}
