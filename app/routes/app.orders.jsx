@@ -301,9 +301,12 @@ export default function OrdersPage() {
                       value={courierVal}
                       onChange={setCourierVal}
                       options={[
-                        { label: "Toți curierii",  value: "" },
-                        { label: "FAN Courier",    value: "fan" },
+                        { label: "Toți curierii",  value: ""       },
+                        { label: "FAN Courier",    value: "fan"     },
                         { label: "Sameday",        value: "sameday" },
+                        { label: "Cargus",         value: "cargus"  },
+                        { label: "GLS",            value: "gls"     },
+                        { label: "Packeta",        value: "packeta" },
                       ]}
                     />
                   </div>

@@ -20,11 +20,22 @@ export async function loader({ request, params }) {
 
   const settings = await prisma.shopSettings.findUnique({
     where: { shop: session.shop },
-    select: { fanEnabled: true, samedayEnabled: true },
+    select: {
+      fanEnabled: true, samedayEnabled: true,
+      cargusEnabled: true, glsEnabled: true, packetaEnabled: true,
+    },
   });
 
   return json({ order, settings });
 }
+
+const COURIER_LABELS = {
+  fan:     "FAN Courier",
+  sameday: "Sameday",
+  cargus:  "Cargus",
+  gls:     "GLS",
+  packeta: "Packeta",
+};
 
 const STATUS_MAP = {
   pending:          { label: "În așteptare",    tone: "warning",  icon: "⏳" },
@@ -43,8 +54,10 @@ export default function OrderDetail() {
 
   const [generating, setGenerating]   = useState(false);
   const [tracking, setTracking]       = useState(false);
+  const [deleting, setDeleting]       = useState(false);
   const [trackEvents, setTrackEvents] = useState(order.events || []);
   const [modalOpen, setModalOpen]     = useState(false);
+  const [deleteOpen, setDeleteOpen]   = useState(false);
   const [weight, setWeight]           = useState(String(order.weight || 1));
   const [courier, setCourier]         = useState(order.courierType);
   const [toast, setToast]             = useState(null);
@@ -78,6 +91,32 @@ export default function OrderDetail() {
       setError(e.message);
     } finally {
       setGenerating(false);
+    }
+  }
+
+  // ── Delete AWB ─────────────────────────────────────────────────────────────
+  async function handleDeleteAwb() {
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/delete-awb", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setToast("AWB anulat cu succes");
+        setDeleteOpen(false);
+        setTimeout(() => navigate(`/app/orders/${order.id}`, { replace: true }), 1000);
+      } else {
+        setError(data.error || "Delete failed");
+        setDeleteOpen(false);
+      }
+    } catch (e) {
+      setError(e.message);
+      setDeleteOpen(false);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -128,6 +167,11 @@ export default function OrderDetail() {
               content: "Imprimă AWB",
               onAction: () => window.open(`/api/print-awb?orderId=${order.id}`, "_blank"),
             },
+            {
+              content: "Șterge AWB",
+              onAction: () => setDeleteOpen(true),
+              tone: "critical",
+            },
           ] : []),
           {
             content: "Vezi în Shopify",
@@ -141,13 +185,20 @@ export default function OrderDetail() {
           <Layout.Section>
             <BlockStack gap="400">
 
+              {/* Error banner */}
+              {error && (
+                <Banner tone="critical" title="Eroare" onDismiss={() => setError(null)}>
+                  <Text>{error}</Text>
+                </Banner>
+              )}
+
               {/* Status + AWB banner */}
               {order.awbNumber ? (
                 <Banner
                   title={`AWB: ${order.awbNumber}`}
                   tone={order.awbStatus === "delivered" ? "success" : "info"}
                 >
-                  <Text>Curier: {order.courierType === "fan" ? "FAN Courier" : "Sameday"}</Text>
+                  <Text>Curier: {COURIER_LABELS[order.courierType] || order.courierType}</Text>
                 </Banner>
               ) : (
                 <Banner title="AWB negenerat" tone="warning">
@@ -164,7 +215,7 @@ export default function OrderDetail() {
                   <DetailRow label="Status AWB" value={
                     <Badge tone={statusCfg.tone}>{statusCfg.icon} {statusCfg.label}</Badge>
                   } />
-                  <DetailRow label="Curier" value={order.courierType === "fan" ? "FAN Courier" : "Sameday"} />
+                  <DetailRow label="Curier" value={COURIER_LABELS[order.courierType] || order.courierType} />
                   <DetailRow label="Metodă livrare" value={
                     order.shippingMethod === "pickup_point"
                       ? `📦 Punct fix — ${order.pickupPointName || ""}`
@@ -289,6 +340,9 @@ export default function OrderDetail() {
               options={[
                 ...(settings?.fanEnabled     ? [{ label: "FAN Courier", value: "fan"     }] : []),
                 ...(settings?.samedayEnabled ? [{ label: "Sameday",     value: "sameday" }] : []),
+                ...(settings?.cargusEnabled  ? [{ label: "Cargus",      value: "cargus"  }] : []),
+                ...(settings?.glsEnabled     ? [{ label: "GLS",         value: "gls"     }] : []),
+                ...(settings?.packetaEnabled ? [{ label: "Packeta",     value: "packeta" }] : []),
               ]}
             />
 
@@ -321,6 +375,32 @@ export default function OrderDetail() {
                 </Text>
               </BlockStack>
             </Card>
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
+
+      {/* ── Delete AWB Confirmation Modal ─────────────────────────────────── */}
+      <Modal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title="Șterge AWB"
+        primaryAction={{
+          content: deleting ? "Se anulează..." : "Confirmă ștergerea",
+          onAction: handleDeleteAwb,
+          loading: deleting,
+          tone: "critical",
+          destructive: true,
+        }}
+        secondaryActions={[{ content: "Anulează", onAction: () => setDeleteOpen(false) }]}
+      >
+        <Modal.Section>
+          <BlockStack gap="300">
+            <Text>
+              Ești sigur că vrei să ștergi AWB-ul <strong>{order.awbNumber}</strong>?
+            </Text>
+            <Text tone="subdued">
+              Această acțiune este ireversibilă și este posibilă doar înainte ca curierii să preia coletul.
+            </Text>
           </BlockStack>
         </Modal.Section>
       </Modal>

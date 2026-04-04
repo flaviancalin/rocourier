@@ -154,8 +154,9 @@ export async function action({ request }) {
     const updatedOrder = await updateOrderAwb(order.id, {
       awbNumber: awbResult.awbNumber,
       awbStatus: "generated",
-      // Store GLS parcelId for later deletion (reuse awbPdfUrl field)
-      ...(awbResult.parcelId ? { awbPdfUrl: `gls_parcelid:${awbResult.parcelId}` } : {}),
+      // Store courier-specific IDs needed for deletion / label download
+      ...(awbResult.parcelId  ? { awbPdfUrl: `gls_parcelid:${awbResult.parcelId}`   } : {}),
+      ...(awbResult.packetId  ? { awbPdfUrl: `packeta_id:${awbResult.packetId}`     } : {}),
     });
 
     // Sync to Shopify fulfillment (makes xConnector compatible)
