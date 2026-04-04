@@ -58,31 +58,48 @@
 .rc-chip {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 8px 16px 8px 10px;
-  border: 1.5px solid #ddd;
-  border-radius: 24px;
+  justify-content: center;
+  padding: 8px 18px;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
   background: #fff;
-  font-size: 0.88rem;
-  font-weight: 500;
   font-family: inherit;
   cursor: pointer;
-  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
   white-space: nowrap;
 }
-.rc-chip:hover { border-color: #aaa; background: #f5f5f5; }
+.rc-chip:hover { border-color: #bbb; background: #fafafa; }
+.rc-chip.rc-chip-active {
+  box-shadow: 0 0 0 2px currentColor;
+}
 
-.rc-chip-dot {
-  width: 22px;
+.rc-chip-logo {
   height: 22px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-weight: 700;
-  font-size: 11px;
+  width: auto;
+  display: block;
+  pointer-events: none;
+}
+
+/* Filter buttons with logos */
+.rc-filter-logo {
+  height: 16px;
+  width: auto;
+  display: block;
+  pointer-events: none;
+}
+
+/* Selected point logo */
+.rc-point-logo {
+  height: 20px;
+  width: auto;
   flex-shrink: 0;
+}
+
+/* List item logo */
+.rc-item-logo {
+  height: 18px;
+  width: auto;
+  display: block;
 }
 
 .rc-method-row input[type="radio"] {
@@ -201,21 +218,16 @@
   flex-wrap: wrap;
 }
 
+/* rc-point-badge kept for fallback but logo is preferred */
 .rc-point-badge {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 700;
-  white-space: nowrap;
-  flex-shrink: 0;
+  display: none;
 }
 
-.rc-badge-fan     { background: #fff3e022; color: #e65100; border: 1px solid #e6510044; }
-.rc-badge-sameday { background: #e3f2fd22; color: #0277bd; border: 1px solid #0277bd44; }
-.rc-badge-cargus  { background: #ffebee22; color: #c62828; border: 1px solid #c6282844; }
-.rc-badge-gls     { background: #fff8e122; color: #f9a825; border: 1px solid #f9a82544; }
-.rc-badge-packeta { background: #ffebee22; color: #ba000d; border: 1px solid #ba000d44; }
+.rc-badge-fan     { background: #FF660018; color: #FF6600; border: 1px solid #FF660040; }
+.rc-badge-sameday { background: #003DA518; color: #003DA5; border: 1px solid #003DA540; }
+.rc-badge-cargus  { background: #E2002018; color: #E20020; border: 1px solid #E2002040; }
+.rc-badge-gls     { background: #FFD70060; color: #003591; border: 1px solid #FFD700;   }
+.rc-badge-packeta { background: #BA202518; color: #BA2025; border: 1px solid #BA202540; }
 
 .rc-point-info {
   flex: 1;
@@ -356,9 +368,9 @@
 }
 
 .rc-filter-btn {
-  padding: 7px 16px;
-  border: 1px solid #ddd;
-  border-radius: 20px;
+  padding: 6px 14px;
+  border: 1.5px solid #ddd;
+  border-radius: 8px;
   font-size: 0.85rem;
   font-weight: 500;
   cursor: pointer;
@@ -366,12 +378,21 @@
   transition: all 0.15s;
   font-family: inherit;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 .rc-filter-btn:hover      { border-color: #aaa; background: #f5f5f5; }
 .rc-filter-btn.rc-filter-active {
   background: #222;
   color: #fff;
   border-color: #222;
+}
+/* Logo-only filter buttons keep a white bg when inactive */
+.rc-filter-btn:has(.rc-filter-logo).rc-filter-active {
+  background: #f0f0f0;
+  border-color: #222;
+  box-shadow: 0 0 0 2px #222;
 }
 
 /* Close button */

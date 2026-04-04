@@ -12,18 +12,23 @@
   data-fan-enabled="{{ block.settings.fan_enabled }}"
   data-fan-home-fee="{{ block.settings.fan_home_fee | default: 0 }}"
   data-fan-pickup-fee="{{ block.settings.fan_pickup_fee | default: 0 }}"
+  data-fan-logo="{{ 'logo-fan.svg' | asset_url }}"
   data-sameday-enabled="{{ block.settings.sameday_enabled }}"
   data-sameday-home-fee="{{ block.settings.sameday_home_fee | default: 0 }}"
   data-sameday-pickup-fee="{{ block.settings.sameday_pickup_fee | default: 0 }}"
+  data-sameday-logo="{{ 'logo-sameday.svg' | asset_url }}"
   data-cargus-enabled="{{ block.settings.cargus_enabled }}"
   data-cargus-home-fee="{{ block.settings.cargus_home_fee | default: 0 }}"
   data-cargus-pickup-fee="{{ block.settings.cargus_pickup_fee | default: 0 }}"
+  data-cargus-logo="{{ 'logo-cargus.svg' | asset_url }}"
   data-gls-enabled="{{ block.settings.gls_enabled }}"
   data-gls-home-fee="{{ block.settings.gls_home_fee | default: 0 }}"
   data-gls-pickup-fee="{{ block.settings.gls_pickup_fee | default: 0 }}"
+  data-gls-logo="{{ 'logo-gls.svg' | asset_url }}"
   data-packeta-enabled="{{ block.settings.packeta_enabled }}"
   data-packeta-home-fee="{{ block.settings.packeta_home_fee | default: 0 }}"
   data-packeta-pickup-fee="{{ block.settings.packeta_pickup_fee | default: 0 }}"
+  data-packeta-logo="{{ 'logo-packeta.svg' | asset_url }}"
 >
 
   <p class="rc-section-title">
@@ -54,33 +59,28 @@
     <!-- Courier chip picker — shown when home is selected -->
     <div id="rc-courier-picker" class="rc-courier-picker" style="display:none;">
       {%- if block.settings.fan_enabled -%}
-        <button type="button" class="rc-chip" data-courier="fan" data-color="#e65100">
-          <span class="rc-chip-dot" style="background:#e65100">F</span>
-          FAN Courier
+        <button type="button" class="rc-chip" data-courier="fan" data-color="#FF6600">
+          <img src="{{ 'logo-fan.svg' | asset_url }}" alt="FAN Courier" class="rc-chip-logo">
         </button>
       {%- endif -%}
       {%- if block.settings.sameday_enabled -%}
-        <button type="button" class="rc-chip" data-courier="sameday" data-color="#0277bd">
-          <span class="rc-chip-dot" style="background:#0277bd">S</span>
-          Sameday
+        <button type="button" class="rc-chip" data-courier="sameday" data-color="#003DA5">
+          <img src="{{ 'logo-sameday.svg' | asset_url }}" alt="Sameday" class="rc-chip-logo">
         </button>
       {%- endif -%}
       {%- if block.settings.cargus_enabled -%}
-        <button type="button" class="rc-chip" data-courier="cargus" data-color="#c62828">
-          <span class="rc-chip-dot" style="background:#c62828">C</span>
-          Cargus
+        <button type="button" class="rc-chip" data-courier="cargus" data-color="#E20020">
+          <img src="{{ 'logo-cargus.svg' | asset_url }}" alt="Cargus" class="rc-chip-logo">
         </button>
       {%- endif -%}
       {%- if block.settings.gls_enabled -%}
-        <button type="button" class="rc-chip" data-courier="gls" data-color="#f9a825">
-          <span class="rc-chip-dot" style="background:#f9a825">G</span>
-          GLS
+        <button type="button" class="rc-chip" data-courier="gls" data-color="#003591">
+          <img src="{{ 'logo-gls.svg' | asset_url }}" alt="GLS" class="rc-chip-logo">
         </button>
       {%- endif -%}
       {%- if block.settings.packeta_enabled -%}
-        <button type="button" class="rc-chip" data-courier="packeta" data-color="#ba000d">
-          <span class="rc-chip-dot" style="background:#ba000d">P</span>
-          Packeta
+        <button type="button" class="rc-chip" data-courier="packeta" data-color="#BA2025">
+          <img src="{{ 'logo-packeta.svg' | asset_url }}" alt="Packeta" class="rc-chip-logo">
         </button>
       {%- endif -%}
     </div>
@@ -107,7 +107,7 @@
 
   <!-- Selected pickup point summary -->
   <div id="rc-point-selected" class="rc-point-selected" style="display:none;">
-    <span id="rc-point-badge" class="rc-point-badge"></span>
+    <img id="rc-point-logo" class="rc-point-logo" src="" alt="">
     <div class="rc-point-info">
       <strong id="rc-point-name"></strong>
       <span id="rc-point-addr"></span>
@@ -138,19 +138,29 @@
       <div class="rc-modal-filters" id="rc-type-filters">
         <button type="button" class="rc-filter-btn rc-filter-active" data-courier="all">Toate</button>
         {%- if block.settings.fan_enabled -%}
-          <button type="button" class="rc-filter-btn" data-courier="fan">FANbox</button>
+          <button type="button" class="rc-filter-btn" data-courier="fan">
+            <img src="{{ 'logo-fan.svg' | asset_url }}" alt="FAN" class="rc-filter-logo">
+          </button>
         {%- endif -%}
         {%- if block.settings.sameday_enabled -%}
-          <button type="button" class="rc-filter-btn" data-courier="sameday">easybox</button>
+          <button type="button" class="rc-filter-btn" data-courier="sameday">
+            <img src="{{ 'logo-sameday.svg' | asset_url }}" alt="Sameday" class="rc-filter-logo">
+          </button>
         {%- endif -%}
         {%- if block.settings.cargus_enabled -%}
-          <button type="button" class="rc-filter-btn" data-courier="cargus">Cargus</button>
+          <button type="button" class="rc-filter-btn" data-courier="cargus">
+            <img src="{{ 'logo-cargus.svg' | asset_url }}" alt="Cargus" class="rc-filter-logo">
+          </button>
         {%- endif -%}
         {%- if block.settings.gls_enabled -%}
-          <button type="button" class="rc-filter-btn" data-courier="gls">GLS</button>
+          <button type="button" class="rc-filter-btn" data-courier="gls">
+            <img src="{{ 'logo-gls.svg' | asset_url }}" alt="GLS" class="rc-filter-logo">
+          </button>
         {%- endif -%}
         {%- if block.settings.packeta_enabled -%}
-          <button type="button" class="rc-filter-btn" data-courier="packeta">Packeta</button>
+          <button type="button" class="rc-filter-btn" data-courier="packeta">
+            <img src="{{ 'logo-packeta.svg' | asset_url }}" alt="Packeta" class="rc-filter-logo">
+          </button>
         {%- endif -%}
       </div>
       <button type="button" id="rc-modal-close" class="rc-modal-close" aria-label="Închide">✕</button>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 102 28">
+  <!-- Z-BOX icon -->
+  <rect x="2" y="4" width="20" height="20" rx="3" fill="#BA2025"/>
+  <text x="12" y="19" font-family="'Arial Black',Arial,sans-serif" font-weight="900" font-size="14" fill="white" text-anchor="middle">Z</text>
+  <!-- Packeta wordmark -->
+  <text x="28" y="21" font-family="Arial,sans-serif" font-weight="700" font-size="16" fill="#BA2025">Packeta</text>
+</svg>

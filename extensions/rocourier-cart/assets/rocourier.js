@@ -3,12 +3,13 @@
   "use strict";
 
   // ── Courier config ────────────────────────────────────────────────────────────
+  // Colors and labels — logos loaded dynamically from widget data attributes
   const COURIERS = {
-    fan:     { label: "FAN Courier", pickupLabel: "FANbox",           color: "#e65100", letter: "F", badgeClass: "rc-badge-fan"     },
-    sameday: { label: "Sameday",     pickupLabel: "Sameday easybox",  color: "#0277bd", letter: "S", badgeClass: "rc-badge-sameday" },
-    cargus:  { label: "Cargus",      pickupLabel: "Cargus Ship & Go", color: "#c62828", letter: "C", badgeClass: "rc-badge-cargus"  },
-    gls:     { label: "GLS",         pickupLabel: "GLS ParcelShop",   color: "#f9a825", letter: "G", badgeClass: "rc-badge-gls"     },
-    packeta: { label: "Packeta",     pickupLabel: "Packeta / Z-BOX",  color: "#ba000d", letter: "P", badgeClass: "rc-badge-packeta" },
+    fan:     { label: "FAN Courier", pickupLabel: "FANbox",           color: "#FF6600", markerColor: "#FF6600", letter: "F", badgeClass: "rc-badge-fan"     },
+    sameday: { label: "Sameday",     pickupLabel: "Sameday easybox",  color: "#003DA5", markerColor: "#003DA5", letter: "S", badgeClass: "rc-badge-sameday" },
+    cargus:  { label: "Cargus",      pickupLabel: "Cargus Ship & Go", color: "#E20020", markerColor: "#E20020", letter: "C", badgeClass: "rc-badge-cargus"  },
+    gls:     { label: "GLS",         pickupLabel: "GLS ParcelShop",   color: "#003591", markerColor: "#FFD700", letter: "G", badgeClass: "rc-badge-gls"     },
+    packeta: { label: "Packeta",     pickupLabel: "Packeta / Z-BOX",  color: "#BA2025", markerColor: "#BA2025", letter: "P", badgeClass: "rc-badge-packeta" },
   };
 
   // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -43,6 +44,12 @@
       };
     });
 
+    // Logo URLs (injected by Liquid via data attributes)
+    const LOGOS = {};
+    Object.keys(COURIERS).forEach((c) => {
+      LOGOS[c] = widget.dataset[c + "Logo"] || "";
+    });
+
     function feeLabel(amount) {
       if (!amount) return "Gratuit";
       return amount.toLocaleString("ro-RO", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + " " + CURRENCY;
@@ -74,7 +81,7 @@
     const homeFeeEl      = $("rc-home-fee");
     const pickupFeeEl    = $("rc-pickup-fee");
     const pointSelected  = $("rc-point-selected");
-    const pointBadge     = $("rc-point-badge");
+    const pointLogo      = $("rc-point-logo");
     const pointName      = $("rc-point-name");
     const pointAddr      = $("rc-point-addr");
     const changeBtn      = $("rc-change-point");
@@ -307,15 +314,17 @@
         li.className  = "rc-item" + (isSel ? " rc-item-selected" : "");
         li.dataset.id = p.id;
 
+        const logoUrl = LOGOS[p.courier] || "";
         li.innerHTML = `
           <div class="rc-item-top">
-            <span class="rc-item-badge ${cfg.badgeClass}" style="background:${cfg.color}22;color:${cfg.color};border:1px solid ${cfg.color}44">
-              ${esc(cfg.pickupLabel)}
-            </span>
+            ${logoUrl
+              ? `<img src="${logoUrl}" alt="${esc(cfg.label)}" class="rc-item-logo">`
+              : `<span class="rc-item-badge ${cfg.badgeClass}" style="background:${cfg.color}22;color:${cfg.color};border:1px solid ${cfg.color}44">${esc(cfg.pickupLabel)}</span>`
+            }
           </div>
           <strong class="rc-item-name">${esc(p.name)}</strong>
           <span class="rc-item-addr">${esc(p.address)}</span>
-          <button type="button" class="rc-item-btn ${isSel ? "rc-item-btn-sel" : ""}">
+          <button type="button" class="rc-item-btn ${isSel ? "rc-item-btn-sel" : ""}" style="${isSel ? "" : `background:${cfg.color}`}">
             ${isSel ? "✓ Selectat" : "Alege"}
           </button>
         `;
@@ -370,28 +379,33 @@
       const coords = [];
       points.forEach((p) => {
         if (!p.lat || !p.lng) return;
-        const cfg   = COURIERS[p.courier] || { color: "#888", letter: "?", pickupLabel: p.courier };
-        const isSel = selectedPoint?.id === p.id;
-        const color = isSel ? "#108043" : cfg.color;
+        const cfg      = COURIERS[p.courier] || { color: "#888", markerColor: "#888", letter: "?", pickupLabel: p.courier };
+        const isSel    = selectedPoint?.id === p.id;
+        const pinColor = isSel ? "#108043" : cfg.markerColor;
+        // For GLS (yellow pin) use dark letter; selected always white
+        const letterColor = isSel ? "#fff" : (p.courier === "gls" ? "#003591" : "#fff");
+        const logoUrl  = LOGOS[p.courier] || "";
 
         const icon = L.divIcon({
           className: "",
-          html: `<div style="width:30px;height:30px;border-radius:50% 50% 50% 0;background:${color};transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.3);border:2px solid #fff">
-            <span style="transform:rotate(45deg);color:#fff;font-weight:700;font-size:12px">${cfg.letter}</span>
+          html: `<div style="width:30px;height:30px;border-radius:50% 50% 50% 0;background:${pinColor};transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.3);border:2px solid #fff">
+            <span style="transform:rotate(45deg);color:${letterColor};font-weight:900;font-size:12px">${cfg.letter}</span>
           </div>`,
           iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -34],
         });
+
+        const logoHtml = logoUrl
+          ? `<img src="${logoUrl}" alt="${esc(cfg.label)}" style="height:20px;margin-bottom:6px;display:block">`
+          : `<div style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;margin-bottom:6px;background:${cfg.color}22;color:${cfg.color};border:1px solid ${cfg.color}44">${esc(cfg.pickupLabel)}</div>`;
 
         const marker = L.marker([p.lat, p.lng], { icon })
           .addTo(mapInst)
           .bindPopup(
             `<div style="min-width:170px;font-family:inherit">
-              <div style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;margin-bottom:6px;background:${cfg.color}22;color:${cfg.color};border:1px solid ${cfg.color}44">
-                ${esc(cfg.pickupLabel)}
-              </div>
+              ${logoHtml}
               <div style="font-weight:600;margin-bottom:3px">${esc(p.name)}</div>
               <div style="font-size:12px;color:#666;margin-bottom:9px">${esc(p.address)}</div>
-              <button onclick="window.__rcPick('${p.id}')" style="width:100%;padding:7px 0;background:${cfg.color};color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">
+              <button onclick="window.__rcPick('${p.id}')" style="width:100%;padding:7px 0;background:${cfg.markerColor};color:${p.courier === "gls" ? "#003591" : "#fff"};border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">
                 ${isSel ? "✓ Selectat" : "Selectează"}
               </button>
             </div>`
@@ -429,13 +443,16 @@
       // Update pickup fee to this courier's fee
       updatePickupFee(p.courier);
 
-      // Show selected summary bar
-      if (pointBadge) {
-        pointBadge.textContent      = cfg.pickupLabel;
-        pointBadge.className        = `rc-point-badge ${cfg.badgeClass}`;
-        pointBadge.style.background = `${cfg.color}22`;
-        pointBadge.style.color      = cfg.color;
-        pointBadge.style.border     = `1px solid ${cfg.color}44`;
+      // Show selected summary bar with logo
+      if (pointLogo) {
+        const logoUrl = LOGOS[p.courier] || "";
+        if (logoUrl) {
+          pointLogo.src   = logoUrl;
+          pointLogo.alt   = cfg.label;
+          pointLogo.style.display = "block";
+        } else {
+          pointLogo.style.display = "none";
+        }
       }
       if (pointName) pointName.textContent = p.name;
       if (pointAddr) pointAddr.textContent = p.address;
@@ -559,13 +576,11 @@
 
           updatePickupFee(courier);
 
-          const cfg = COURIERS[courier] || { pickupLabel: courier, badgeClass: "", color: "#888" };
-          if (pointBadge) {
-            pointBadge.textContent      = cfg.pickupLabel;
-            pointBadge.className        = `rc-point-badge ${cfg.badgeClass}`;
-            pointBadge.style.background = `${cfg.color}22`;
-            pointBadge.style.color      = cfg.color;
-            pointBadge.style.border     = `1px solid ${cfg.color}44`;
+          const cfg     = COURIERS[courier] || { label: courier, color: "#888" };
+          const logoUrl = LOGOS[courier] || "";
+          if (pointLogo) {
+            if (logoUrl) { pointLogo.src = logoUrl; pointLogo.alt = cfg.label; pointLogo.style.display = "block"; }
+            else { pointLogo.style.display = "none"; }
           }
           if (pointName) pointName.textContent = pname;
           if (pointAddr) pointAddr.textContent = paddr;
