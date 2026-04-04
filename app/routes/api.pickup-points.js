@@ -43,9 +43,10 @@ export async function loader({ request }) {
   }
 
   const allCouriers = ["fan", "sameday", "cargus", "gls", "packeta"];
+  // courierParam can be "all", a single value "fan", or comma-separated "fan,sameday,cargus"
   const couriers = courierParam === "all"
     ? allCouriers
-    : [courierParam];
+    : courierParam.split(",").map((c) => c.trim()).filter(Boolean);
 
   // Filter by enabled couriers
   const enabledCouriers = couriers.filter((c) => {
