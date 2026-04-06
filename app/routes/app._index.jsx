@@ -132,7 +132,7 @@ export default function Dashboard() {
 
   return (
     <Page
-      title="🚚 RoCourier Dashboard"
+      title="🚚 Picklo Dashboard"
       subtitle="Gestionează coletele tale FAN Courier & Sameday"
       primaryAction={{
         content: "Setări",

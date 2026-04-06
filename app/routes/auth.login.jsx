@@ -19,7 +19,7 @@ export default function AuthLogin() {
         background: "#fff", borderRadius: 12, padding: 40,
         boxShadow: "0 2px 16px rgba(0,0,0,0.10)", maxWidth: 400, width: "100%",
       }}>
-        <h1 style={{ marginBottom: 8 }}>🚚 RoCourier</h1>
+        <h1 style={{ marginBottom: 8 }}>🚚 Picklo</h1>
         <form method="post">
           <input
             type="text"

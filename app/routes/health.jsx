@@ -11,7 +11,7 @@ export async function loader() {
     await prisma.$queryRaw`SELECT 1`;
     return json({
       status: "ok",
-      app: "RoCourier",
+      app: "Picklo",
       timestamp: new Date().toISOString(),
     });
   } catch (e) {

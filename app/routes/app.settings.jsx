@@ -108,7 +108,7 @@ export async function action({ request }) {
         {
           method: "POST",
           headers: { "X-Shopify-Access-Token": token, "Content-Type": "application/json" },
-          body: JSON.stringify({ carrier_service: { name: "RoCourier", callback_url: CALLBACK_URL, service_discovery: true } }),
+          body: JSON.stringify({ carrier_service: { name: "Picklo", callback_url: CALLBACK_URL, service_discovery: true } }),
         }
       );
       const createData = await createRes.json();
@@ -357,7 +357,7 @@ export default function Settings() {
 
   return (
     <Frame>
-      <Page title="Setări RoCourier" subtitle={shop}>
+      <Page title="Setări Picklo" subtitle={shop}>
         <Layout>
           <Layout.Section>
             <Tabs tabs={tabs} selected={tab} onSelect={setTab} fitted>
@@ -614,7 +614,7 @@ export default function Settings() {
                         <Text variant="headingMd" fontWeight="semibold">Integrare xConnector</Text>
                         <Banner tone="info" title="Cum funcționează integrarea cu xConnector">
                           <BlockStack gap="200">
-                            <Text><strong>RoCourier este deja compatibil cu xConnector</strong> fără configurare suplimentară: AWB-urile generate sunt scrise automat în câmpurile native Shopify pe care xConnector le citește.</Text>
+                            <Text><strong>Picklo este deja compatibil cu xConnector</strong> fără configurare suplimentară: AWB-urile generate sunt scrise automat în câmpurile native Shopify pe care xConnector le citește.</Text>
                             <Text>Pentru integrare directă contactează InfoQuest: <strong>office@infoquest.ro</strong></Text>
                           </BlockStack>
                         </Banner>
@@ -712,7 +712,7 @@ export default function Settings() {
                           </FormLayout.Group>
                         </FormLayout>
                         <Banner tone="warning" title="Nu uita!">
-                          <Text>După salvare, mergi în <strong>Themes → Customize → Cart page → RoCourier</strong> și introdu aceleași valori și acolo (câmpurile "Tarif..."). Sunt necesare în ambele locuri.</Text>
+                          <Text>După salvare, mergi în <strong>Themes → Customize → Cart page → Picklo</strong> și introdu aceleași valori și acolo (câmpurile "Tarif..."). Sunt necesare în ambele locuri.</Text>
                         </Banner>
                       </BlockStack>
                     </Card>

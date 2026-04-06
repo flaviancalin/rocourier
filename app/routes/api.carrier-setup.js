@@ -32,7 +32,7 @@ export async function action({ request }) {
     const createRes = await fetch(`https://${shop}/admin/api/${API_VERSION}/carrier_services.json`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ carrier_service: { name: "RoCourier", callback_url: CALLBACK_URL, service_discovery: true } }),
+      body: JSON.stringify({ carrier_service: { name: "Picklo", callback_url: CALLBACK_URL, service_discovery: true } }),
     });
     const createData = await createRes.json();
     const cs = createData.carrier_service;

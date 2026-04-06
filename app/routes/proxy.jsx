@@ -56,5 +56,5 @@ export async function loader({ request }) {
   }
 
   // Default: return shop info
-  return json({ status: "RoCourier proxy active", shop });
+  return json({ status: "Picklo proxy active", shop });
 }
