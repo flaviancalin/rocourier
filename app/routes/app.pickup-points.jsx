@@ -3,16 +3,24 @@
 // and for merchants to see what locations are available.
 
 import { json } from "@remix-run/node";
-import { useLoaderData, useNavigate, useSubmit } from "@remix-run/react";
+import { useLoaderData, useNavigate, useSubmit, useActionData } from "@remix-run/react";
 import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
 import { refreshPickupPointsCache } from "../models/pickup-points.server.js";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Page, Layout, Card, DataTable, Badge, Button, Text,
-  BlockStack, InlineStack, Select, TextField, Banner,
-  EmptyState, Spinner, Frame, Toast,
+  BlockStack, Select, TextField, Banner,
+  EmptyState, Frame, Toast, Tabs,
 } from "@shopify/polaris";
+
+const COURIER_CONFIG = {
+  fan:     { label: "FANbox (FAN Courier)", color: "#e65100", badgeTone: "warning",   badgeLabel: "FANbox"   },
+  sameday: { label: "Easybox (Sameday)",   color: "#1565c0", badgeTone: "info",       badgeLabel: "Easybox"  },
+  cargus:  { label: "Ship&Go (Cargus)",    color: "#c62828", badgeTone: "critical",   badgeLabel: "Cargus"   },
+  gls:     { label: "ParcelShop (GLS)",    color: "#f9a825", badgeTone: "attention",  badgeLabel: "GLS"      },
+  packeta: { label: "Z-Box (Packeta)",     color: "#8e0000", badgeTone: "new",        badgeLabel: "Packeta"  },
+};
 
 export async function loader({ request }) {
   const { session } = await authenticate.admin(request);
@@ -26,15 +34,19 @@ export async function loader({ request }) {
     ...(county  ? { county: { contains: county, mode: "insensitive" } } : {}),
   };
 
-  const [points, total, fanCount, samedayCount, lastUpdate] = await Promise.all([
+  const [points, total, counts, lastUpdate] = await Promise.all([
     prisma.pickupPoint.findMany({
       where,
       orderBy: [{ county: "asc" }, { name: "asc" }],
       take: 200,
     }),
     prisma.pickupPoint.count({ where }),
-    prisma.pickupPoint.count({ where: { courier: "fan",     isActive: true } }),
-    prisma.pickupPoint.count({ where: { courier: "sameday", isActive: true } }),
+    Promise.all(
+      Object.keys(COURIER_CONFIG).map(async (c) => ({
+        courier: c,
+        count: await prisma.pickupPoint.count({ where: { courier: c, isActive: true } }),
+      }))
+    ),
     prisma.pickupPoint.findFirst({
       where: { isActive: true },
       orderBy: { updatedAt: "desc" },
@@ -42,8 +54,10 @@ export async function loader({ request }) {
     }),
   ]);
 
+  const countMap = Object.fromEntries(counts.map(({ courier, count }) => [courier, count]));
+
   return json({
-    points, total, fanCount, samedayCount,
+    points, total, countMap,
     lastUpdate: lastUpdate?.updatedAt,
     filters: { courier, county },
   });
@@ -64,44 +78,74 @@ export async function action({ request }) {
 }
 
 export default function PickupPointsPage() {
-  const { points, total, fanCount, samedayCount, lastUpdate, filters } = useLoaderData();
-  const navigate = useNavigate();
-  const submit   = useSubmit();
+  const { points, total, countMap, lastUpdate, filters } = useLoaderData();
+  const actionData = useActionData();
+  const navigate   = useNavigate();
+  const submit     = useSubmit();
 
   const [courierFilter, setCourierFilter] = useState(filters.courier);
   const [countyFilter,  setCountyFilter]  = useState(filters.county);
   const [refreshing,    setRefreshing]    = useState(false);
   const [toast,         setToast]         = useState(null);
+  const [selectedTab,   setSelectedTab]   = useState(0);
 
-  function applyFilters() {
+  // Map tab index → courier key (0 = all)
+  const tabCouriers = ["", ...Object.keys(COURIER_CONFIG)];
+  const tabLabels   = ["Toți", "FANbox", "Easybox", "Cargus", "GLS", "Packeta"];
+
+  // Show result toast after refresh
+  useEffect(() => {
+    if (actionData?.refreshed) {
+      const r = actionData.result;
+      const parts = Object.keys(COURIER_CONFIG)
+        .map((c) => `${COURIER_CONFIG[c].badgeLabel}: ${r[c] ?? 0}`)
+        .join(", ");
+      const msg = `Reîmprospătat! ${parts}${r.errors?.length ? ` | Erori: ${r.errors.join("; ")}` : ""}`;
+      setToast(msg);
+      setRefreshing(false);
+      navigate("/app/pickup-points");
+    }
+    if (actionData?.error) {
+      setToast(`Eroare: ${actionData.error}`);
+      setRefreshing(false);
+    }
+  }, [actionData]);
+
+  function applyFilters(courier, county) {
     const params = new URLSearchParams();
-    if (courierFilter) params.set("courier", courierFilter);
-    if (countyFilter)  params.set("county",  countyFilter);
+    if (courier) params.set("courier", courier);
+    if (county)  params.set("county",  county);
     navigate(`/app/pickup-points?${params}`);
   }
 
-  async function handleRefresh() {
+  function handleTabChange(idx) {
+    setSelectedTab(idx);
+    setCourierFilter(tabCouriers[idx]);
+    applyFilters(tabCouriers[idx], countyFilter);
+  }
+
+  function handleRefresh() {
     setRefreshing(true);
     submit({}, { method: "post" });
     setToast("Reîmprospătare în curs... poate dura 30-60 secunde.");
-    setTimeout(() => {
-      setRefreshing(false);
-      navigate("/app/pickup-points");
-    }, 5000);
   }
 
-  const rows = points.map((p) => [
-    <Badge tone={p.courier === "fan" ? "warning" : "info"}>
-      {p.courier === "fan" ? "FANbox" : "easybox"}
-    </Badge>,
-    p.name,
-    p.county || "—",
-    p.city   || "—",
-    p.address,
-    p.lat && p.lng
-      ? <Text variant="bodySm" tone="subdued">{p.lat.toFixed(4)}, {p.lng.toFixed(4)}</Text>
-      : <Badge tone="critical">Fără coord.</Badge>,
-  ]);
+  const rows = points.map((p) => {
+    const cfg = COURIER_CONFIG[p.courier] || { badgeTone: "info", badgeLabel: p.courier };
+    return [
+      <Badge tone={cfg.badgeTone}>{cfg.badgeLabel}</Badge>,
+      p.name,
+      p.county || "—",
+      p.city   || "—",
+      p.address,
+      p.lat && p.lng
+        ? <Text variant="bodySm" tone="subdued">{p.lat.toFixed(4)}, {p.lng.toFixed(4)}</Text>
+        : <Badge tone="critical">Fără coord.</Badge>,
+    ];
+  });
+
+  // Errors from last refresh (shown if available in actionData)
+  const refreshErrors = actionData?.result?.errors || [];
 
   return (
     <Frame>
@@ -119,24 +163,42 @@ export default function PickupPointsPage() {
 
           {/* ── Stats ─────────────────────────────────────────────────── */}
           <Layout.Section>
-            <div style={{ display: "flex", gap: 16 }}>
-              {[
-                { label: "FANbox (FAN Courier)", value: fanCount, color: "#e65100" },
-                { label: "Easybox (Sameday)",   value: samedayCount, color: "#1565c0" },
-                { label: "Total puncte active", value: total, color: "#108043" },
-              ].map(({ label, value, color }) => (
-                <div key={label} style={{
-                  flex: 1, background: "#fff", border: "1px solid #e1e3e5",
-                  borderTop: `4px solid ${color}`, borderRadius: 12,
-                  padding: "16px 20px",
-                }}>
-                  <Text variant="headingXl" fontWeight="bold">{value}</Text>
-                  <Text variant="bodySm" tone="subdued">{label}</Text>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              {Object.entries(COURIER_CONFIG).map(([key, cfg]) => (
+                <div
+                  key={key}
+                  onClick={() => {
+                    const idx = tabCouriers.indexOf(key);
+                    if (idx >= 0) handleTabChange(idx);
+                  }}
+                  style={{
+                    flex: "1 1 140px", background: "#fff",
+                    border: "1px solid #e1e3e5",
+                    borderTop: `4px solid ${cfg.color}`,
+                    borderRadius: 12, padding: "14px 18px",
+                    cursor: "pointer",
+                    opacity: countMap[key] === 0 ? 0.5 : 1,
+                  }}
+                >
+                  <Text variant="headingXl" fontWeight="bold">{countMap[key] ?? 0}</Text>
+                  <Text variant="bodySm" tone="subdued">{cfg.label}</Text>
                 </div>
               ))}
+              <div style={{
+                flex: "1 1 140px", background: "#fff",
+                border: "1px solid #e1e3e5",
+                borderTop: "4px solid #108043",
+                borderRadius: 12, padding: "14px 18px",
+              }}>
+                <Text variant="headingXl" fontWeight="bold">
+                  {Object.values(countMap).reduce((a, b) => a + b, 0)}
+                </Text>
+                <Text variant="bodySm" tone="subdued">Total puncte active</Text>
+              </div>
             </div>
           </Layout.Section>
 
+          {/* ── Last update + errors ──────────────────────────────────── */}
           {lastUpdate && (
             <Layout.Section>
               <Banner tone="info">
@@ -154,70 +216,94 @@ export default function PickupPointsPage() {
             </Layout.Section>
           )}
 
-          {/* ── Filters + Table ──────────────────────────────────────── */}
-          <Layout.Section>
-            <Card>
-              <BlockStack gap="400">
-                <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
-                  <div style={{ flex: "1 1 160px" }}>
-                    <Select
-                      label="Curier"
-                      value={courierFilter}
-                      onChange={setCourierFilter}
-                      options={[
-                        { label: "Toți curierii", value: "" },
-                        { label: "FAN Courier (FANbox)", value: "fan" },
-                        { label: "Sameday (easybox)",    value: "sameday" },
-                      ]}
-                    />
-                  </div>
-                  <div style={{ flex: "2 1 200px" }}>
-                    <TextField
-                      label="Filtrează după județ"
-                      value={countyFilter}
-                      onChange={setCountyFilter}
-                      placeholder="ex: Cluj, Prahova..."
-                      onKeyDown={(e) => e.key === "Enter" && applyFilters()}
-                      clearButton
-                      onClearButtonClick={() => { setCountyFilter(""); navigate("/app/pickup-points"); }}
-                    />
-                  </div>
-                  <div style={{ paddingTop: 24 }}>
-                    <Button onClick={applyFilters} variant="primary">Filtrează</Button>
-                  </div>
-                </div>
+          {refreshErrors.length > 0 && (
+            <Layout.Section>
+              <Banner tone="warning" title="Unii curieri nu au putut fi reîmprospătați">
+                <BlockStack gap="100">
+                  {refreshErrors.map((err, i) => (
+                    <Text key={i} variant="bodySm">{err}</Text>
+                  ))}
+                </BlockStack>
+              </Banner>
+            </Layout.Section>
+          )}
 
-                {points.length === 0 ? (
-                  <EmptyState
-                    heading="Niciun punct de ridicare"
-                    image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-                  >
-                    <p>
-                      Configurează credențialele FAN Courier și Sameday în Setări,
-                      apoi apasă "Reîmprospătează acum".
-                    </p>
-                    <Button onClick={() => navigate("/app/settings")}>
-                      Mergi la Setări
-                    </Button>
-                  </EmptyState>
-                ) : (
-                  <DataTable
-                    columnContentTypes={["text","text","text","text","text","text"]}
-                    headings={["Curier","Nume","Județ","Localitate","Adresă","Coordonate"]}
-                    rows={rows}
-                    hasZebraStripingOnData
-                    increasedTableDensity
-                    footerContent={`Afișând ${points.length} din ${total} puncte`}
-                  />
-                )}
-              </BlockStack>
+          {/* ── Tabs + Table ─────────────────────────────────────────── */}
+          <Layout.Section>
+            <Card padding="0">
+              <Tabs
+                tabs={tabLabels.map((label, i) => ({
+                  id: `tab-${i}`,
+                  content: i === 0
+                    ? `${label} (${Object.values(countMap).reduce((a, b) => a + b, 0)})`
+                    : `${label} (${countMap[tabCouriers[i]] ?? 0})`,
+                  panelID: `panel-${i}`,
+                }))}
+                selected={selectedTab}
+                onSelect={handleTabChange}
+              />
+
+              <div style={{ padding: "16px 20px" }}>
+                <BlockStack gap="400">
+                  {/* County filter */}
+                  <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
+                    <div style={{ flex: "2 1 200px" }}>
+                      <TextField
+                        label="Filtrează după județ"
+                        value={countyFilter}
+                        onChange={setCountyFilter}
+                        placeholder="ex: Cluj, Prahova..."
+                        onKeyDown={(e) => e.key === "Enter" && applyFilters(courierFilter, countyFilter)}
+                        clearButton
+                        onClearButtonClick={() => {
+                          setCountyFilter("");
+                          applyFilters(courierFilter, "");
+                        }}
+                      />
+                    </div>
+                    <div style={{ paddingTop: 24 }}>
+                      <Button onClick={() => applyFilters(courierFilter, countyFilter)} variant="primary">
+                        Filtrează
+                      </Button>
+                    </div>
+                  </div>
+
+                  {points.length === 0 ? (
+                    <EmptyState
+                      heading={
+                        tabCouriers[selectedTab]
+                          ? `Niciun punct ${COURIER_CONFIG[tabCouriers[selectedTab]]?.badgeLabel || ""}`
+                          : "Niciun punct de ridicare"
+                      }
+                      image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                    >
+                      <p>
+                        {tabCouriers[selectedTab]
+                          ? `Verifică că ${COURIER_CONFIG[tabCouriers[selectedTab]]?.label} este activat și credențialele sunt corecte în Setări, apoi apasă "Reîmprospătează acum".`
+                          : `Configurează credențialele curierilor în Setări, apoi apasă "Reîmprospătează acum".`
+                        }
+                      </p>
+                      <Button onClick={() => navigate("/app/settings")}>Mergi la Setări</Button>
+                    </EmptyState>
+                  ) : (
+                    <DataTable
+                      columnContentTypes={["text","text","text","text","text","text"]}
+                      headings={["Curier","Nume","Județ","Localitate","Adresă","Coordonate"]}
+                      rows={rows}
+                      hasZebraStripingOnData
+                      increasedTableDensity
+                      footerContent={`Afișând ${points.length} din ${total} puncte`}
+                    />
+                  )}
+                </BlockStack>
+              </div>
             </Card>
           </Layout.Section>
 
         </Layout>
       </Page>
 
-      {toast && <Toast content={toast} onDismiss={() => setToast(null)} duration={4000} />}
+      {toast && <Toast content={toast} onDismiss={() => setToast(null)} duration={6000} />}
     </Frame>
   );
 }

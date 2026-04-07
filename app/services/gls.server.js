@@ -238,33 +238,34 @@ export async function glsGetPickupPoints({ username, password, sandbox = false }
   const base = getBase(sandbox);
   const auth = glsBuildAuth(username, password);
 
-  try {
-    // GLS uses GetParcelShops or similar — endpoint varies by contract
-    const result = await glsRequest(base, "GetParcelShops", {
-      ...auth,
-      CountryIsoCode: "RO",
-    });
+  // Try the GLS ParcelShops endpoint — availability depends on contract
+  const result = await glsRequest(base, "GetParcelShops", {
+    ...auth,
+    CountryIsoCode: "RO",
+  });
 
-    const shops = result.ParcelShopList || result.PSList || (Array.isArray(result) ? result : []);
-    return shops.map((s) => ({
-      id: String(s.ID || s.Id || s.id),
-      externalId: String(s.ID || s.Id || s.id),
-      courier: "gls",
-      type: "parcelshop",
-      name: s.Name || s.name || "GLS ParcelShop",
-      address: [s.Address || s.Street, s.City, s.ZIPCode || s.ZipCode]
-        .filter(Boolean).join(", "),
-      city: s.City || null,
-      county: s.County || s.Region || null,
-      zip: s.ZIPCode || s.ZipCode || null,
-      lat: parseFloat(s.Latitude  || s.latitude)  || null,
-      lng: parseFloat(s.Longitude || s.longitude) || null,
-    }));
-  } catch (e) {
-    // ParcelShop list may not be available on all contracts — return empty silently
-    if (e.message?.includes("[404]") || e.message?.includes("[403]")) {
-      return [];
-    }
-    throw e;
+  const shops = result.ParcelShopList || result.PSList || (Array.isArray(result) ? result : []);
+
+  if (shops.length === 0) {
+    throw new Error(
+      "GLS GetParcelShops returned 0 puncte. " +
+      "Endpoint-ul ParcelShop poate să nu fie disponibil în contractul tău GLS. " +
+      "Contactează GLS Romania pentru activarea accesului la ParcelShops în API."
+    );
   }
+
+  return shops.map((s) => ({
+    id: String(s.ID || s.Id || s.id),
+    externalId: String(s.ID || s.Id || s.id),
+    courier: "gls",
+    type: "parcelshop",
+    name: s.Name || s.name || "GLS ParcelShop",
+    address: [s.Address || s.Street, s.City, s.ZIPCode || s.ZipCode]
+      .filter(Boolean).join(", "),
+    city: s.City || null,
+    county: s.County || s.Region || null,
+    zip: s.ZIPCode || s.ZipCode || null,
+    lat: parseFloat(s.Latitude  || s.latitude)  || null,
+    lng: parseFloat(s.Longitude || s.longitude) || null,
+  }));
 }
