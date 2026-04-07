@@ -228,6 +228,18 @@ export default function PickupPointsPage() {
             </Layout.Section>
           )}
 
+          {(courierFilter === "gls" || selectedTab === tabCouriers.indexOf("gls")) && (
+            <Layout.Section>
+              <Banner tone="info" title="GLS ParcelShop — limitare API">
+                <Text>
+                  API-ul MyGLS Romania (<code>ParcelService.svc</code>) nu include un endpoint pentru listarea ParcelShop-urilor — confirmat din WSDL-ul oficial.
+                  Livrarea la ParcelShop GLS <strong>funcționează</strong> la generarea AWB (cod serviciu AOS), dar lista de locații nu poate fi sincronizată automat.
+                  Contactează GLS Romania pentru a obține o metodă de export al locațiilor ParcelShop.
+                </Text>
+              </Banner>
+            </Layout.Section>
+          )}
+
           {/* ── Tabs + Table ─────────────────────────────────────────── */}
           <Layout.Section>
             <Card padding="0">

@@ -234,38 +234,12 @@ export async function glsDeleteAwb({ username, password, sandbox = false, parcel
 // Note: GLS Romania parcel shop API may not be available in all contracts
 // Returns empty array if not available
 // ─────────────────────────────────────────────────────────────────────────────
-export async function glsGetPickupPoints({ username, password, sandbox = false }) {
-  const base = getBase(sandbox);
-  const auth = glsBuildAuth(username, password);
-
-  // Try the GLS ParcelShops endpoint — availability depends on contract
-  const result = await glsRequest(base, "GetParcelShops", {
-    ...auth,
-    CountryIsoCode: "RO",
-  });
-
-  const shops = result.ParcelShopList || result.PSList || (Array.isArray(result) ? result : []);
-
-  if (shops.length === 0) {
-    throw new Error(
-      "GLS GetParcelShops returned 0 puncte. " +
-      "Endpoint-ul ParcelShop poate să nu fie disponibil în contractul tău GLS. " +
-      "Contactează GLS Romania pentru activarea accesului la ParcelShops în API."
-    );
-  }
-
-  return shops.map((s) => ({
-    id: String(s.ID || s.Id || s.id),
-    externalId: String(s.ID || s.Id || s.id),
-    courier: "gls",
-    type: "parcelshop",
-    name: s.Name || s.name || "GLS ParcelShop",
-    address: [s.Address || s.Street, s.City, s.ZIPCode || s.ZipCode]
-      .filter(Boolean).join(", "),
-    city: s.City || null,
-    county: s.County || s.Region || null,
-    zip: s.ZIPCode || s.ZipCode || null,
-    lat: parseFloat(s.Latitude  || s.latitude)  || null,
-    lng: parseFloat(s.Longitude || s.longitude) || null,
-  }));
+// NOTE: The MyGLS Romania API (ParcelService.svc) does NOT include a parcel shop
+// locator endpoint — confirmed from the full WSDL. GLS exposes its ParcelShop
+// locations only through a proprietary map widget on their website, with no
+// developer-accessible REST/JSON API. GLS pickup point delivery is still
+// supported when creating AWBs (via the AOS service code + ParcelShop ID),
+// but the list of shop locations cannot be synced automatically.
+export async function glsGetPickupPoints() {
+  return [];
 }
