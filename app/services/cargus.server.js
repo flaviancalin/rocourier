@@ -99,12 +99,12 @@ export async function cargusGetSenderLocations({ subscriptionKey, username, pass
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Get Ship & Go delivery PUDO points (customer delivery destinations)
-// GET /PUDO_Get
+// GET /PickupLocations  (confirmed from the urgentcargus-php wrapper)
 // These are the partner pickup points where customers can receive parcels
 // ─────────────────────────────────────────────────────────────────────────────
 export async function cargusGetPickupPoints({ subscriptionKey, username, password }) {
   const token = await cargusAuthenticate({ subscriptionKey, username, password });
-  const data = await cargusRequest("PUDO_Get", { token, subscriptionKey });
+  const data = await cargusRequest("PickupLocations", { token, subscriptionKey });
 
   const points = Array.isArray(data) ? data : (data?.value || data?.data || []);
   return points.map((p) => ({

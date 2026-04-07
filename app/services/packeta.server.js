@@ -55,12 +55,12 @@ function xmlEscape(str) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Get pickup branches (Z-BOX lockers + Packeta partner points)
-// GET /api/v6/{apiKey}/branch.json
-// Returns JSON list — no auth beyond the API key in URL
+// GET /api/v6/{apiKey}/branch.json?lang=en
+// Returns ALL worldwide branches — filter by country field in response
 // ─────────────────────────────────────────────────────────────────────────────
-export async function packetaGetPickupPoints({ apiKey, country = "ro" }) {
+export async function packetaGetPickupPoints({ apiKey }) {
   const res = await fetch(
-    `${PACKETA_BRANCH_BASE}/${apiKey}/branch.json?lang=${country}`,
+    `${PACKETA_BRANCH_BASE}/${apiKey}/branch.json?lang=en`,
     { headers: { Accept: "application/json" } }
   );
 
@@ -73,8 +73,10 @@ export async function packetaGetPickupPoints({ apiKey, country = "ro" }) {
 
   return branches
     .filter((b) =>
-      // Only include active, public points available to all senders
-      b.place === "depot" || b.place === "zbox" || !b.place
+      // Only Romanian branches, active and publicly accessible
+      (b.country === "ro" || b.country === "RO") &&
+      b.status === 1 &&
+      (b.place === "depot" || b.place === "zbox" || !b.place)
     )
     .map((b) => ({
       id: String(b.id),
@@ -82,8 +84,7 @@ export async function packetaGetPickupPoints({ apiKey, country = "ro" }) {
       courier: "packeta",
       type: b.pickupPointType === "zbox" || b.place === "zbox" ? "zbox" : "packeta_point",
       name: b.name || b.nameStreet || "Packeta Point",
-      address: [b.street, b.city, b.zip]
-        .filter(Boolean).join(", "),
+      address: [b.street, b.city, b.zip].filter(Boolean).join(", "),
       city: b.city || null,
       county: b.county || b.region || null,
       zip: b.zip || null,

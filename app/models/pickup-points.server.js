@@ -3,6 +3,7 @@ import { prisma } from "../db.server.js";
 import { fanGetPickupPoints } from "../services/fan-courier.server.js";
 import { samedayGetLockers } from "../services/sameday.server.js";
 import { cargusGetPickupPoints } from "../services/cargus.server.js";
+import { glsGetPickupPoints    } from "../services/gls.server.js";
 import { packetaGetPickupPoints } from "../services/packeta.server.js";
 
 const CACHE_TTL_HOURS = 24;
@@ -112,9 +113,29 @@ export async function refreshPickupPointsCache({ settings, couriers = ["fan", "s
     }
   }
 
-  // GLS: pickup point list is not available via the MyGLS API — returns [] always
   if (couriers.includes("gls") && settings.glsEnabled && settings.glsUsername) {
-    results.gls = 0; // API limitation — no parcel shop endpoint in MyGLS Romania
+    if (!settings.glsShipItUrl) {
+      // No ShipIT URL configured — skip silently (zero points, no error)
+      results.gls = 0;
+    } else {
+      try {
+        const glsPoints = await glsGetPickupPoints({
+          username:   settings.glsUsername,
+          password:   settings.glsPassword,
+          shipItUrl:  settings.glsShipItUrl,
+        });
+        for (const p of glsPoints) {
+          await prisma.pickupPoint.upsert({
+            where: { courier_externalId: { courier: "gls", externalId: p.externalId } },
+            update: { ...p, isActive: true, updatedAt: new Date() },
+            create: p,
+          });
+        }
+        results.gls = glsPoints.length;
+      } catch (e) {
+        results.errors.push(`GLS: ${e.message}`);
+      }
+    }
   }
 
   if (couriers.includes("packeta") && settings.packetaEnabled && settings.packetaApiKey) {

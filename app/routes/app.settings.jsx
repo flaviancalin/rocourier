@@ -153,6 +153,7 @@ export async function action({ request }) {
       cargusEnabled:         get("cargusEnabled") === "true",
       glsUsername:     get("glsUsername") || "",
       glsClientNumber: get("glsClientNumber") || "",
+      glsShipItUrl:    get("glsShipItUrl") || "",
       glsEnabled:      get("glsEnabled") === "true",
       glsSandbox:      get("glsSandbox") === "true",
       packetaEnabled: get("packetaEnabled") === "true",
@@ -236,6 +237,7 @@ export default function Settings() {
   const [glsClientNumber, setGlsClientNumber] = useState(settings.glsClientNumber || "");
   const [glsUsername,     setGlsUsername]     = useState(settings.glsUsername || "");
   const [glsPassword,     setGlsPassword]     = useState("");
+  const [glsShipItUrl,    setGlsShipItUrl]    = useState(settings.glsShipItUrl || "");
 
   const [packetaEnabled, setPacketaEnabled] = useState(!!settings.packetaEnabled);
   const [packetaApiKey,  setPacketaApiKey]  = useState("");
@@ -302,7 +304,7 @@ export default function Settings() {
       samedayEnabled: String(samedayEnabled), samedaySandbox: String(samedaySandbox), samedayUsername,
       cargusEnabled: String(cargusEnabled), cargusSubscriptionKey, cargusUsername,
       glsEnabled: String(glsEnabled), glsSandbox: String(glsSandbox),
-      glsClientNumber, glsUsername,
+      glsClientNumber, glsUsername, glsShipItUrl,
       packetaEnabled: String(packetaEnabled),
       xconnectorEnabled: String(xconnectorEnabled),
       defaultCourier, defaultWeight,
@@ -323,7 +325,7 @@ export default function Settings() {
       fanEnabled, fanClientId, fanUsername, fanPassword,
       samedayEnabled, samedayUsername, samedayPassword, samedaySandbox,
       cargusEnabled, cargusSubscriptionKey, cargusUsername, cargusPassword,
-      glsEnabled, glsClientNumber, glsUsername, glsPassword, glsSandbox,
+      glsEnabled, glsClientNumber, glsUsername, glsPassword, glsSandbox, glsShipItUrl,
       packetaEnabled, packetaApiKey,
       xconnectorEnabled, xconnectorApiKey, defaultCourier, defaultWeight,
       showPickupMap, autoGenerateAwb,
@@ -555,6 +557,14 @@ export default function Settings() {
                             <TextField label="Username myGLS (email)" value={glsUsername} onChange={setGlsUsername} autoComplete="off" />
                             <TextField label="Parolă myGLS" value={glsPassword} onChange={setGlsPassword} type="password" placeholder="Lasă gol pentru a păstra parola existentă" autoComplete="new-password" />
                           </FormLayout.Group>
+                          <TextField
+                            label="ShipIT Parcel Shop URL (pentru puncte de ridicare)"
+                            value={glsShipItUrl}
+                            onChange={setGlsShipItUrl}
+                            placeholder="ex: https://shipit.gls-group.eu/backend/rs/parcelshop"
+                            helpText="URL-ul ShipIT primit de la GLS Romania. Necesar pentru sincronizarea ParcelShop-urilor. Dacă nu îl ai, contactează GLS Romania."
+                            autoComplete="off"
+                          />
                         </FormLayout>
                         {actionData?.testResult?.courier === "gls" && (
                           <Banner tone={actionData.testResult.success ? "success" : "critical"} title={actionData.testResult.success ? "Conexiune GLS reușită!" : "Eroare conexiune GLS"}>

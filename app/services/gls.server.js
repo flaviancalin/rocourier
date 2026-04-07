@@ -230,16 +230,48 @@ export async function glsDeleteAwb({ username, password, sandbox = false, parcel
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Get parcel shops (GLS partner pickup points)
-// Note: GLS Romania parcel shop API may not be available in all contracts
-// Returns empty array if not available
+// Get parcel shops via GLS ShipIT REST API
+// The MyGLS parcel management API has no shop endpoint. GLS provides parcel
+// shop locations through a separate ShipIT REST API:
+//   GET {shipItUrl}/country/RO
+//   Auth: Basic Auth (same username/password as MyGLS)
+//   Headers: Accept: application/glsVersion1+json, application/json
+// The exact base URL (shipItUrl) is provided by GLS Romania with your contract.
+// Example: https://shipit.gls-group.eu/backend/rs/parcelshop
 // ─────────────────────────────────────────────────────────────────────────────
-// NOTE: The MyGLS Romania API (ParcelService.svc) does NOT include a parcel shop
-// locator endpoint — confirmed from the full WSDL. GLS exposes its ParcelShop
-// locations only through a proprietary map widget on their website, with no
-// developer-accessible REST/JSON API. GLS pickup point delivery is still
-// supported when creating AWBs (via the AOS service code + ParcelShop ID),
-// but the list of shop locations cannot be synced automatically.
-export async function glsGetPickupPoints() {
-  return [];
+export async function glsGetPickupPoints({ username, password, shipItUrl }) {
+  if (!shipItUrl) return [];
+
+  const base = shipItUrl.replace(/\/$/, "");
+  const basicAuth = Buffer.from(`${username}:${password}`).toString("base64");
+
+  const res = await fetch(`${base}/country/RO`, {
+    headers: {
+      Accept: "application/glsVersion1+json, application/json",
+      Authorization: `Basic ${basicAuth}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`GLS ShipIT error [${res.status}] GET /country/RO`);
+  }
+
+  const data = await res.json();
+  const shops = Array.isArray(data) ? data : (data.parcelShopList || data.parcelShops || []);
+
+  return shops.map((s) => ({
+    id: String(s.parcelShopId || s.id || s.Id),
+    externalId: String(s.parcelShopId || s.id || s.Id),
+    courier: "gls",
+    type: "parcelshop",
+    name: s.name || s.companyName || "GLS ParcelShop",
+    address: [s.address?.street, s.address?.city, s.address?.countryCode]
+      .filter(Boolean).join(", ") ||
+      [s.street, s.city].filter(Boolean).join(", "),
+    city: s.address?.city || s.city || null,
+    county: s.address?.region || s.county || null,
+    zip: s.address?.zipCode || s.zip || null,
+    lat: parseFloat(s.position?.latitude  || s.latitude)  || null,
+    lng: parseFloat(s.position?.longitude || s.longitude) || null,
+  }));
 }

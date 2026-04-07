@@ -66,6 +66,7 @@ model ShopSettings {
   glsUsername      String?
   glsPassword      String?
   glsClientNumber  String?   // GLS client number (integer, from GLS contract)
+  glsShipItUrl     String?   // ShipIT REST API base URL for parcel shop sync (from GLS Romania)
   glsEnabled       Boolean  @default(false)
   glsSandbox       Boolean  @default(false)
 
