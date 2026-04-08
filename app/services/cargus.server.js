@@ -104,7 +104,7 @@ export async function cargusGetSenderLocations({ subscriptionKey, username, pass
 // ─────────────────────────────────────────────────────────────────────────────
 export async function cargusGetPickupPoints({ subscriptionKey, username, password }) {
   const token = await cargusAuthenticate({ subscriptionKey, username, password });
-  const data = await cargusRequest("Pudo", { token, subscriptionKey });
+  const data = await cargusRequest("PudoPoints", { token, subscriptionKey });
 
   const points = Array.isArray(data) ? data : (data?.value || data?.data || []);
   return points.map((p) => ({
