@@ -99,12 +99,12 @@ export async function cargusGetSenderLocations({ subscriptionKey, username, pass
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Get Ship & Go delivery PUDO points (customer delivery destinations)
-// GET /PickupLocations  (confirmed from the urgentcargus-php wrapper)
-// These are the partner pickup points where customers can receive parcels
+// GET /Pudo  (section 7 of API docs: "PUDO_Get" operation → path "Pudo")
+// These are the public Ship & Go partner pickup points for customer delivery
 // ─────────────────────────────────────────────────────────────────────────────
 export async function cargusGetPickupPoints({ subscriptionKey, username, password }) {
   const token = await cargusAuthenticate({ subscriptionKey, username, password });
-  const data = await cargusRequest("PickupLocations", { token, subscriptionKey });
+  const data = await cargusRequest("Pudo", { token, subscriptionKey });
 
   const points = Array.isArray(data) ? data : (data?.value || data?.data || []);
   return points.map((p) => ({
@@ -113,13 +113,13 @@ export async function cargusGetPickupPoints({ subscriptionKey, username, passwor
     courier: "cargus",
     type: "cargus_ship_go",
     name: p.Name || p.name || "Cargus Ship & Go",
-    address: [p.Address || p.StreetName, p.LocalityName || p.City, p.CountyName || p.County]
+    address: [p.StreetName || p.Address, p.StreetNo, p.City, p.County]
       .filter(Boolean).join(", "),
-    city: p.LocalityName || p.City || null,
-    county: p.CountyName || p.County || null,
-    zip: p.CodPostal || p.ZipCode || null,
-    lat: parseFloat(p.Latitude || p.lat) || null,
-    lng: parseFloat(p.Longitude || p.lng) || null,
+    city: p.City || p.LocalityName || null,
+    county: p.County || p.CountyName || null,
+    zip: p.PostalCode || p.CodPostal || null,
+    lat: parseFloat(p.Latitude) || null,
+    lng: parseFloat(p.Longitude) || null,
   }));
 }
 
