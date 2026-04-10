@@ -33,10 +33,10 @@ export async function loader({ request }) {
     return json({ orders: [], total: 0, totalPages: 1, page: 1, filters: { status: "", courier: "", method: "", search: "" } });
   }
 
-  // Sync latest orders from Shopify API into our DB
+  // Sync latest orders from Shopify API into our DB (silent — errors shown via manual sync button)
   try {
     const res = await fetch(
-      `https://${shop}/admin/api/2024-10/orders.json?status=any&limit=50&fields=id,name,created_at,note_attributes,shipping_address,customer,total_price`,
+      `https://${shop}/admin/api/2024-10/orders.json?status=any&limit=250&fields=id,name,created_at,note_attributes,shipping_address,customer,total_price`,
       { headers: { "X-Shopify-Access-Token": token } }
     );
     if (res.ok) {
@@ -73,7 +73,23 @@ export async function loader({ request }) {
 
         await prisma.order.upsert({
           where: { shop_shopifyOrderId: { shop, shopifyOrderId: String(o.id) } },
-          update: { shippingMethod: data.shippingMethod, courierType: data.courierType, pickupPointId: data.pickupPointId, pickupPointName: data.pickupPointName, pickupPointAddress: data.pickupPointAddress, codAmount: data.codAmount },
+          update: {
+            shopifyOrderName:   data.shopifyOrderName,
+            customerName:       data.customerName,
+            customerPhone:      data.customerPhone,
+            customerEmail:      data.customerEmail,
+            shippingAddress1:   data.shippingAddress1,
+            shippingCity:       data.shippingCity,
+            shippingCounty:     data.shippingCounty,
+            shippingZip:        data.shippingZip,
+            shippingMethod:     data.shippingMethod,
+            courierType:        data.courierType,
+            pickupPointId:      data.pickupPointId,
+            pickupPointName:    data.pickupPointName,
+            pickupPointAddress: data.pickupPointAddress,
+            codAmount:          data.codAmount,
+            orderTotal:         data.orderTotal,
+          },
           create: { shop, shopifyOrderId: String(o.id), awbStatus: "pending", ...data },
         });
       }
@@ -125,6 +141,8 @@ export default function OrdersPage() {
   const navigate = useNavigate();
   const submit   = useSubmit();
 
+  const [syncing, setSyncing]               = useState(false);
+  const [syncError, setSyncError]           = useState(null);
   const [selectedOrders, setSelectedOrders] = useState([]);
   const [generatingAwb, setGeneratingAwb]   = useState(false);
   const [awbResults, setAwbResults]         = useState([]);
@@ -167,6 +185,26 @@ export default function OrdersPage() {
     setSelectedOrders(
       selectedOrders.length === orders.length ? [] : orders.map((o) => o.id)
     );
+
+  // ── Manual sync from Shopify ───────────────────────────────────────────────
+  async function handleSync() {
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      const res = await fetch("/api/sync-orders", { method: "POST" });
+      const data = await res.json();
+      if (data.error) {
+        setSyncError(data.error);
+      } else {
+        setToastMsg(`Sincronizat: ${data.synced} comenzi din Shopify`);
+        setTimeout(() => navigate(window.location.pathname + window.location.search), 800);
+      }
+    } catch (e) {
+      setSyncError(e.message);
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   // Derived: selected orders that already have AWBs
   const selectedWithAwb = selectedOrders.filter(
@@ -308,8 +346,25 @@ export default function OrdersPage() {
 
   return (
     <Frame>
-      <Page title="Comenzi" subtitle={`${total} comenzi totale`}>
+      <Page
+        title="Comenzi"
+        subtitle={`${total} comenzi totale`}
+        primaryAction={{
+          content: syncing ? "Se sincronizează..." : "Sincronizează din Shopify",
+          onAction: handleSync,
+          loading: syncing,
+        }}
+      >
         <Layout>
+          {/* ── Sync error ─────────────────────────────────────────────── */}
+          {syncError && (
+            <Layout.Section>
+              <Banner tone="critical" title="Eroare la sincronizare" onDismiss={() => setSyncError(null)}>
+                <Text>{syncError}</Text>
+              </Banner>
+            </Layout.Section>
+          )}
+
           {/* ── Filters ────────────────────────────────────────────────── */}
           <Layout.Section>
             <Card>
