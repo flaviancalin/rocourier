@@ -1,7 +1,7 @@
 // app/locales/translations.js
 // Internal admin UI translations — 5 languages
 
-const T = {
+export const T = {
   ro: {
     // ── Common ───────────────────────────────────────────────────────────────
     close: "Închide",
