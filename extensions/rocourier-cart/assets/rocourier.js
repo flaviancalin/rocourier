@@ -12,6 +12,110 @@
     packeta: { label: "Packeta",     pickupLabel: "Packeta / Z-BOX",  color: "#BA2025", markerColor: "#BA2025", letter: "P", badgeClass: "rc-badge-packeta" },
   };
 
+  // ── Customer-facing translations ──────────────────────────────────────────────
+  const STRINGS = {
+    ro: {
+      free:              "Gratuit",
+      home_delivery:     "Livrare la domiciliu",
+      choose_courier:    "Alege curierul preferat",
+      pickup_title:      "Ridicare din punct fix",
+      pickup_sub_none:   "Niciun curier activat",
+      change:            "Schimbă",
+      all:               "Toate",
+      loading:           "Se încarcă punctele de ridicare...",
+      no_points:         "Niciun punct găsit în această zonă.",
+      config_error:      "Configurare incompletă.",
+      load_error:        "Nu s-au putut încărca lockerele. Încearcă din nou.",
+      selected:          "✓ Selectat",
+      choose:            "Alege",
+      select_map:        "Selectează",
+      err_no_method:     "Alege o metodă de livrare înainte de a continua!",
+      err_no_courier:    "Alege un curier pentru livrare la domiciliu!",
+      err_no_point:      "Alege un punct de ridicare de pe hartă!",
+      points_count:      "{n} puncte",
+    },
+    en: {
+      free:              "Free",
+      home_delivery:     "Home delivery",
+      choose_courier:    "Choose your preferred courier",
+      pickup_title:      "Pickup point",
+      pickup_sub_none:   "No couriers activated",
+      change:            "Change",
+      all:               "All",
+      loading:           "Loading pickup points...",
+      no_points:         "No points found in this area.",
+      config_error:      "Incomplete configuration.",
+      load_error:        "Could not load pickup points. Please try again.",
+      selected:          "✓ Selected",
+      choose:            "Choose",
+      select_map:        "Select",
+      err_no_method:     "Please choose a delivery method before continuing!",
+      err_no_courier:    "Please choose a courier for home delivery!",
+      err_no_point:      "Please select a pickup point from the map!",
+      points_count:      "{n} points",
+    },
+    de: {
+      free:              "Kostenlos",
+      home_delivery:     "Hauslieferung",
+      choose_courier:    "Bevorzugten Kurier wählen",
+      pickup_title:      "Abholpunkt",
+      pickup_sub_none:   "Keine Kuriere aktiviert",
+      change:            "Ändern",
+      all:               "Alle",
+      loading:           "Abholpunkte werden geladen...",
+      no_points:         "Keine Punkte in diesem Bereich gefunden.",
+      config_error:      "Unvollständige Konfiguration.",
+      load_error:        "Abholpunkte konnten nicht geladen werden. Bitte erneut versuchen.",
+      selected:          "✓ Ausgewählt",
+      choose:            "Wählen",
+      select_map:        "Auswählen",
+      err_no_method:     "Bitte wählen Sie eine Liefermethode aus!",
+      err_no_courier:    "Bitte wählen Sie einen Kurier für die Hauslieferung!",
+      err_no_point:      "Bitte wählen Sie einen Abholpunkt auf der Karte!",
+      points_count:      "{n} Punkte",
+    },
+    hu: {
+      free:              "Ingyenes",
+      home_delivery:     "Házhozszállítás",
+      choose_courier:    "Válasszon futárszolgálatot",
+      pickup_title:      "Csomagpont",
+      pickup_sub_none:   "Nincs aktív futár",
+      change:            "Csere",
+      all:               "Mind",
+      loading:           "Csomagpontok betöltése...",
+      no_points:         "Ezen a területen nem található pont.",
+      config_error:      "Hiányos konfiguráció.",
+      load_error:        "Nem sikerült betölteni a csomagpontokat. Kérjük, próbálja újra.",
+      selected:          "✓ Kiválasztva",
+      choose:            "Válasszon",
+      select_map:        "Kiválaszt",
+      err_no_method:     "Kérjük, válasszon szállítási módot a folytatás előtt!",
+      err_no_courier:    "Kérjük, válasszon futárt a házhozszállításhoz!",
+      err_no_point:      "Kérjük, válasszon csomagpontot a térképen!",
+      points_count:      "{n} pont",
+    },
+    cs: {
+      free:              "Zdarma",
+      home_delivery:     "Doručení domů",
+      choose_courier:    "Vyberte preferovaného kurýra",
+      pickup_title:      "Výdejní místo",
+      pickup_sub_none:   "Žádní aktivní kurýři",
+      change:            "Změnit",
+      all:               "Vše",
+      loading:           "Načítání výdejních míst...",
+      no_points:         "V této oblasti nebyla nalezena žádná místa.",
+      config_error:      "Neúplná konfigurace.",
+      load_error:        "Výdejní místa se nepodařilo načíst. Zkuste to prosím znovu.",
+      selected:          "✓ Vybráno",
+      choose:            "Vybrat",
+      select_map:        "Vybrat",
+      err_no_method:     "Před pokračováním vyberte způsob doručení!",
+      err_no_courier:    "Vyberte kurýra pro doručení domů!",
+      err_no_point:      "Vyberte výdejní místo na mapě!",
+      points_count:      "{n} míst",
+    },
+  };
+
   // ── Helpers ───────────────────────────────────────────────────────────────────
   function esc(s) {
     return String(s || "")
@@ -28,6 +132,28 @@
     const SHOP     = widget.dataset.shop    || "";
     const APP_URL  = (widget.dataset.appUrl || "").replace(/\/$/, "");
     const CURRENCY = widget.dataset.currency || "RON";
+
+    // Language — use first 2 chars of shop locale; fallback to "ro"
+    const rawLang = (widget.dataset.lang || "ro").slice(0, 2).toLowerCase();
+    const lang    = STRINGS[rawLang] ? rawLang : "ro";
+    function t(key, vars) {
+      let str = (STRINGS[lang] || STRINGS.ro)[key] || key;
+      if (vars) str = str.replace(/\{(\w+)\}/g, (_, k) => (vars[k] !== undefined ? vars[k] : `{${k}}`));
+      return str;
+    }
+
+    // Translate static HTML elements generated by Liquid
+    function translateUI() {
+      const el = (id) => document.getElementById(id);
+      if (el("rc-home-label"))   el("rc-home-label").textContent   = t("home_delivery");
+      if (el("rc-home-sub"))     el("rc-home-sub").textContent     = t("choose_courier");
+      if (el("rc-pickup-label")) el("rc-pickup-label").textContent = t("pickup_title");
+      if (el("rc-change-point")) el("rc-change-point").textContent = t("change");
+      if (el("rc-filter-all"))   el("rc-filter-all").textContent   = t("all");
+      if (el("rc-loading-text")) el("rc-loading-text").textContent = t("loading");
+      if (el("rc-list-empty"))   el("rc-list-empty").textContent   = t("no_points");
+    }
+    translateUI();
 
     // Which couriers are enabled
     const ENABLED = {};
@@ -51,7 +177,7 @@
     });
 
     function feeLabel(amount) {
-      if (!amount) return "Gratuit";
+      if (!amount) return t("free");
       return amount.toLocaleString("ro-RO", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + " " + CURRENCY;
     }
 
@@ -63,7 +189,7 @@
         .map(([, cfg]) => cfg.pickupLabel);
       pickupSubEl.textContent = pickupNames.length
         ? pickupNames.join(", ")
-        : "Niciun curier activat";
+        : t("pickup_sub_none");
     }
 
     // ── DOM refs ───────────────────────────────────────────────────────────────
@@ -244,16 +370,16 @@
 
     // ── Fetch pickup points ────────────────────────────────────────────────────
     async function fetchPoints() {
-      if (!APP_URL || !SHOP) {
-        if (listLoading) listLoading.style.display = "none";
-        if (listEmpty) { listEmpty.style.display = "block"; listEmpty.textContent = "Configurare incompletă."; }
-        return;
-      }
-
       if (listLoading) listLoading.style.display = "flex";
       if (listEmpty)   listEmpty.style.display   = "none";
       if (pointsList)  pointsList.innerHTML       = "";
       if (listCount)   listCount.style.display    = "none";
+
+      if (!APP_URL || !SHOP) {
+        if (listLoading) listLoading.style.display = "none";
+        if (listEmpty) { listEmpty.textContent = t("config_error"); listEmpty.style.display = "block"; }
+        return;
+      }
 
       try {
         const enabledWithPickup = Object.keys(COURIERS).filter((c) => ENABLED[c]);
@@ -267,7 +393,7 @@
         applyFilters();
         if (mapInst) { mapInst.invalidateSize(); renderMarkers(filtered); }
       } catch (err) {
-        if (listEmpty) { listEmpty.textContent = "Nu s-au putut încărca lockerele. Încearcă din nou."; listEmpty.style.display = "block"; }
+        if (listEmpty) { listEmpty.textContent = t("load_error"); listEmpty.style.display = "block"; }
         console.error("RoCourier:", err);
       } finally {
         if (listLoading) listLoading.style.display = "none";
@@ -290,7 +416,7 @@
       renderList(filtered);
       if (mapInst) renderMarkers(filtered);
       if (listEmpty) listEmpty.style.display = filtered.length === 0 ? "block" : "none";
-      if (listCount) { listCount.textContent = `${filtered.length} puncte`; listCount.style.display = "block"; }
+      if (listCount) { listCount.textContent = t("points_count", { n: filtered.length }); listCount.style.display = "block"; }
     }
 
     searchInput && searchInput.addEventListener("input", applyFilters);
@@ -325,7 +451,7 @@
           <strong class="rc-item-name">${esc(p.name)}</strong>
           <span class="rc-item-addr">${esc(p.address)}</span>
           <button type="button" class="rc-item-btn ${isSel ? "rc-item-btn-sel" : ""}" style="${isSel ? "" : `background:${cfg.color}`}">
-            ${isSel ? "✓ Selectat" : "Alege"}
+            ${isSel ? t("selected") : t("choose")}
           </button>
         `;
 
@@ -406,7 +532,7 @@
               <div style="font-weight:600;margin-bottom:3px">${esc(p.name)}</div>
               <div style="font-size:12px;color:#666;margin-bottom:9px">${esc(p.address)}</div>
               <button onclick="window.__rcPick('${p.id}')" style="width:100%;padding:7px 0;background:${cfg.markerColor};color:${p.courier === "gls" ? "#003591" : "#fff"};border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">
-                ${isSel ? "✓ Selectat" : "Selectează"}
+                ${isSel ? t("selected") : t("select_map")}
               </button>
             </div>`
           );
@@ -496,21 +622,21 @@
 
       if (!checkedRadio) {
         e.preventDefault(); e.stopPropagation();
-        showError("Alege o metodă de livrare înainte de a continua!");
+        showError(t("err_no_method"));
         widget.scrollIntoView({ behavior: "smooth", block: "center" });
         return false;
       }
 
       if (checkedRadio.value === "home" && !selectedHomeCourier) {
         e.preventDefault(); e.stopPropagation();
-        showError("Alege un curier pentru livrare la domiciliu!");
+        showError(t("err_no_courier"));
         widget.scrollIntoView({ behavior: "smooth", block: "center" });
         return false;
       }
 
       if (checkedRadio.value === "pickup" && !selectedPoint) {
         e.preventDefault(); e.stopPropagation();
-        showError("Alege un punct de ridicare de pe hartă!");
+        showError(t("err_no_point"));
         widget.scrollIntoView({ behavior: "smooth", block: "center" });
         openModal();
         return false;

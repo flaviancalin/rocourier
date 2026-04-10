@@ -2,7 +2,7 @@
 // Main Dashboard — stats overview + recent orders
 
 import { json } from "@remix-run/node";
-import { useLoaderData, useNavigate, useSearchParams } from "@remix-run/react";
+import { useLoaderData, useNavigate } from "@remix-run/react";
 import { authenticate } from "../shopify.server.js";
 import { getOrders, getDashboardStats } from "../models/order.server.js";
 import {
@@ -15,13 +15,10 @@ import {
   Text,
   BlockStack,
   InlineStack,
-  Box,
   Divider,
   EmptyState,
-  Spinner,
-  Banner,
 } from "@shopify/polaris";
-import { useState, useCallback } from "react";
+import { useTranslation } from "../context/i18n.jsx";
 
 // ─── Loader ──────────────────────────────────────────────────────────────────
 export async function loader({ request }) {
@@ -37,26 +34,31 @@ export async function loader({ request }) {
   return json({ orders, total, totalPages, page, stats });
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-const STATUS_CONFIG = {
-  pending:           { label: "În așteptare",     tone: "warning" },
-  generated:         { label: "AWB generat",       tone: "info" },
-  picked_up:         { label: "Preluat curier",    tone: "info" },
-  in_transit:        { label: "În tranzit",        tone: "attention" },
-  out_for_delivery:  { label: "La livrare",        tone: "success" },
-  delivered:         { label: "Livrat",            tone: "success" },
-  returned:          { label: "Retur",             tone: "critical" },
-  failed:            { label: "Eșuat",             tone: "critical" },
-};
-
+// ─── Static courier config (labels stay English brand names regardless of lang) ──
 const COURIER_CONFIG = {
-  fan:     { label: "FAN Courier", color: "#e65100" },
-  sameday: { label: "Sameday",     color: "#1565c0" },
+  fan:     { label: "FAN Courier",  color: "#e65100" },
+  sameday: { label: "Sameday",      color: "#1565c0" },
+  cargus:  { label: "Cargus",       color: "#d32f2f" },
+  gls:     { label: "GLS Romania",  color: "#f9a825" },
+  packeta: { label: "Packeta",      color: "#e91e63" },
 };
 
+const STATUS_TONES = {
+  pending:           "warning",
+  generated:         "info",
+  picked_up:         "info",
+  in_transit:        "attention",
+  out_for_delivery:  "success",
+  delivered:         "success",
+  returned:          "critical",
+  failed:            "critical",
+};
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
 function StatusBadge({ status }) {
-  const cfg = STATUS_CONFIG[status] || { label: status, tone: "default" };
-  return <Badge tone={cfg.tone}>{cfg.label}</Badge>;
+  const { t } = useTranslation();
+  const tone  = STATUS_TONES[status] || "default";
+  return <Badge tone={tone}>{t(`status_${status}`) || status}</Badge>;
 }
 
 function CourierBadge({ courier }) {
@@ -77,7 +79,6 @@ function CourierBadge({ courier }) {
   );
 }
 
-// Stat card component
 function StatCard({ label, value, sub, accent }) {
   return (
     <div style={{
@@ -98,16 +99,15 @@ function StatCard({ label, value, sub, accent }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const { orders, total, totalPages, page, stats } = useLoaderData();
+  const { orders, stats } = useLoaderData();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const totalOrders = Object.values(stats.byStatus).reduce((a, b) => a + b, 0);
   const delivered   = stats.byStatus.delivered || 0;
   const inTransit   = stats.byStatus.in_transit || 0;
-  const pending     = stats.byStatus.pending || 0;
   const generated   = stats.byStatus.generated || 0;
 
-  // Table rows
   const rows = orders.map((o) => [
     <Button variant="plain" onClick={() => navigate(`/app/orders/${o.id}`)}>
       {o.shopifyOrderName}
@@ -115,8 +115,8 @@ export default function Dashboard() {
     o.customerName || "—",
     <CourierBadge courier={o.courierType} />,
     o.shippingMethod === "pickup_point"
-      ? `📦 ${o.pickupPointName || "Punct fix"}`
-      : "🚚 Acasă",
+      ? `📦 ${o.pickupPointName || t("pickup_short")}`
+      : `🚚 ${t("at_home")}`,
     o.awbNumber
       ? <span style={{ fontFamily: "monospace", fontSize: 13 }}>{o.awbNumber}</span>
       : <Text tone="subdued">—</Text>,
@@ -132,14 +132,14 @@ export default function Dashboard() {
 
   return (
     <Page
-      title="🚚 Picklo Dashboard"
-      subtitle="Gestionează coletele tale FAN Courier & Sameday"
+      title={t("dashboard_title")}
+      subtitle={t("dashboard_subtitle")}
       primaryAction={{
-        content: "Setări",
+        content: t("settings"),
         onAction: () => navigate("/app/settings"),
       }}
       secondaryActions={[{
-        content: "Toate comenzile",
+        content: t("all_orders"),
         onAction: () => navigate("/app/orders"),
       }]}
     >
@@ -148,27 +148,28 @@ export default function Dashboard() {
         {/* ── Stats row ─────────────────────────────────────────────────── */}
         <Layout.Section>
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-            <StatCard label="Total comenzi" value={totalOrders} accent="#5c6ac4" />
-            <StatCard label="AWB generat" value={generated} accent="#006fbb" />
-            <StatCard label="În tranzit" value={inTransit} accent="#f49342" />
-            <StatCard label="Livrate" value={delivered} accent="#108043" />
+            <StatCard label={t("stats_total")}     value={totalOrders} accent="#5c6ac4" />
+            <StatCard label={t("stats_generated")} value={generated}   accent="#006fbb" />
+            <StatCard label={t("stats_in_transit")} value={inTransit}  accent="#f49342" />
+            <StatCard label={t("stats_delivered")} value={delivered}   accent="#108043" />
             <StatCard
-              label="Ramburs necolectat"
+              label={t("stats_cod")}
               value={`${stats.pendingCodTotal.toFixed(0)} RON`}
-              sub={`${stats.pendingCodCount} comenzi`}
+              sub={t("stats_cod_orders", { n: stats.pendingCodCount })}
               accent="#e65100"
             />
           </div>
         </Layout.Section>
 
-        {/* ── Courier split ─────────────────────────────────────────────── */}
+        {/* ── Courier / method split ─────────────────────────────────────── */}
         <Layout.Section>
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+
             {/* Courier distribution */}
             <div style={{ flex: 1, minWidth: 260 }}>
               <Card>
                 <BlockStack gap="300">
-                  <Text variant="headingMd" fontWeight="semibold">Distribuție curier</Text>
+                  <Text variant="headingMd" fontWeight="semibold">{t("courier_distribution")}</Text>
                   <Divider />
                   {Object.entries(stats.byCourier).map(([courier, count]) => {
                     const pct = totalOrders > 0 ? Math.round((count / totalOrders) * 100) : 0;
@@ -179,9 +180,7 @@ export default function Dashboard() {
                           <Text>{cfg.label}</Text>
                           <Text fontWeight="semibold">{count} ({pct}%)</Text>
                         </InlineStack>
-                        <div style={{
-                          height: 8, background: "#f0f0f0", borderRadius: 4, marginTop: 6,
-                        }}>
+                        <div style={{ height: 8, background: "#f0f0f0", borderRadius: 4, marginTop: 6 }}>
                           <div style={{
                             width: `${pct}%`, height: "100%",
                             background: cfg.color, borderRadius: 4,
@@ -199,11 +198,11 @@ export default function Dashboard() {
             <div style={{ flex: 1, minWidth: 260 }}>
               <Card>
                 <BlockStack gap="300">
-                  <Text variant="headingMd" fontWeight="semibold">Metodă livrare</Text>
+                  <Text variant="headingMd" fontWeight="semibold">{t("delivery_method")}</Text>
                   <Divider />
                   {[
-                    { key: "home_delivery", label: "🚚 Livrare la adresă", color: "#5c6ac4" },
-                    { key: "pickup_point", label: "📦 Punct de ridicare", color: "#108043" },
+                    { key: "home_delivery", label: t("home_delivery_stat"), color: "#5c6ac4" },
+                    { key: "pickup_point",  label: t("pickup_point_stat"),  color: "#108043" },
                   ].map(({ key, label, color }) => {
                     const count = stats.byMethod[key] || 0;
                     const pct = totalOrders > 0 ? Math.round((count / totalOrders) * 100) : 0;
@@ -230,23 +229,27 @@ export default function Dashboard() {
           <Card>
             <BlockStack gap="400">
               <InlineStack align="space-between">
-                <Text variant="headingMd" fontWeight="semibold">Comenzi recente</Text>
+                <Text variant="headingMd" fontWeight="semibold">{t("recent_orders")}</Text>
                 <Button variant="plain" onClick={() => navigate("/app/orders")}>
-                  Vezi toate →
+                  {t("view_all")}
                 </Button>
               </InlineStack>
 
               {orders.length === 0 ? (
                 <EmptyState
-                  heading="Nicio comandă încă"
+                  heading={t("no_orders_yet")}
                   image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
                 >
-                  <p>Comenzile vor apărea automat după ce clienții plasează comenzi în magazin.</p>
+                  <p>{t("no_orders_desc")}</p>
                 </EmptyState>
               ) : (
                 <DataTable
                   columnContentTypes={["text","text","text","text","text","text","numeric","text"]}
-                  headings={["Comandă","Client","Curier","Livrare","AWB","Status","Ramburs","Dată"]}
+                  headings={[
+                    t("col_order"), t("col_customer"), t("col_courier"),
+                    t("col_delivery"), t("col_awb"), t("col_status"),
+                    t("col_cod"), t("col_date"),
+                  ]}
                   rows={rows}
                   hasZebraStripingOnData
                   increasedTableDensity

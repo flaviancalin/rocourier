@@ -2,38 +2,36 @@
 // Full orders page — filterable, searchable, with bulk AWB generation
 
 import { json } from "@remix-run/node";
-import { useLoaderData, useNavigate, useSubmit, Form } from "@remix-run/react";
+import { useLoaderData, useNavigate } from "@remix-run/react";
 import { authenticate } from "../shopify.server.js";
 import { getOrders } from "../models/order.server.js";
 import { prisma } from "../db.server.js";
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import {
   Page, Layout, Card, DataTable, Badge, Button, Text,
-  BlockStack, InlineStack, Filters, Select, TextField,
-  Pagination, Modal, Spinner, Banner, Checkbox, EmptyState,
+  BlockStack, InlineStack, Select, TextField,
+  Pagination, Modal, Banner, Checkbox, EmptyState,
   Toast, Frame,
 } from "@shopify/polaris";
+import { useTranslation } from "../context/i18n.jsx";
 
 export async function loader({ request }) {
   const { session } = await authenticate.admin(request);
   const url = new URL(request.url);
 
-  // session.shop can be null on Remix _data sub-requests; fall back to DB lookup via accessToken
   let shop = session.shop;
   const token = session.accessToken;
 
   if (!shop && token) {
-    // Find shop by access token from the sessions table
     const found = await prisma.session.findFirst({ where: { accessToken: token } });
     if (found) shop = found.shop;
   }
 
   if (!shop) {
-    // Still no shop — return empty state rather than crash
     return json({ orders: [], total: 0, totalPages: 1, page: 1, filters: { status: "", courier: "", method: "", search: "" } });
   }
 
-  // Sync latest orders from Shopify API into our DB (silent — errors shown via manual sync button)
+  // Silent background sync
   try {
     const res = await fetch(
       `https://${shop}/admin/api/2024-10/orders.json?status=any&limit=250&fields=id,name,created_at,note_attributes,shipping_address,customer,total_price`,
@@ -115,18 +113,7 @@ export async function loader({ request }) {
   return json({ ...result, filters: { status, courier, method, search } });
 }
 
-// ─── Status / courier maps ────────────────────────────────────────────────────
-const STATUS_MAP = {
-  pending:          { label: "În așteptare",    tone: "warning"   },
-  generated:        { label: "AWB generat",     tone: "info"      },
-  picked_up:        { label: "Preluat curier",  tone: "info"      },
-  in_transit:       { label: "În tranzit",      tone: "attention" },
-  out_for_delivery: { label: "La livrare",      tone: "success"   },
-  delivered:        { label: "Livrat",          tone: "success"   },
-  returned:         { label: "Retur",           tone: "critical"  },
-  failed:           { label: "Eșuat",           tone: "critical"  },
-};
-
+// ─── Static courier map (brand names, no translation needed) ─────────────────
 const COURIER_MAP = {
   fan:     { label: "FAN Courier", color: "#e65100" },
   sameday: { label: "Sameday",     color: "#1565c0" },
@@ -135,11 +122,22 @@ const COURIER_MAP = {
   packeta: { label: "Packeta",     color: "#ba000d" },
 };
 
+const STATUS_TONES = {
+  pending:           "warning",
+  generated:         "info",
+  picked_up:         "info",
+  in_transit:        "attention",
+  out_for_delivery:  "success",
+  delivered:         "success",
+  returned:          "critical",
+  failed:            "critical",
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function OrdersPage() {
   const { orders, total, totalPages, page, filters } = useLoaderData();
   const navigate = useNavigate();
-  const submit   = useSubmit();
+  const { t } = useTranslation();
 
   const [syncing, setSyncing]               = useState(false);
   const [syncError, setSyncError]           = useState(null);
@@ -153,7 +151,6 @@ export default function OrdersPage() {
   const [fulfillResults, setFulfillResults] = useState([]);
   const [showFulfillResults, setShowFulfillResults] = useState(false);
 
-  // ── Filters ────────────────────────────────────────────────────────────────
   const [searchVal, setSearchVal]   = useState(filters.search);
   const [statusVal, setStatusVal]   = useState(filters.status);
   const [courierVal, setCourierVal] = useState(filters.courier);
@@ -175,18 +172,14 @@ export default function OrdersPage() {
     navigate("/app/orders");
   }
 
-  // ── Selection ──────────────────────────────────────────────────────────────
   const toggleSelect = (id) =>
     setSelectedOrders((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
 
   const selectAll = () =>
-    setSelectedOrders(
-      selectedOrders.length === orders.length ? [] : orders.map((o) => o.id)
-    );
+    setSelectedOrders(selectedOrders.length === orders.length ? [] : orders.map((o) => o.id));
 
-  // ── Manual sync from Shopify ───────────────────────────────────────────────
   async function handleSync() {
     setSyncing(true);
     setSyncError(null);
@@ -196,7 +189,7 @@ export default function OrdersPage() {
       if (data.error) {
         setSyncError(data.error);
       } else {
-        setToastMsg(`Sincronizat: ${data.synced} comenzi din Shopify`);
+        setToastMsg(t("sync_success", { n: data.synced }));
         setTimeout(() => navigate(window.location.pathname + window.location.search), 800);
       }
     } catch (e) {
@@ -206,12 +199,10 @@ export default function OrdersPage() {
     }
   }
 
-  // Derived: selected orders that already have AWBs
   const selectedWithAwb = selectedOrders.filter(
     (id) => orders.find((o) => o.id === id)?.awbNumber
   );
 
-  // ── Bulk print (merged PDF download) ──────────────────────────────────────
   async function handleBulkPrint() {
     if (!selectedWithAwb.length) return;
     setBulkPrinting(true);
@@ -220,7 +211,7 @@ export default function OrdersPage() {
       const res = await fetch(`/api/bulk-print-awb?orderIds=${ids}`);
       if (!res.ok) {
         const text = await res.text();
-        setToastMsg(`Eroare print: ${text.slice(0, 120)}`);
+        setToastMsg(`${t("error")}: ${text.slice(0, 120)}`);
         return;
       }
       const blob = await res.blob();
@@ -234,13 +225,12 @@ export default function OrdersPage() {
       URL.revokeObjectURL(url);
       setToastMsg(`${selectedWithAwb.length} AWB-uri descărcate`);
     } catch (e) {
-      setToastMsg(`Eroare: ${e.message}`);
+      setToastMsg(`${t("error")}: ${e.message}`);
     } finally {
       setBulkPrinting(false);
     }
   }
 
-  // ── Bulk Shopify fulfillment ───────────────────────────────────────────────
   async function handleBulkFulfill() {
     if (!selectedWithAwb.length) return;
     setBulkFulfilling(true);
@@ -255,20 +245,17 @@ export default function OrdersPage() {
       setShowFulfillResults(true);
       setToastMsg(`Finalizate: ${data.succeeded || 0} ✓, ${data.failed || 0} ✗`);
     } catch (e) {
-      setToastMsg(`Eroare: ${e.message}`);
+      setToastMsg(`${t("error")}: ${e.message}`);
     } finally {
       setBulkFulfilling(false);
     }
   }
 
-  // ── Packing slip ──────────────────────────────────────────────────────────
   function handlePackingSlip() {
     if (!selectedOrders.length) return;
-    const ids = selectedOrders.join(",");
-    window.open(`/api/packing-slip?orderIds=${ids}`, "_blank");
+    window.open(`/api/packing-slip?orderIds=${selectedOrders.join(",")}`, "_blank");
   }
 
-  // ── Bulk AWB generation ───────────────────────────────────────────────────
   async function generateSelectedAwbs() {
     if (selectedOrders.length === 0) return;
     setGeneratingAwb(true);
@@ -300,21 +287,16 @@ export default function OrdersPage() {
     setGeneratingAwb(false);
     setShowResults(true);
     setSelectedOrders([]);
-    // Reload to show updated AWB numbers
     setTimeout(() => navigate(window.location.pathname + window.location.search), 1500);
   }
 
   // ── Table rows ─────────────────────────────────────────────────────────────
   const rows = orders.map((o) => {
-    const statusCfg  = STATUS_MAP[o.awbStatus]   || { label: o.awbStatus,  tone: "default" };
+    const tone       = STATUS_TONES[o.awbStatus] || "default";
     const courierCfg = COURIER_MAP[o.courierType] || { label: o.courierType, color: "#888" };
 
     return [
-      <Checkbox
-        label="" labelHidden
-        checked={selectedOrders.includes(o.id)}
-        onChange={() => toggleSelect(o.id)}
-      />,
+      <Checkbox label="" labelHidden checked={selectedOrders.includes(o.id)} onChange={() => toggleSelect(o.id)} />,
       <Button variant="plain" onClick={() => navigate(`/app/orders/${o.id}`)}>
         <strong>{o.shopifyOrderName}</strong>
       </Button>,
@@ -327,58 +309,54 @@ export default function OrdersPage() {
         {courierCfg.label}
       </span>,
       o.shippingMethod === "pickup_point"
-        ? `📦 ${o.pickupPointName || "Punct fix"}`
-        : "🚚 Acasă",
+        ? `📦 ${o.pickupPointName || t("pickup_short")}`
+        : `🚚 ${t("at_home")}`,
       o.awbNumber
-        ? <code style={{ fontSize:12, background:"#f4f6f8", padding:"2px 6px", borderRadius:4 }}>
-            {o.awbNumber}
-          </code>
+        ? <code style={{ fontSize:12, background:"#f4f6f8", padding:"2px 6px", borderRadius:4 }}>{o.awbNumber}</code>
         : <Text tone="subdued">—</Text>,
-      <Badge tone={statusCfg.tone}>{statusCfg.label}</Badge>,
+      <Badge tone={tone}>{t(`status_${o.awbStatus}`) || o.awbStatus}</Badge>,
       o.codAmount > 0
         ? <Text fontWeight="semibold">{o.codAmount.toFixed(2)} RON</Text>
         : <Text tone="subdued">—</Text>,
-      new Date(o.createdAt).toLocaleDateString("ro-RO", {
-        day:"2-digit", month:"2-digit", year:"numeric",
-      }),
+      new Date(o.createdAt).toLocaleDateString("ro-RO", { day:"2-digit", month:"2-digit", year:"numeric" }),
     ];
   });
 
   return (
     <Frame>
       <Page
-        title="Comenzi"
-        subtitle={`${total} comenzi totale`}
+        title={t("orders_title")}
+        subtitle={t("orders_subtitle", { n: total })}
         primaryAction={{
-          content: syncing ? "Se sincronizează..." : "Sincronizează din Shopify",
+          content: syncing ? t("syncing") : t("sync_btn"),
           onAction: handleSync,
           loading: syncing,
         }}
       >
         <Layout>
-          {/* ── Sync error ─────────────────────────────────────────────── */}
+          {/* Sync error */}
           {syncError && (
             <Layout.Section>
-              <Banner tone="critical" title="Eroare la sincronizare" onDismiss={() => setSyncError(null)}>
+              <Banner tone="critical" title={t("sync_error_title")} onDismiss={() => setSyncError(null)}>
                 <Text>{syncError}</Text>
               </Banner>
             </Layout.Section>
           )}
 
-          {/* ── Filters ────────────────────────────────────────────────── */}
+          {/* Filters */}
           <Layout.Section>
             <Card>
               <BlockStack gap="300">
                 <div style={{ display:"flex", gap:12, flexWrap:"wrap", alignItems:"flex-end" }}>
                   <div style={{ flex:"2 1 220px" }}>
                     <TextField
-                      label="Caută"
-                      placeholder="Număr comandă, client, AWB..."
+                      label={t("search")}
+                      placeholder={t("search_placeholder")}
                       value={searchVal}
                       onChange={setSearchVal}
                       onKeyDown={(e) => e.key === "Enter" && applyFilters()}
                       clearButton
-                      onClearButtonClick={() => { setSearchVal(""); }}
+                      onClearButtonClick={() => setSearchVal("")}
                     />
                   </div>
                   <div style={{ flex:"1 1 150px" }}>
@@ -387,107 +365,106 @@ export default function OrdersPage() {
                       value={statusVal}
                       onChange={setStatusVal}
                       options={[
-                        { label: "Toate statusurile", value: "" },
-                        { label: "În așteptare",      value: "pending" },
-                        { label: "AWB generat",       value: "generated" },
-                        { label: "În tranzit",        value: "in_transit" },
-                        { label: "Livrat",            value: "delivered" },
-                        { label: "Retur",             value: "returned" },
+                        { label: t("all_statuses"),          value: "" },
+                        { label: t("status_pending"),        value: "pending" },
+                        { label: t("status_generated"),      value: "generated" },
+                        { label: t("status_in_transit"),     value: "in_transit" },
+                        { label: t("status_delivered"),      value: "delivered" },
+                        { label: t("status_returned"),       value: "returned" },
                       ]}
                     />
                   </div>
                   <div style={{ flex:"1 1 150px" }}>
                     <Select
-                      label="Curier"
+                      label={t("col_courier")}
                       value={courierVal}
                       onChange={setCourierVal}
                       options={[
-                        { label: "Toți curierii",  value: ""       },
-                        { label: "FAN Courier",    value: "fan"     },
-                        { label: "Sameday",        value: "sameday" },
-                        { label: "Cargus",         value: "cargus"  },
-                        { label: "GLS",            value: "gls"     },
-                        { label: "Packeta",        value: "packeta" },
+                        { label: t("all_couriers"), value: ""       },
+                        { label: "FAN Courier",     value: "fan"     },
+                        { label: "Sameday",         value: "sameday" },
+                        { label: "Cargus",          value: "cargus"  },
+                        { label: "GLS",             value: "gls"     },
+                        { label: "Packeta",         value: "packeta" },
                       ]}
                     />
                   </div>
                   <div style={{ flex:"1 1 150px" }}>
                     <Select
-                      label="Metodă"
+                      label={t("method_label")}
                       value={methodVal}
                       onChange={setMethodVal}
                       options={[
-                        { label: "Toate metodele",  value: "" },
-                        { label: "Livrare acasă",   value: "home_delivery" },
-                        { label: "Punct ridicare",  value: "pickup_point" },
+                        { label: t("all_methods"),    value: "" },
+                        { label: t("home_delivery"),  value: "home_delivery" },
+                        { label: t("pickup_point"),   value: "pickup_point" },
                       ]}
                     />
                   </div>
                   <div style={{ display:"flex", gap:8, paddingTop:24 }}>
-                    <Button onClick={applyFilters} variant="primary">Filtrează</Button>
-                    <Button onClick={clearFilters}>Resetează</Button>
+                    <Button onClick={applyFilters} variant="primary">{t("filter")}</Button>
+                    <Button onClick={clearFilters}>{t("reset")}</Button>
                   </div>
                 </div>
               </BlockStack>
             </Card>
           </Layout.Section>
 
-          {/* ── Table ──────────────────────────────────────────────────── */}
+          {/* Table */}
           <Layout.Section>
             <Card>
               {orders.length === 0 ? (
                 <EmptyState
-                  heading="Nicio comandă găsită"
+                  heading={t("no_orders_found")}
                   image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
                 >
-                  <p>Schimbă filtrele sau așteaptă comenzi noi.</p>
+                  <p>{t("no_orders_hint")}</p>
                 </EmptyState>
               ) : (
                 <BlockStack gap="300">
                   <InlineStack align="space-between" blockAlign="center">
                     <Button variant="plain" onClick={selectAll}>
-                      {selectedOrders.length === orders.length ? "Deselectează tot" : "Selectează tot"}
+                      {selectedOrders.length === orders.length ? t("deselect_all") : t("select_all")}
                     </Button>
                     {selectedOrders.length > 0 && (
-                      <Text tone="subdued">{selectedOrders.length} selectate</Text>
+                      <Text tone="subdued">{selectedOrders.length} {t("selected")}</Text>
                     )}
                   </InlineStack>
 
                   {selectedOrders.length > 0 && (
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", padding:"8px 0", borderTop:"1px solid #f0f0f0", borderBottom:"1px solid #f0f0f0" }}>
-                      <Button
-                        variant="primary"
-                        tone="success"
-                        loading={generatingAwb}
-                        onClick={generateSelectedAwbs}
-                      >
-                        {generatingAwb ? "Se generează..." : `Generează AWB (${selectedOrders.length})`}
+                      <Button variant="primary" tone="success" loading={generatingAwb} onClick={generateSelectedAwbs}>
+                        {generatingAwb ? t("generating") : `${t("generate_awb")} (${selectedOrders.length})`}
                       </Button>
 
                       {selectedWithAwb.length > 0 && (
                         <>
                           <Button loading={bulkPrinting} onClick={handleBulkPrint}>
-                            {bulkPrinting ? "Se descarcă..." : `Imprimă AWB-uri (${selectedWithAwb.length})`}
+                            {bulkPrinting ? t("downloading") : t("print_awbs", { n: selectedWithAwb.length })}
                           </Button>
                           <Button loading={bulkFulfilling} onClick={handleBulkFulfill}>
-                            {bulkFulfilling ? "Se finalizează..." : `Marchează livrat în Shopify (${selectedWithAwb.length})`}
+                            {bulkFulfilling ? t("fulfilling") : t("fulfill_shopify", { n: selectedWithAwb.length })}
                           </Button>
                         </>
                       )}
 
                       <Button onClick={handlePackingSlip}>
-                        Bon de livrare ({selectedOrders.length})
+                        {t("packing_slip", { n: selectedOrders.length })}
                       </Button>
 
                       <Button variant="plain" onClick={() => setSelectedOrders([])}>
-                        Anulează selecția
+                        {t("cancel_selection")}
                       </Button>
                     </div>
                   )}
 
                   <DataTable
                     columnContentTypes={["text","text","text","text","text","text","text","numeric","text"]}
-                    headings={["","Comandă","Client","Curier","Livrare","AWB","Status","Ramburs","Dată"]}
+                    headings={[
+                      "", t("col_order"), t("col_customer"), t("col_courier"),
+                      t("col_delivery"), t("col_awb"), t("col_status"),
+                      t("col_cod"), t("col_date"),
+                    ]}
                     rows={rows}
                     hasZebraStripingOnData
                     increasedTableDensity
@@ -499,7 +476,7 @@ export default function OrdersPage() {
                       hasNext={page < totalPages}
                       onPrevious={() => navigate(`/app/orders?page=${page - 1}`)}
                       onNext={() => navigate(`/app/orders?page=${page + 1}`)}
-                      label={`Pagina ${page} din ${totalPages}`}
+                      label={t("page_label", { p: page, t: totalPages })}
                     />
                   </InlineStack>
                 </BlockStack>
@@ -509,26 +486,23 @@ export default function OrdersPage() {
         </Layout>
       </Page>
 
-      {/* ── Fulfill Results Modal ────────────────────────────────────────── */}
+      {/* Fulfill Results Modal */}
       {showFulfillResults && (
         <Modal
           open={showFulfillResults}
           onClose={() => setShowFulfillResults(false)}
-          title="Rezultate finalizare Shopify"
-          primaryAction={{ content: "Închide", onAction: () => setShowFulfillResults(false) }}
+          title={t("fulfill_results_title")}
+          primaryAction={{ content: t("close"), onAction: () => setShowFulfillResults(false) }}
         >
           <Modal.Section>
             <BlockStack gap="300">
               {fulfillResults.map((r) => (
-                <div key={r.orderId} style={{
-                  display:"flex", alignItems:"center", gap:12, padding:"8px 0",
-                  borderBottom:"1px solid #f0f0f0",
-                }}>
+                <div key={r.orderId} style={{ display:"flex", alignItems:"center", gap:12, padding:"8px 0", borderBottom:"1px solid #f0f0f0" }}>
                   <span style={{ fontSize:18 }}>{r.success ? "✅" : "❌"}</span>
                   <div>
                     <Text fontWeight="semibold">{r.orderName || r.orderId}</Text>
                     {r.success
-                      ? <Text tone="subdued">Finalizat în Shopify</Text>
+                      ? <Text tone="subdued">{t("fulfilled_shopify")}</Text>
                       : <Text tone="critical">{r.error}</Text>
                     }
                   </div>
@@ -539,21 +513,18 @@ export default function OrdersPage() {
         </Modal>
       )}
 
-      {/* ── AWB Results Modal ────────────────────────────────────────────── */}
+      {/* AWB Results Modal */}
       {showResults && (
         <Modal
           open={showResults}
           onClose={() => setShowResults(false)}
-          title="Rezultate generare AWB"
-          primaryAction={{ content: "Închide", onAction: () => setShowResults(false) }}
+          title={t("awb_results_title")}
+          primaryAction={{ content: t("close"), onAction: () => setShowResults(false) }}
         >
           <Modal.Section>
             <BlockStack gap="300">
               {awbResults.map((r) => (
-                <div key={r.orderId} style={{
-                  display:"flex", alignItems:"center", gap:12, padding:"8px 0",
-                  borderBottom:"1px solid #f0f0f0",
-                }}>
+                <div key={r.orderId} style={{ display:"flex", alignItems:"center", gap:12, padding:"8px 0", borderBottom:"1px solid #f0f0f0" }}>
                   <span style={{ fontSize:18 }}>{r.success ? "✅" : "❌"}</span>
                   <div>
                     <Text fontWeight="semibold">{r.orderName || r.orderId}</Text>

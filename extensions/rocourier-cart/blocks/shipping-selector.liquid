@@ -9,6 +9,7 @@
   data-shop="{{ shop.permanent_domain }}"
   data-app-url="{{ block.settings.app_url }}"
   data-currency="{{ cart.currency.iso_code | default: 'RON' }}"
+  data-lang="{{ request.locale.iso_code | slice: 0, 2 | downcase }}"
   data-fan-enabled="{{ block.settings.fan_enabled }}"
   data-fan-home-fee="{{ block.settings.fan_home_fee | default: 0 }}"
   data-fan-pickup-fee="{{ block.settings.fan_pickup_fee | default: 0 }}"
@@ -49,7 +50,7 @@
         </svg>
       </span>
       <span class="rc-method-text">
-        <strong>Livrare la domiciliu</strong>
+        <strong id="rc-home-label">Livrare la domiciliu</strong>
         <small id="rc-home-sub">Alege curierul preferat</small>
       </span>
       <span id="rc-home-fee" class="rc-method-fee"></span>
@@ -96,7 +97,7 @@
         </svg>
       </span>
       <span class="rc-method-text">
-        <strong>Ridicare din punct fix</strong>
+        <strong id="rc-pickup-label">Ridicare din punct fix</strong>
         <small id="rc-pickup-sub">Locker, easybox, ParcelShop...</small>
       </span>
       <span id="rc-pickup-fee" class="rc-method-fee"></span>
@@ -112,7 +113,7 @@
       <strong id="rc-point-name"></strong>
       <span id="rc-point-addr"></span>
     </div>
-    <button type="button" id="rc-change-point" class="rc-change-btn">Schimbă</button>
+    <button type="button" id="rc-change-point" class="rc-change-btn"><!-- translated by JS --></button>
   </div>
 
   <div id="rc-error" class="rc-error" style="display:none;"></div>
@@ -136,7 +137,7 @@
         >
       </div>
       <div class="rc-modal-filters" id="rc-type-filters">
-        <button type="button" class="rc-filter-btn rc-filter-active" data-courier="all">Toate</button>
+        <button type="button" class="rc-filter-btn rc-filter-active" id="rc-filter-all" data-courier="all">Toate</button>
         {%- if block.settings.fan_enabled -%}
           <button type="button" class="rc-filter-btn" data-courier="fan">
             <img src="{{ 'logo-fan.svg' | asset_url }}" alt="FAN" class="rc-filter-logo">
@@ -163,18 +164,16 @@
           </button>
         {%- endif -%}
       </div>
-      <button type="button" id="rc-modal-close" class="rc-modal-close" aria-label="Închide">✕</button>
+      <button type="button" id="rc-modal-close" class="rc-modal-close" aria-label="Close">✕</button>
     </div>
 
     <div class="rc-modal-body">
       <div class="rc-list-panel">
         <div id="rc-list-loading" class="rc-list-loading">
           <div class="rc-spinner"></div>
-          <span>Se încarcă punctele de ridicare...</span>
+          <span id="rc-loading-text">Se încarcă punctele de ridicare...</span>
         </div>
-        <div id="rc-list-empty" style="display:none;" class="rc-list-empty">
-          Niciun punct găsit în această zonă.
-        </div>
+        <div id="rc-list-empty" style="display:none;" class="rc-list-empty"><!-- translated by JS --></div>
         <ul id="rc-points-list" class="rc-points-list"></ul>
         <div id="rc-list-count" class="rc-list-count" style="display:none;"></div>
       </div>
