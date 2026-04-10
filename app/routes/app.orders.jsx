@@ -130,6 +130,10 @@ export default function OrdersPage() {
   const [awbResults, setAwbResults]         = useState([]);
   const [showResults, setShowResults]       = useState(false);
   const [toastMsg, setToastMsg]             = useState(null);
+  const [bulkPrinting, setBulkPrinting]     = useState(false);
+  const [bulkFulfilling, setBulkFulfilling] = useState(false);
+  const [fulfillResults, setFulfillResults] = useState([]);
+  const [showFulfillResults, setShowFulfillResults] = useState(false);
 
   // ── Filters ────────────────────────────────────────────────────────────────
   const [searchVal, setSearchVal]   = useState(filters.search);
@@ -163,6 +167,68 @@ export default function OrdersPage() {
     setSelectedOrders(
       selectedOrders.length === orders.length ? [] : orders.map((o) => o.id)
     );
+
+  // Derived: selected orders that already have AWBs
+  const selectedWithAwb = selectedOrders.filter(
+    (id) => orders.find((o) => o.id === id)?.awbNumber
+  );
+
+  // ── Bulk print (merged PDF download) ──────────────────────────────────────
+  async function handleBulkPrint() {
+    if (!selectedWithAwb.length) return;
+    setBulkPrinting(true);
+    try {
+      const ids = selectedWithAwb.join(",");
+      const res = await fetch(`/api/bulk-print-awb?orderIds=${ids}`);
+      if (!res.ok) {
+        const text = await res.text();
+        setToastMsg(`Eroare print: ${text.slice(0, 120)}`);
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `AWB_bulk_${new Date().toISOString().slice(0,10)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setToastMsg(`${selectedWithAwb.length} AWB-uri descărcate`);
+    } catch (e) {
+      setToastMsg(`Eroare: ${e.message}`);
+    } finally {
+      setBulkPrinting(false);
+    }
+  }
+
+  // ── Bulk Shopify fulfillment ───────────────────────────────────────────────
+  async function handleBulkFulfill() {
+    if (!selectedWithAwb.length) return;
+    setBulkFulfilling(true);
+    try {
+      const res = await fetch("/api/bulk-fulfill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderIds: selectedWithAwb }),
+      });
+      const data = await res.json();
+      setFulfillResults(data.results || []);
+      setShowFulfillResults(true);
+      setToastMsg(`Finalizate: ${data.succeeded || 0} ✓, ${data.failed || 0} ✗`);
+    } catch (e) {
+      setToastMsg(`Eroare: ${e.message}`);
+    } finally {
+      setBulkFulfilling(false);
+    }
+  }
+
+  // ── Packing slip ──────────────────────────────────────────────────────────
+  function handlePackingSlip() {
+    if (!selectedOrders.length) return;
+    const ids = selectedOrders.join(",");
+    window.open(`/api/packing-slip?orderIds=${ids}`, "_blank");
+  }
 
   // ── Bulk AWB generation ───────────────────────────────────────────────────
   async function generateSelectedAwbs() {
@@ -242,27 +308,7 @@ export default function OrdersPage() {
 
   return (
     <Frame>
-      <Page
-        title="Comenzi"
-        subtitle={`${total} comenzi totale`}
-        primaryAction={
-          selectedOrders.length > 0
-            ? {
-                content: generatingAwb
-                  ? "Se generează..."
-                  : `Generează AWB (${selectedOrders.length})`,
-                onAction: generateSelectedAwbs,
-                loading: generatingAwb,
-                tone: "success",
-              }
-            : undefined
-        }
-        secondaryActions={
-          selectedOrders.length > 0
-            ? [{ content: "Anulează selecția", onAction: () => setSelectedOrders([]) }]
-            : []
-        }
-      >
+      <Page title="Comenzi" subtitle={`${total} comenzi totale`}>
         <Layout>
           {/* ── Filters ────────────────────────────────────────────────── */}
           <Layout.Section>
@@ -343,7 +389,7 @@ export default function OrdersPage() {
                 </EmptyState>
               ) : (
                 <BlockStack gap="300">
-                  <InlineStack align="space-between">
+                  <InlineStack align="space-between" blockAlign="center">
                     <Button variant="plain" onClick={selectAll}>
                       {selectedOrders.length === orders.length ? "Deselectează tot" : "Selectează tot"}
                     </Button>
@@ -351,6 +397,38 @@ export default function OrdersPage() {
                       <Text tone="subdued">{selectedOrders.length} selectate</Text>
                     )}
                   </InlineStack>
+
+                  {selectedOrders.length > 0 && (
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", padding:"8px 0", borderTop:"1px solid #f0f0f0", borderBottom:"1px solid #f0f0f0" }}>
+                      <Button
+                        variant="primary"
+                        tone="success"
+                        loading={generatingAwb}
+                        onClick={generateSelectedAwbs}
+                      >
+                        {generatingAwb ? "Se generează..." : `Generează AWB (${selectedOrders.length})`}
+                      </Button>
+
+                      {selectedWithAwb.length > 0 && (
+                        <>
+                          <Button loading={bulkPrinting} onClick={handleBulkPrint}>
+                            {bulkPrinting ? "Se descarcă..." : `Imprimă AWB-uri (${selectedWithAwb.length})`}
+                          </Button>
+                          <Button loading={bulkFulfilling} onClick={handleBulkFulfill}>
+                            {bulkFulfilling ? "Se finalizează..." : `Marchează livrat în Shopify (${selectedWithAwb.length})`}
+                          </Button>
+                        </>
+                      )}
+
+                      <Button onClick={handlePackingSlip}>
+                        Bon de livrare ({selectedOrders.length})
+                      </Button>
+
+                      <Button variant="plain" onClick={() => setSelectedOrders([])}>
+                        Anulează selecția
+                      </Button>
+                    </div>
+                  )}
 
                   <DataTable
                     columnContentTypes={["text","text","text","text","text","text","text","numeric","text"]}
@@ -375,6 +453,36 @@ export default function OrdersPage() {
           </Layout.Section>
         </Layout>
       </Page>
+
+      {/* ── Fulfill Results Modal ────────────────────────────────────────── */}
+      {showFulfillResults && (
+        <Modal
+          open={showFulfillResults}
+          onClose={() => setShowFulfillResults(false)}
+          title="Rezultate finalizare Shopify"
+          primaryAction={{ content: "Închide", onAction: () => setShowFulfillResults(false) }}
+        >
+          <Modal.Section>
+            <BlockStack gap="300">
+              {fulfillResults.map((r) => (
+                <div key={r.orderId} style={{
+                  display:"flex", alignItems:"center", gap:12, padding:"8px 0",
+                  borderBottom:"1px solid #f0f0f0",
+                }}>
+                  <span style={{ fontSize:18 }}>{r.success ? "✅" : "❌"}</span>
+                  <div>
+                    <Text fontWeight="semibold">{r.orderName || r.orderId}</Text>
+                    {r.success
+                      ? <Text tone="subdued">Finalizat în Shopify</Text>
+                      : <Text tone="critical">{r.error}</Text>
+                    }
+                  </div>
+                </div>
+              ))}
+            </BlockStack>
+          </Modal.Section>
+        </Modal>
+      )}
 
       {/* ── AWB Results Modal ────────────────────────────────────────────── */}
       {showResults && (
