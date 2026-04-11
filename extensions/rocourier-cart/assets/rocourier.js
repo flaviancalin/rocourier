@@ -162,6 +162,12 @@
       ENABLED[c] = widget.dataset[c + "Enabled"] !== "false";
     });
 
+    // Hide filter buttons for disabled couriers
+    document.querySelectorAll(".rc-filter-btn[data-courier]").forEach((btn) => {
+      const c = btn.dataset.courier;
+      if (c && c !== "all" && !ENABLED[c]) btn.style.display = "none";
+    });
+
     // Fee table: { fan: { home: 0, pickup: 0 }, ... }
     const FEES = {};
     Object.keys(COURIERS).forEach((c) => {
@@ -359,23 +365,50 @@
       }
     }
 
+    // ── Nominatim geocode & pan ───────────────────────────────────────────────
+    let _geocodeTimer = null;
+    function geocodeAndCenter(q) {
+      clearTimeout(_geocodeTimer);
+      if (!mapInst || q.length < 4) return;
+      _geocodeTimer = setTimeout(async () => {
+        try {
+          const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=ro&limit=1`;
+          const res  = await fetch(url, { headers: { "Accept": "application/json" } });
+          const data = await res.json();
+          if (data.length > 0 && mapInst) {
+            const { lat, lon, boundingbox } = data[0];
+            if (boundingbox) {
+              mapInst.fitBounds(
+                [[+boundingbox[0], +boundingbox[2]], [+boundingbox[1], +boundingbox[3]]],
+                { maxZoom: 14 }
+              );
+            } else {
+              mapInst.setView([+lat, +lon], 14);
+            }
+          }
+        } catch (_) {}
+      }, 600);
+    }
+
     // ── Filters ────────────────────────────────────────────────────────────────
     function applyFilters() {
-      const q = (searchInput?.value || "").toLowerCase().trim();
+      const raw   = (searchInput?.value || "").toLowerCase().trim();
+      // Split into words (≥2 chars), every word must match at least one field
+      const words = raw ? raw.split(/\s+/).filter((w) => w.length >= 2) : [];
       filtered = allPoints.filter((p) => {
         if (currentFilter !== "all" && p.courier !== currentFilter) return false;
-        if (!q) return true;
-        return (
-          (p.name    || "").toLowerCase().includes(q) ||
-          (p.address || "").toLowerCase().includes(q) ||
-          (p.city    || "").toLowerCase().includes(q) ||
-          (p.county  || "").toLowerCase().includes(q)
-        );
+        if (!words.length) return true;
+        const haystack = [p.name, p.address, p.city, p.county]
+          .map((s) => (s || "").toLowerCase()).join(" ");
+        return words.every((w) => haystack.includes(w));
       });
       renderList(filtered);
       if (mapInst) renderMarkers(filtered);
       if (listEmpty) listEmpty.style.display = filtered.length === 0 ? "block" : "none";
       if (listCount) { listCount.textContent = t("points_count", { n: filtered.length }); listCount.style.display = "block"; }
+
+      // Pan map to searched location via geocoding
+      if (raw.length >= 4) geocodeAndCenter(raw);
     }
 
     searchInput && searchInput.addEventListener("input", applyFilters);
@@ -471,12 +504,17 @@
         const letterColor = isSel ? "#fff" : (p.courier === "gls" ? "#003591" : "#fff");
         const logoUrl  = LOGOS[p.courier] || "";
 
+        const innerHtml = logoUrl
+          ? `<img src="${logoUrl}" style="width:26px;height:18px;object-fit:contain;pointer-events:none;display:block" alt="">`
+          : `<span style="color:${letterColor};font-weight:900;font-size:13px;text-shadow:0 1px 2px rgba(0,0,0,.3)">${cfg.letter}</span>`;
+
         const icon = L.divIcon({
           className: "",
-          html: `<div style="width:30px;height:30px;border-radius:50% 50% 50% 0;background:${pinColor};transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.3);border:2px solid #fff">
-            <span style="transform:rotate(45deg);color:${letterColor};font-weight:900;font-size:12px">${cfg.letter}</span>
+          html: `<div style="position:relative;width:36px;height:46px">
+            <div style="width:36px;height:36px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${pinColor};box-shadow:0 2px 8px rgba(0,0,0,.35);border:2.5px solid rgba(255,255,255,.9)"></div>
+            <div style="position:absolute;top:0;left:0;width:36px;height:36px;display:flex;align-items:center;justify-content:center">${innerHtml}</div>
           </div>`,
-          iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -34],
+          iconSize: [36, 46], iconAnchor: [18, 46], popupAnchor: [0, -48],
         });
 
         const logoHtml = logoUrl
