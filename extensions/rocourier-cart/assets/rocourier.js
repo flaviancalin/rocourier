@@ -183,6 +183,12 @@
       LOGOS[c] = widget.dataset[c + "Logo"] || "";
     });
 
+    // Pin image URLs (full teardrop PNG per carrier)
+    const PINS = {};
+    Object.keys(COURIERS).forEach((c) => {
+      PINS[c] = widget.dataset[c + "Pin"] || "";
+    });
+
     function feeLabel(amount) {
       if (!amount) return t("free");
       return amount.toLocaleString("ro-RO", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + " " + CURRENCY;
@@ -535,20 +541,33 @@
         const letterColor = isSel ? "#fff" : (p.courier === "gls" ? "#003591" : "#fff");
         const logoUrl  = LOGOS[p.courier] || "";
 
-        const innerHtml = logoUrl
-          ? `<div style="width:28px;height:22px;background:#fff;border-radius:4px;display:flex;align-items:center;justify-content:center;padding:2px">
-               <img src="${logoUrl}" style="max-width:24px;max-height:16px;object-fit:contain;pointer-events:none;display:block" alt="">
-             </div>`
-          : `<span style="color:${letterColor};font-weight:900;font-size:13px;text-shadow:0 1px 2px rgba(0,0,0,.3)">${cfg.letter}</span>`;
+        const pinUrl = isSel ? "" : (PINS[p.courier] || "");
 
-        const icon = L.divIcon({
-          className: "",
-          html: `<div style="position:relative;width:36px;height:46px">
-            <div style="width:36px;height:36px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${pinColor};box-shadow:0 2px 8px rgba(0,0,0,.35);border:2.5px solid rgba(255,255,255,.9)"></div>
-            <div style="position:absolute;top:0;left:0;width:36px;height:36px;display:flex;align-items:center;justify-content:center">${innerHtml}</div>
-          </div>`,
-          iconSize: [36, 46], iconAnchor: [18, 46], popupAnchor: [0, -48],
-        });
+        let icon;
+        if (pinUrl) {
+          // Use the full custom PNG pin — sized proportionally (the PNGs are square 2001×2001)
+          icon = L.icon({
+            iconUrl:     pinUrl,
+            iconSize:    [46, 46],
+            iconAnchor:  [23, 46],
+            popupAnchor: [0, -48],
+          });
+        } else {
+          // Fallback: coloured teardrop (used for selected state or missing pin)
+          const innerHtml = logoUrl
+            ? `<div style="width:28px;height:22px;background:#fff;border-radius:4px;display:flex;align-items:center;justify-content:center;padding:2px">
+                 <img src="${logoUrl}" style="max-width:24px;max-height:16px;object-fit:contain;pointer-events:none;display:block" alt="">
+               </div>`
+            : `<span style="color:${letterColor};font-weight:900;font-size:13px;text-shadow:0 1px 2px rgba(0,0,0,.3)">${cfg.letter}</span>`;
+          icon = L.divIcon({
+            className: "",
+            html: `<div style="position:relative;width:36px;height:46px">
+              <div style="width:36px;height:36px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${pinColor};box-shadow:0 2px 8px rgba(0,0,0,.35);border:2.5px solid rgba(255,255,255,.9)"></div>
+              <div style="position:absolute;top:0;left:0;width:36px;height:36px;display:flex;align-items:center;justify-content:center">${innerHtml}</div>
+            </div>`,
+            iconSize: [36, 46], iconAnchor: [18, 46], popupAnchor: [0, -48],
+          });
+        }
 
         const logoHtml = logoUrl
           ? `<img src="${logoUrl}" alt="${esc(cfg.label)}" style="height:20px;margin-bottom:6px;display:block">`
