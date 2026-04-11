@@ -456,7 +456,25 @@
 .rc-item:hover          { border-color: #ccc; background: #fafafa; }
 .rc-item.rc-item-selected { border-color: #222; background: #f9f9f9; }
 
-.rc-item-top  { display: flex; align-items: center; }
+.rc-item-top  { display: flex; align-items: center; justify-content: space-between; }
+
+/* Target button — show on map */
+.rc-item-go-btn {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border: 1.5px solid #ddd;
+  border-radius: 6px;
+  background: #fafafa;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.rc-item-go-btn:hover { border-color: #222; background: #f0f0f0; color: #222; }
+.rc-item-go-btn svg { width: 16px; height: 16px; }
 
 .rc-item-badge {
   display: inline-block;
@@ -499,7 +517,30 @@
   flex: 1;
   min-width: 0;
   overflow: hidden;
+  position: relative;
 }
+
+/* Floating "My Location" button on the map */
+.rc-map-locate-btn {
+  position: absolute;
+  bottom: 30px;
+  right: 10px;
+  z-index: 1000;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  border: 1.5px solid #ccc;
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,.18);
+  transition: background 0.15s, border-color 0.15s;
+  color: #444;
+}
+.rc-map-locate-btn:hover { background: #f0f0f0; border-color: #222; color: #222; }
+.rc-map-locate-btn svg { width: 20px; height: 20px; }
 
 /* Map fills the full modal body height.
    Header is ~70px; modal is min(92vh, 860px). */

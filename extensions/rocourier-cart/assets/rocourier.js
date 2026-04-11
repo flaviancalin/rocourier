@@ -433,12 +433,19 @@
         li.dataset.id = p.id;
 
         const logoUrl = LOGOS[p.courier] || "";
+        const hasCoords = !!(p.lat && p.lng);
+        const targetBtn = hasCoords
+          ? `<button type="button" class="rc-item-go-btn" title="Show on map">
+               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><path d="M12 2v2.5M12 19.5v2.5M2 12h2.5M19.5 12h2.5"/></svg>
+             </button>`
+          : "";
         li.innerHTML = `
           <div class="rc-item-top">
             ${logoUrl
               ? `<img src="${logoUrl}" alt="${esc(cfg.label)}" class="rc-item-logo">`
               : `<span class="rc-item-badge ${cfg.badgeClass}" style="background:${cfg.color}22;color:${cfg.color};border:1px solid ${cfg.color}44">${esc(cfg.pickupLabel)}</span>`
             }
+            ${targetBtn}
           </div>
           <strong class="rc-item-name">${esc(p.name)}</strong>
           <span class="rc-item-addr">${esc(p.address)}</span>
@@ -452,6 +459,19 @@
           selectPoint(p);
         });
 
+        const goBtn = li.querySelector(".rc-item-go-btn");
+        if (goBtn) {
+          goBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (mapInst && p.lat && p.lng) {
+              mapInst.setView([p.lat, p.lng], 16);
+              const marker = window.__rcMarkers?.find((m) => m._rcId === p.id);
+              if (marker) marker.openPopup();
+            }
+          });
+        }
+
+        // Clicking the row body (not buttons) also flies to the point
         li.addEventListener("click", () => {
           if (mapInst && p.lat && p.lng) {
             mapInst.setView([p.lat, p.lng], 16);
@@ -479,11 +499,22 @@
       mapReady = true;
       window.__rcMarkers = [];
 
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => mapInst.setView([pos.coords.latitude, pos.coords.longitude], 13),
-          () => {}
-        );
+      // ── "My location" floating button ─────────────────────────────────────
+      const mapPanel = el.parentElement;
+      if (mapPanel) {
+        const locBtn = document.createElement("button");
+        locBtn.type      = "button";
+        locBtn.className = "rc-map-locate-btn";
+        locBtn.title     = "My location";
+        locBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>`;
+        locBtn.addEventListener("click", () => {
+          if (!navigator.geolocation) return;
+          navigator.geolocation.getCurrentPosition(
+            (pos) => mapInst.setView([pos.coords.latitude, pos.coords.longitude], 14),
+            () => {}
+          );
+        });
+        mapPanel.appendChild(locBtn);
       }
 
       if (pointsLoaded) renderMarkers(filtered);
@@ -505,7 +536,9 @@
         const logoUrl  = LOGOS[p.courier] || "";
 
         const innerHtml = logoUrl
-          ? `<img src="${logoUrl}" style="width:26px;height:18px;object-fit:contain;pointer-events:none;display:block" alt="">`
+          ? `<div style="width:28px;height:22px;background:#fff;border-radius:4px;display:flex;align-items:center;justify-content:center;padding:2px">
+               <img src="${logoUrl}" style="max-width:24px;max-height:16px;object-fit:contain;pointer-events:none;display:block" alt="">
+             </div>`
           : `<span style="color:${letterColor};font-weight:900;font-size:13px;text-shadow:0 1px 2px rgba(0,0,0,.3)">${cfg.letter}</span>`;
 
         const icon = L.divIcon({
