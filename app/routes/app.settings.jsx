@@ -164,6 +164,7 @@ export async function action({ request }) {
       defaultWeight:   parseFloat(get("defaultWeight")) || 1,
       autoGenerateAwb: get("autoGenerateAwb") === "true",
       showPickupMap:   get("showPickupMap") === "true",
+      widgetLanguage:  get("widgetLanguage") || "auto",
       fanHomeDeliveryFee:      parseFloat(get("fanHomeDeliveryFee"))      || 0,
       fanPickupFee:            parseFloat(get("fanPickupFee"))            || 0,
       samedayHomeDeliveryFee:  parseFloat(get("samedayHomeDeliveryFee"))  || 0,
@@ -251,6 +252,7 @@ export default function Settings() {
   const [defaultWeight,   setDefaultWeight]   = useState(String(settings.defaultWeight || 1));
   const [showPickupMap,   setShowPickupMap]   = useState(settings.showPickupMap !== false);
   const [autoGenerateAwb, setAutoGenerateAwb] = useState(!!settings.autoGenerateAwb);
+  const [widgetLanguage,  setWidgetLanguage]  = useState(settings.widgetLanguage  || "auto");
 
   const [fanHomeDeliveryFee,     setFanHomeDeliveryFee]     = useState(String(settings.fanHomeDeliveryFee     ?? 0));
   const [fanPickupFee,           setFanPickupFee]           = useState(String(settings.fanPickupFee           ?? 0));
@@ -314,6 +316,7 @@ export default function Settings() {
       defaultCourier, defaultWeight,
       showPickupMap: String(showPickupMap),
       autoGenerateAwb: String(autoGenerateAwb),
+      widgetLanguage,
       fanHomeDeliveryFee, fanPickupFee, samedayHomeDeliveryFee, samedayPickupFee,
       cargusHomeDeliveryFee, cargusPickupFee, glsHomeDeliveryFee, glsPickupFee,
       packetaHomeDeliveryFee, packetaPickupFee,
@@ -332,7 +335,7 @@ export default function Settings() {
       glsEnabled, glsClientNumber, glsUsername, glsPassword, glsSandbox, glsShipItUrl,
       packetaEnabled, packetaApiKey,
       xconnectorEnabled, xconnectorApiKey, defaultCourier, defaultWeight,
-      showPickupMap, autoGenerateAwb,
+      showPickupMap, autoGenerateAwb, widgetLanguage,
       fanHomeDeliveryFee, fanPickupFee, samedayHomeDeliveryFee, samedayPickupFee,
       cargusHomeDeliveryFee, cargusPickupFee, glsHomeDeliveryFee, glsPickupFee,
       packetaHomeDeliveryFee, packetaPickupFee, submit]);
@@ -677,6 +680,20 @@ export default function Settings() {
                             suffix="kg"
                             helpText={t("default_weight_help")}
                             autoComplete="off"
+                          />
+                          <Select
+                            label={t("widget_lang_label")}
+                            value={widgetLanguage}
+                            onChange={setWidgetLanguage}
+                            helpText={t("widget_lang_help")}
+                            options={[
+                              { label: t("widget_lang_auto"), value: "auto" },
+                              { label: "Română",   value: "ro" },
+                              { label: "English",  value: "en" },
+                              { label: "Deutsch",  value: "de" },
+                              { label: "Magyar",   value: "hu" },
+                              { label: "Čeština",  value: "cs" },
+                            ]}
                           />
                           <Checkbox label={t("show_map_label")} checked={showPickupMap} onChange={setShowPickupMap} />
                           <Checkbox label={t("auto_awb_label")} checked={autoGenerateAwb} onChange={setAutoGenerateAwb} helpText={t("auto_awb_help")} />

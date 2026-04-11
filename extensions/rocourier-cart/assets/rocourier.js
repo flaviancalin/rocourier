@@ -133,9 +133,10 @@
     const APP_URL  = (widget.dataset.appUrl || "").replace(/\/$/, "");
     const CURRENCY = widget.dataset.currency || "RON";
 
-    // Language — use first 2 chars of shop locale; fallback to "ro"
-    const rawLang = (widget.dataset.lang || "ro").slice(0, 2).toLowerCase();
-    const lang    = STRINGS[rawLang] ? rawLang : "ro";
+    // Language — Liquid passes store locale via data-lang; app settings can override via API
+    const localeLang = (widget.dataset.lang || "ro").slice(0, 2).toLowerCase();
+    let lang = STRINGS[localeLang] ? localeLang : "ro";
+
     function t(key, vars) {
       let str = (STRINGS[lang] || STRINGS.ro)[key] || key;
       if (vars) str = str.replace(/\{(\w+)\}/g, (_, k) => (vars[k] !== undefined ? vars[k] : `{${k}}`));
@@ -155,6 +156,19 @@
       if (el("rc-list-empty"))    el("rc-list-empty").textContent    = t("no_points");
     }
     translateUI();
+
+    // Fetch language override from app settings (non-blocking — re-translates if override differs)
+    if (APP_URL && SHOP) {
+      fetch(`${APP_URL}/api/widget-config?shop=${encodeURIComponent(SHOP)}`)
+        .then((r) => r.json())
+        .then(({ widgetLanguage }) => {
+          if (widgetLanguage && widgetLanguage !== "auto" && STRINGS[widgetLanguage] && widgetLanguage !== lang) {
+            lang = widgetLanguage;
+            translateUI();
+          }
+        })
+        .catch(() => {});
+    }
 
     // Which couriers are enabled
     const ENABLED = {};
@@ -299,9 +313,14 @@
     }
 
     // ── Modal ──────────────────────────────────────────────────────────────────
+    let _modalOpen = false;
+
     function openModal() {
       if (!modal) return;
+      _modalOpen = true;
       modal.style.display = "flex";
+      // Prevent body scroll without changing layout (avoids theme scroll-position resets)
+      document.documentElement.style.overflow = "hidden";
       document.body.style.overflow = "hidden";
       if (!pointsLoaded) fetchPoints();
       else applyFilters();
@@ -323,7 +342,9 @@
 
     function closeModal() {
       if (!modal) return;
+      _modalOpen = false;
       modal.style.display = "none";
+      document.documentElement.style.overflow = "";
       document.body.style.overflow = "";
       // If user closed without selecting a point, un-check the pickup radio
       if (!selectedPoint) {
@@ -634,10 +655,10 @@
       if (pointSelected) pointSelected.style.display = "flex";
 
       hideError();
-      syncCart();
       renderList(filtered);
       renderMarkers(filtered);
-      closeModal();
+      closeModal();   // clears _modalOpen first
+      syncCart();     // now safe — modal is closed, no page re-render risk
     }
 
     function clearHiddenPoint() {
@@ -650,6 +671,9 @@
 
     // ── Sync cart attributes ───────────────────────────────────────────────────
     function syncCart() {
+      // Don't fire while the pickup modal is open — the cart update triggers
+      // Shopify theme section listeners that re-render / scroll the page on mobile
+      if (_modalOpen) return;
       fetch("/cart/update.js", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

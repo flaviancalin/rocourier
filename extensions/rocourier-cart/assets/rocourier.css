@@ -285,16 +285,17 @@
 .rc-modal-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px 18px;
+  gap: 8px;
+  padding: 12px 14px;
   border-bottom: 1px solid #ececec;
   flex-shrink: 0;
   flex-wrap: wrap;
+  position: relative;
 }
 
 .rc-modal-search-wrap {
-  flex: 1;
-  min-width: 200px;
+  flex: 1 1 180px;
+  min-width: 0;
   position: relative;
   display: flex;
   align-items: center;
@@ -328,8 +329,10 @@
 /* Filter buttons */
 .rc-modal-filters {
   display: flex;
-  gap: 7px;
+  gap: 6px;
   flex-shrink: 0;
+  flex-wrap: wrap;
+  max-width: 100%;
 }
 
 .rc-filter-btn {
@@ -551,13 +554,36 @@
 
 /* ── Responsive ──────────────────────────────────────────────────────────────  */
 @media (max-width: 680px) {
-  .rc-modal-inner  { height: 95vh; border-radius: 10px; }
+  /* Bottom sheet style on mobile */
+  .rc-modal        { padding: 0; align-items: flex-end; }
+  .rc-modal-inner  { height: 96dvh; height: 96vh; border-radius: 16px 16px 0 0; max-width: 100%; }
+
+  /* Header: two rows
+     Row 1 = filter chips (scrollable) + close button
+     Row 2 = search input (full width)           */
+  .rc-modal-header { flex-wrap: wrap; padding: 10px 12px 8px; gap: 8px; }
+  .rc-modal-filters {
+    order: 1;
+    flex: 1 1 auto;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .rc-modal-filters::-webkit-scrollbar { display: none; }
+  .rc-modal-close  { order: 1; flex-shrink: 0; }
+  .rc-modal-search-wrap {
+    order: 2;
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .rc-modal-search-wrap .rc-search-input { width: 100%; }
+
   .rc-modal-body   { flex-direction: column-reverse; }
-  .rc-list-panel   { width: 100%; border-right: none; border-top: 1px solid #ececec; max-height: 45vh; }
+  .rc-list-panel   { width: 100%; border-right: none; border-top: 1px solid #ececec; max-height: 40dvh; max-height: 40vh; }
   .rc-map-panel    { flex: none; }
-  #rc-map          { height: 260px; }
-  .rc-modal-filters { gap: 4px; }
-  .rc-filter-btn   { padding: 5px 10px; font-size: 0.78rem; }
+  #rc-map          { height: 220px; }
+  .rc-filter-btn   { padding: 5px 10px; font-size: 0.78rem; flex-shrink: 0; }
 }
 
 @media (max-width: 400px) {

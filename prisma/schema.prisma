@@ -98,6 +98,7 @@ model ShopSettings {
   widgetPosition     String   @default("before_checkout") // position in cart
   codSurcharge       Float    @default(0)   // extra fee for COD orders
   showPickupMap      Boolean  @default(true)
+  widgetLanguage     String   @default("auto") // "auto" | "ro" | "en" | "de" | "hu" | "cs"
 
   // ── Shipping fees (in RON, displayed and charged via carrier service) ─────────
   fanHomeDeliveryFee       Float  @default(0)
