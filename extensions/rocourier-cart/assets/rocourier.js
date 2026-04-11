@@ -18,7 +18,7 @@
       free:              "Gratuit",
       section_title:     "Metoda de livrare:",
       home_delivery:     "Livrare la domiciliu",
-      choose_courier:    "Alege curierul preferat",
+      home_sub:          "Livrare standard la adresă",
       pickup_title:      "Ridicare din punct fix",
       pickup_sub_none:   "Niciun curier activat",
       change:            "Schimbă",
@@ -31,7 +31,6 @@
       choose:            "Alege",
       select_map:        "Selectează",
       err_no_method:     "Alege o metodă de livrare înainte de a continua!",
-      err_no_courier:    "Alege un curier pentru livrare la domiciliu!",
       err_no_point:      "Alege un punct de ridicare de pe hartă!",
       points_count:      "{n} puncte",
     },
@@ -39,7 +38,7 @@
       free:              "Free",
       section_title:     "Delivery method:",
       home_delivery:     "Home delivery",
-      choose_courier:    "Choose your preferred courier",
+      home_sub:          "Standard home delivery",
       pickup_title:      "Pickup point",
       pickup_sub_none:   "No couriers activated",
       change:            "Change",
@@ -52,7 +51,6 @@
       choose:            "Choose",
       select_map:        "Select",
       err_no_method:     "Please choose a delivery method before continuing!",
-      err_no_courier:    "Please choose a courier for home delivery!",
       err_no_point:      "Please select a pickup point from the map!",
       points_count:      "{n} points",
     },
@@ -60,7 +58,7 @@
       free:              "Kostenlos",
       section_title:     "Liefermethode:",
       home_delivery:     "Hauslieferung",
-      choose_courier:    "Bevorzugten Kurier wählen",
+      home_sub:          "Standardlieferung nach Hause",
       pickup_title:      "Abholpunkt",
       pickup_sub_none:   "Keine Kuriere aktiviert",
       change:            "Ändern",
@@ -73,7 +71,6 @@
       choose:            "Wählen",
       select_map:        "Auswählen",
       err_no_method:     "Bitte wählen Sie eine Liefermethode aus!",
-      err_no_courier:    "Bitte wählen Sie einen Kurier für die Hauslieferung!",
       err_no_point:      "Bitte wählen Sie einen Abholpunkt auf der Karte!",
       points_count:      "{n} Punkte",
     },
@@ -81,7 +78,7 @@
       free:              "Ingyenes",
       section_title:     "Szállítási mód:",
       home_delivery:     "Házhozszállítás",
-      choose_courier:    "Válasszon futárszolgálatot",
+      home_sub:          "Normál házhozszállítás",
       pickup_title:      "Csomagpont",
       pickup_sub_none:   "Nincs aktív futár",
       change:            "Csere",
@@ -94,7 +91,6 @@
       choose:            "Válasszon",
       select_map:        "Kiválaszt",
       err_no_method:     "Kérjük, válasszon szállítási módot a folytatás előtt!",
-      err_no_courier:    "Kérjük, válasszon futárt a házhozszállításhoz!",
       err_no_point:      "Kérjük, válasszon csomagpontot a térképen!",
       points_count:      "{n} pont",
     },
@@ -102,7 +98,7 @@
       free:              "Zdarma",
       section_title:     "Způsob doručení:",
       home_delivery:     "Doručení domů",
-      choose_courier:    "Vyberte preferovaného kurýra",
+      home_sub:          "Standardní doručení domů",
       pickup_title:      "Výdejní místo",
       pickup_sub_none:   "Žádní aktivní kurýři",
       change:            "Změnit",
@@ -115,7 +111,6 @@
       choose:            "Vybrat",
       select_map:        "Vybrat",
       err_no_method:     "Před pokračováním vyberte způsob doručení!",
-      err_no_courier:    "Vyberte kurýra pro doručení domů!",
       err_no_point:      "Vyberte výdejní místo na mapě!",
       points_count:      "{n} míst",
     },
@@ -152,7 +147,7 @@
       const el = (id) => document.getElementById(id);
       if (el("rc-section-title")) el("rc-section-title").textContent = t("section_title");
       if (el("rc-home-label"))    el("rc-home-label").textContent    = t("home_delivery");
-      if (el("rc-home-sub"))      el("rc-home-sub").textContent      = t("choose_courier");
+      if (el("rc-home-sub"))      el("rc-home-sub").textContent      = t("home_sub");
       if (el("rc-pickup-label"))  el("rc-pickup-label").textContent  = t("pickup_title");
       if (el("rc-change-point"))  el("rc-change-point").textContent  = t("change");
       if (el("rc-filter-all"))    el("rc-filter-all").textContent    = t("all");
@@ -207,9 +202,6 @@
     const hPointId       = $("rc-h-point-id");
     const hPointNm       = $("rc-h-point-nm");
     const hPointAd       = $("rc-h-point-ad");
-    const courierPicker  = $("rc-courier-picker");
-    const chipBtns       = courierPicker
-                           ? courierPicker.querySelectorAll(".rc-chip") : [];
     const homeFeeEl      = $("rc-home-fee");
     const pickupFeeEl    = $("rc-pickup-fee");
     const pointSelected  = $("rc-point-selected");
@@ -229,39 +221,34 @@
     const filterBtns     = document.querySelectorAll(".rc-filter-btn");
 
     // ── State ──────────────────────────────────────────────────────────────────
-    let allPoints          = [];
-    let filtered           = [];
-    let selectedPoint      = null;   // chosen pickup point object
-    let selectedHomeCourier = null;  // chosen courier for home delivery
-    let currentFilter      = "all";
-    let mapInst            = null;
-    let mapReady           = false;
-    let pointsLoaded       = false;
+    let allPoints     = [];
+    let filtered      = [];
+    let selectedPoint = null;   // chosen pickup point object
+    let currentFilter = "all";
+    let mapInst       = null;
+    let mapReady      = false;
+    let pointsLoaded  = false;
+
+    // Default courier: first enabled courier (used for home delivery)
+    const enabledCouriers  = Object.keys(COURIERS).filter((c) => ENABLED[c]);
+    const defaultCourier   = enabledCouriers[0] || null;
 
     // ── Radio change: Home ──────────────────────────────────────────────────────
     function onHomeSelected() {
-      // Show courier picker
-      if (courierPicker) courierPicker.style.display = "flex";
       // Hide pickup point summary
       if (pointSelected) pointSelected.style.display = "none";
       // Clear pickup-fee display
       if (pickupFeeEl) pickupFeeEl.textContent = "";
       hideError();
-
-      // Auto-select first enabled courier if nothing chosen yet
-      if (!selectedHomeCourier) {
-        const firstChip = [...chipBtns][0];
-        if (firstChip) selectHomeCourier(firstChip.dataset.courier);
-      } else {
-        // Re-sync hidden fields
-        setHiddenHome(selectedHomeCourier);
+      // Auto-set to the default (first enabled) courier
+      if (defaultCourier) {
+        if (homeFeeEl) homeFeeEl.textContent = feeLabel(FEES[defaultCourier]?.home || 0);
+        setHiddenHome(defaultCourier);
       }
     }
 
     // ── Radio change: Pickup ────────────────────────────────────────────────────
     function onPickupSelected() {
-      // Hide courier picker
-      if (courierPicker) courierPicker.style.display = "none";
       // Clear home-fee display
       if (homeFeeEl) homeFeeEl.textContent = "";
       // If no point selected yet, open the map
@@ -283,39 +270,6 @@
         if (!r.checked) return;
         if (r.value === "home")   onHomeSelected();
         if (r.value === "pickup") onPickupSelected();
-      });
-    });
-
-    // ── Courier chip selection ─────────────────────────────────────────────────
-    function selectHomeCourier(courier) {
-      selectedHomeCourier = courier;
-
-      // Update chip active state
-      chipBtns.forEach((btn) => {
-        const isActive = btn.dataset.courier === courier;
-        btn.classList.toggle("rc-chip-active", isActive);
-        if (isActive) {
-          const color = COURIERS[courier]?.color || "#222";
-          btn.style.borderColor  = color;
-          btn.style.color        = color;
-          btn.style.background   = color + "12";
-        } else {
-          btn.style.borderColor  = "";
-          btn.style.color        = "";
-          btn.style.background   = "";
-        }
-      });
-
-      // Update fee
-      if (homeFeeEl) homeFeeEl.textContent = feeLabel(FEES[courier]?.home || 0);
-
-      setHiddenHome(courier);
-    }
-
-    chipBtns.forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.preventDefault();
-        selectHomeCourier(btn.dataset.courier);
       });
     });
 
@@ -362,7 +316,6 @@
       // If user closed without selecting a point, un-check the pickup radio
       if (!selectedPoint) {
         if (pickupRadio) pickupRadio.checked = false;
-        if (courierPicker) courierPicker.style.display = "none";
         clearHiddenPoint();
       }
     }
@@ -633,13 +586,6 @@
         return false;
       }
 
-      if (checkedRadio.value === "home" && !selectedHomeCourier) {
-        e.preventDefault(); e.stopPropagation();
-        showError(t("err_no_courier"));
-        widget.scrollIntoView({ behavior: "smooth", block: "center" });
-        return false;
-      }
-
       if (checkedRadio.value === "pickup" && !selectedPoint) {
         e.preventDefault(); e.stopPropagation();
         showError(t("err_no_point"));
@@ -693,8 +639,11 @@
 
         if (method === "home_delivery") {
           if (homeRadio) homeRadio.checked = true;
-          if (courierPicker) courierPicker.style.display = "flex";
-          selectHomeCourier(courier);
+          const c = courier || defaultCourier;
+          if (c) {
+            if (homeFeeEl) homeFeeEl.textContent = feeLabel(FEES[c]?.home || 0);
+            setHiddenHome(c);
+          }
         } else if (method === "pickup_point" && pid) {
           if (pickupRadio) pickupRadio.checked = true;
 

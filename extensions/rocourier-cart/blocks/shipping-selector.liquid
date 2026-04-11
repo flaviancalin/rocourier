@@ -57,35 +57,6 @@
       <span class="rc-method-radio"></span>
     </label>
 
-    <!-- Courier chip picker — shown when home is selected -->
-    <div id="rc-courier-picker" class="rc-courier-picker" style="display:none;">
-      {%- if block.settings.fan_enabled -%}
-        <button type="button" class="rc-chip" data-courier="fan" data-color="#FF6600">
-          <img src="{{ 'logo-fan.svg' | asset_url }}" alt="FAN Courier" class="rc-chip-logo" width="80" height="22">
-        </button>
-      {%- endif -%}
-      {%- if block.settings.sameday_enabled -%}
-        <button type="button" class="rc-chip" data-courier="sameday" data-color="#003DA5">
-          <img src="{{ 'logo-sameday.svg' | asset_url }}" alt="Sameday" class="rc-chip-logo" width="80" height="22">
-        </button>
-      {%- endif -%}
-      {%- if block.settings.cargus_enabled -%}
-        <button type="button" class="rc-chip" data-courier="cargus" data-color="#E20020">
-          <img src="{{ 'logo-cargus.svg' | asset_url }}" alt="Cargus" class="rc-chip-logo" width="80" height="22">
-        </button>
-      {%- endif -%}
-      {%- if block.settings.gls_enabled -%}
-        <button type="button" class="rc-chip" data-courier="gls" data-color="#003591">
-          <img src="{{ 'logo-gls.svg' | asset_url }}" alt="GLS" class="rc-chip-logo" width="80" height="22">
-        </button>
-      {%- endif -%}
-      {%- if block.settings.packeta_enabled -%}
-        <button type="button" class="rc-chip" data-courier="packeta" data-color="#BA2025">
-          <img src="{{ 'logo-packeta.svg' | asset_url }}" alt="Packeta" class="rc-chip-logo" width="80" height="22">
-        </button>
-      {%- endif -%}
-    </div>
-
     <!-- ── PICKUP POINT row ────────────────────────────────────────────── -->
     <label class="rc-method-row rc-row-last" for="rc-pickup">
       <input type="radio" id="rc-pickup" name="rc_delivery" value="pickup">

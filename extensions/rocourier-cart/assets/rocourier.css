@@ -45,41 +45,6 @@
 
 .rc-method-row:hover { background: #f9f9f9; }
 
-/* ── Courier chip picker ──────────────────────────────────────────────────────  */
-.rc-courier-picker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 4px 18px 16px;
-  background: #f9f9f9;
-  border-bottom: 1px solid #e8e8e8;
-}
-
-.rc-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 18px;
-  border: 2px solid #e0e0e0;
-  border-radius: 10px;
-  background: #fff;
-  font-family: inherit;
-  cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
-  white-space: nowrap;
-}
-.rc-chip:hover { border-color: #bbb; background: #fafafa; }
-.rc-chip.rc-chip-active {
-  box-shadow: 0 0 0 2px currentColor;
-}
-
-.rc-chip-logo {
-  height: 22px;
-  width: auto;
-  display: block;
-  pointer-events: none;
-}
-
 /* Filter buttons with logos */
 .rc-filter-logo {
   height: 16px;

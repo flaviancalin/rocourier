@@ -270,8 +270,8 @@ export default function Settings() {
 
   // ── Toasts ──────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (actionData?.saved) setToast("✅ Setările au fost salvate!");
-    else if (actionData?.testResult?.success) setToast("✅ Conexiune reușită!");
+    if (actionData?.saved) setToast(`✅ ${t("save_settings")}!`);
+    else if (actionData?.testResult?.success) setToast(`✅ ${t("conn_success")}`);
     else if (actionData?.testResult?.success === false) setToast(`❌ ${actionData.testResult.error}`);
     else if (actionData?.carrierResult) {
       const r = actionData.carrierResult;
@@ -297,7 +297,7 @@ export default function Settings() {
         setToast(`✅ ${parts.join(" + ") || "0"} puncte reîmprospătate`);
       }
     }
-  }, [actionData]);
+  }, [actionData, t]);
 
   // ── Save handler ────────────────────────────────────────────────────────────
   const handleSave = useCallback(() => {
@@ -363,7 +363,7 @@ export default function Settings() {
 
   return (
     <Frame>
-      <Page title="Setări Picklo" subtitle={shop}>
+      <Page title={t("settings_page_title")} subtitle={shop}>
         <Layout>
           <Layout.Section>
             <Tabs tabs={tabs} selected={tab} onSelect={setTab} fitted>
@@ -383,18 +383,18 @@ export default function Settings() {
                       <Text tone="subdued">{t("sender_desc")}</Text>
                       <Divider />
                       <FormLayout>
-                        <TextField label="Nume firmă / expeditor" value={senderName} onChange={setSenderName} autoComplete="off" />
+                        <TextField label={t("s_company")} value={senderName} onChange={setSenderName} autoComplete="off" />
                         <FormLayout.Group>
-                          <TextField label="Județ" value={senderCounty} onChange={setSenderCounty} placeholder="ex: Constanta" autoComplete="off" />
-                          <TextField label="Localitate" value={senderCity} onChange={setSenderCity} placeholder="ex: Constanta" autoComplete="off" />
+                          <TextField label={t("s_county")} value={senderCounty} onChange={setSenderCounty} placeholder="ex: Constanta" autoComplete="off" />
+                          <TextField label={t("s_city")} value={senderCity} onChange={setSenderCity} placeholder="ex: Constanta" autoComplete="off" />
                         </FormLayout.Group>
                         <FormLayout.Group>
-                          <TextField label="Cod poștal" value={senderZip} onChange={setSenderZip} placeholder="ex: 900205" autoComplete="off" />
-                          <TextField label="Adresă stradă" value={senderAddress} onChange={setSenderAddress} placeholder="ex: Str. Poporului 76" autoComplete="off" />
+                          <TextField label={t("s_zip")} value={senderZip} onChange={setSenderZip} placeholder="ex: 900205" autoComplete="off" />
+                          <TextField label={t("s_address")} value={senderAddress} onChange={setSenderAddress} placeholder="ex: Str. Poporului 76" autoComplete="off" />
                         </FormLayout.Group>
                         <FormLayout.Group>
-                          <TextField label="Telefon" value={senderPhone} onChange={setSenderPhone} placeholder="+40..." autoComplete="off" />
-                          <TextField label="Email" value={senderEmail} onChange={setSenderEmail} type="email" autoComplete="off" />
+                          <TextField label={t("s_phone")} value={senderPhone} onChange={setSenderPhone} placeholder="+40..." autoComplete="off" />
+                          <TextField label={t("s_email")} value={senderEmail} onChange={setSenderEmail} type="email" autoComplete="off" />
                         </FormLayout.Group>
                       </FormLayout>
                     </BlockStack>
@@ -408,27 +408,27 @@ export default function Settings() {
                       <BlockStack gap="400">
                         <InlineStack align="space-between">
                           <Text variant="headingMd" fontWeight="semibold">FAN Courier — selfAWB API</Text>
-                          {fanEnabled ? <Badge tone="success">Activ</Badge> : <Badge tone="critical">Inactiv</Badge>}
+                          {fanEnabled ? <Badge tone="success">{t("status_active")}</Badge> : <Badge tone="critical">{t("status_inactive")}</Badge>}
                         </InlineStack>
-                        <Banner tone="info" title="Cum obții credențialele FAN Courier">
+                        <Banner tone="info" title={t("fan_how_title")}>
                           <BlockStack gap="100">
-                            <Text>1. Creează cont pe <strong>selfawb.ro</strong></Text>
-                            <Text>2. Semnează contractul cu FAN Courier</Text>
-                            <Text>3. În selfAWB: Profil → Generare Token API</Text>
-                            <Text>4. Copiază <strong>Client ID</strong>, <strong>Username</strong> și <strong>Parolă</strong> mai jos</Text>
+                            <Text>1. {t("fan_step1")}</Text>
+                            <Text>2. {t("fan_step2")}</Text>
+                            <Text>3. {t("fan_step3")}</Text>
+                            <Text>4. {t("fan_step4")}</Text>
                           </BlockStack>
                         </Banner>
                         <Divider />
                         <FormLayout>
-                          <Checkbox label="Activează FAN Courier" checked={fanEnabled} onChange={setFanEnabled} />
-                          <TextField label="Client ID (numeric)" value={fanClientId} onChange={setFanClientId} placeholder="ex: 7032158" helpText="Găsit în selfAWB → Profil → API" autoComplete="off" />
+                          <Checkbox label={t("fan_enable")} checked={fanEnabled} onChange={setFanEnabled} />
+                          <TextField label={t("fan_client_id")} value={fanClientId} onChange={setFanClientId} placeholder="ex: 7032158" helpText={t("fan_client_id_help")} autoComplete="off" />
                           <FormLayout.Group>
-                            <TextField label="Username selfAWB" value={fanUsername} onChange={setFanUsername} autoComplete="off" />
-                            <TextField label="Parolă selfAWB" value={fanPassword} onChange={setFanPassword} type="password" placeholder="Lasă gol pentru a păstra parola existentă" autoComplete="new-password" />
+                            <TextField label={t("fan_username")} value={fanUsername} onChange={setFanUsername} autoComplete="off" />
+                            <TextField label={t("fan_password")} value={fanPassword} onChange={setFanPassword} type="password" placeholder={t("pw_placeholder")} autoComplete="new-password" />
                           </FormLayout.Group>
                         </FormLayout>
                         {actionData?.testResult?.courier === "fan" && (
-                          <Banner tone={actionData.testResult.success ? "success" : "critical"} title={actionData.testResult.success ? "Conexiune FAN reușită!" : "Eroare conexiune FAN"}>
+                          <Banner tone={actionData.testResult.success ? "success" : "critical"} title={actionData.testResult.success ? t("conn_success") : t("conn_error")}>
                             {actionData.testResult.error && <Text>{actionData.testResult.error}</Text>}
                           </Banner>
                         )}
@@ -436,10 +436,8 @@ export default function Settings() {
                     </Card>
                     <Card>
                       <BlockStack gap="200">
-                        <Text variant="headingSm" fontWeight="semibold">🧪 Date test (sandbox)</Text>
-                        <Text variant="bodySm" tone="subdued">
-                          Client ID: <code>7032158</code> &nbsp;|&nbsp; Username: <code>clienttest</code> &nbsp;|&nbsp; Parolă: <code>testing</code>
-                        </Text>
+                        <Text variant="headingSm" fontWeight="semibold">{t("fan_sandbox_title")}</Text>
+                        <Text variant="bodySm" tone="subdued">{t("fan_sandbox_data")}</Text>
                       </BlockStack>
                     </Card>
                   </BlockStack>
@@ -452,32 +450,32 @@ export default function Settings() {
                       <BlockStack gap="400">
                         <InlineStack align="space-between">
                           <Text variant="headingMd" fontWeight="semibold">Sameday Courier — eAWB API</Text>
-                          {samedayEnabled ? <Badge tone="success">Activ</Badge> : <Badge tone="critical">Inactiv</Badge>}
+                          {samedayEnabled ? <Badge tone="success">{t("status_active")}</Badge> : <Badge tone="critical">{t("status_inactive")}</Badge>}
                         </InlineStack>
-                        <Banner tone="info" title="Cum obții credențialele Sameday">
+                        <Banner tone="info" title={t("sameday_how_title")}>
                           <BlockStack gap="100">
-                            <Text>1. Semnează contract cu Sameday Courier</Text>
-                            <Text>2. Trimite email la <strong>software@sameday.ro</strong></Text>
-                            <Text>3. Menționează că vrei acces la <strong>eAWB API</strong></Text>
-                            <Text>4. Vei primi username & parolă pentru <strong>eawb.sameday.ro</strong></Text>
+                            <Text>1. {t("sameday_step1")}</Text>
+                            <Text>2. {t("sameday_step2")}</Text>
+                            <Text>3. {t("sameday_step3")}</Text>
+                            <Text>4. {t("sameday_step4")}</Text>
                           </BlockStack>
                         </Banner>
                         <Divider />
                         <FormLayout>
-                          <Checkbox label="Activează Sameday" checked={samedayEnabled} onChange={setSamedayEnabled} />
+                          <Checkbox label={t("sameday_enable")} checked={samedayEnabled} onChange={setSamedayEnabled} />
                           <Checkbox
-                            label="Folosește mediul SANDBOX (demo/test)"
+                            label={t("sandbox_label")}
                             checked={samedaySandbox}
                             onChange={setSamedaySandbox}
-                            helpText={samedaySandbox ? "Conectat la: sameday-api.demo.zitec.com" : "Conectat la: api.sameday.ro (producție)"}
+                            helpText={samedaySandbox ? t("sameday_sandbox_on") : t("sameday_sandbox_off")}
                           />
                           <FormLayout.Group>
-                            <TextField label="Username eAWB" value={samedayUsername} onChange={setSamedayUsername} autoComplete="off" />
-                            <TextField label="Parolă eAWB" value={samedayPassword} onChange={setSamedayPassword} type="password" placeholder="Lasă gol pentru a păstra parola existentă" autoComplete="new-password" />
+                            <TextField label={t("sameday_username")} value={samedayUsername} onChange={setSamedayUsername} autoComplete="off" />
+                            <TextField label={t("sameday_password")} value={samedayPassword} onChange={setSamedayPassword} type="password" placeholder={t("pw_placeholder")} autoComplete="new-password" />
                           </FormLayout.Group>
                         </FormLayout>
                         {actionData?.testResult?.courier === "sameday" && (
-                          <Banner tone={actionData.testResult.success ? "success" : "critical"} title={actionData.testResult.success ? "Conexiune Sameday reușită!" : "Eroare conexiune Sameday"}>
+                          <Banner tone={actionData.testResult.success ? "success" : "critical"} title={actionData.testResult.success ? t("conn_success") : t("conn_error")}>
                             {actionData.testResult.error && <Text>{actionData.testResult.error}</Text>}
                           </Banner>
                         )}
@@ -493,34 +491,34 @@ export default function Settings() {
                       <BlockStack gap="400">
                         <InlineStack align="space-between">
                           <Text variant="headingMd" fontWeight="semibold">Cargus Urgent — API V3</Text>
-                          {cargusEnabled ? <Badge tone="success">Activ</Badge> : <Badge tone="critical">Inactiv</Badge>}
+                          {cargusEnabled ? <Badge tone="success">{t("status_active")}</Badge> : <Badge tone="critical">{t("status_inactive")}</Badge>}
                         </InlineStack>
-                        <Banner tone="info" title="Cum obții credențialele Cargus">
+                        <Banner tone="info" title={t("cargus_how_title")}>
                           <BlockStack gap="100">
-                            <Text>1. Semnează contract cu Cargus (urgentcargus.ro)</Text>
-                            <Text>2. Trimite email la <strong>software@urgentcargus.ro</strong> pentru acces API</Text>
-                            <Text>3. Vei primi <strong>Subscription Key</strong> din portalul Azure API</Text>
-                            <Text>4. Folosește username/parolă de la urgentcargus.ro</Text>
+                            <Text>1. {t("cargus_step1")}</Text>
+                            <Text>2. {t("cargus_step2")}</Text>
+                            <Text>3. {t("cargus_step3")}</Text>
+                            <Text>4. {t("cargus_step4")}</Text>
                           </BlockStack>
                         </Banner>
                         <Divider />
                         <FormLayout>
-                          <Checkbox label="Activează Cargus" checked={cargusEnabled} onChange={setCargusEnabled} />
+                          <Checkbox label={t("cargus_enable")} checked={cargusEnabled} onChange={setCargusEnabled} />
                           <TextField
-                            label="Subscription Key (Azure API)"
+                            label={t("cargus_sub_key")}
                             value={cargusSubscriptionKey}
                             onChange={setCargusSubscriptionKey}
                             placeholder="ex: 1a2b3c4d5e6f..."
-                            helpText="Din portalul Azure API Management → Ocp-Apim-Subscription-Key"
+                            helpText={t("cargus_sub_key_help")}
                             autoComplete="off"
                           />
                           <FormLayout.Group>
-                            <TextField label="Username Cargus" value={cargusUsername} onChange={setCargusUsername} autoComplete="off" />
-                            <TextField label="Parolă Cargus" value={cargusPassword} onChange={setCargusPassword} type="password" placeholder="Lasă gol pentru a păstra parola existentă" autoComplete="new-password" />
+                            <TextField label={t("cargus_username")} value={cargusUsername} onChange={setCargusUsername} autoComplete="off" />
+                            <TextField label={t("cargus_password")} value={cargusPassword} onChange={setCargusPassword} type="password" placeholder={t("pw_placeholder")} autoComplete="new-password" />
                           </FormLayout.Group>
                         </FormLayout>
                         {actionData?.testResult?.courier === "cargus" && (
-                          <Banner tone={actionData.testResult.success ? "success" : "critical"} title={actionData.testResult.success ? "Conexiune Cargus reușită!" : "Eroare conexiune Cargus"}>
+                          <Banner tone={actionData.testResult.success ? "success" : "critical"} title={actionData.testResult.success ? t("conn_success") : t("conn_error")}>
                             {actionData.testResult.error && <Text>{actionData.testResult.error}</Text>}
                           </Banner>
                         )}
@@ -536,48 +534,48 @@ export default function Settings() {
                       <BlockStack gap="400">
                         <InlineStack align="space-between">
                           <Text variant="headingMd" fontWeight="semibold">GLS Romania — MyGLS API</Text>
-                          {glsEnabled ? <Badge tone="success">Activ</Badge> : <Badge tone="critical">Inactiv</Badge>}
+                          {glsEnabled ? <Badge tone="success">{t("status_active")}</Badge> : <Badge tone="critical">{t("status_inactive")}</Badge>}
                         </InlineStack>
-                        <Banner tone="info" title="Cum obții credențialele GLS">
+                        <Banner tone="info" title={t("gls_how_title")}>
                           <BlockStack gap="100">
-                            <Text>1. Semnează contract cu GLS Romania (gls-romania.ro)</Text>
-                            <Text>2. Accesează portalul <strong>myGLS</strong> (mygls.ro)</Text>
-                            <Text>3. Mergi la <strong>Tools → API</strong> pentru a activa accesul</Text>
-                            <Text>4. Folosește username/parolă de la mygls.ro</Text>
+                            <Text>1. {t("gls_step1")}</Text>
+                            <Text>2. {t("gls_step2")}</Text>
+                            <Text>3. {t("gls_step3")}</Text>
+                            <Text>4. {t("gls_step4")}</Text>
                           </BlockStack>
                         </Banner>
                         <Divider />
                         <FormLayout>
-                          <Checkbox label="Activează GLS" checked={glsEnabled} onChange={setGlsEnabled} />
+                          <Checkbox label={t("gls_enable")} checked={glsEnabled} onChange={setGlsEnabled} />
                           <Checkbox
-                            label="Folosește mediul SANDBOX (test)"
+                            label={t("sandbox_label")}
                             checked={glsSandbox}
                             onChange={setGlsSandbox}
-                            helpText={glsSandbox ? "Conectat la: api.test.mygls.ro" : "Conectat la: api.mygls.ro (producție)"}
+                            helpText={glsSandbox ? t("gls_sandbox_on") : t("gls_sandbox_off")}
                           />
                           <TextField
-                            label="Client Number (număr client GLS)"
+                            label={t("gls_client_number")}
                             value={glsClientNumber}
                             onChange={setGlsClientNumber}
                             placeholder="ex: 12345"
-                            helpText="Numărul de client primit de la GLS (din contractul GLS)"
+                            helpText={t("gls_client_number_help")}
                             autoComplete="off"
                           />
                           <FormLayout.Group>
-                            <TextField label="Username myGLS (email)" value={glsUsername} onChange={setGlsUsername} autoComplete="off" />
-                            <TextField label="Parolă myGLS" value={glsPassword} onChange={setGlsPassword} type="password" placeholder="Lasă gol pentru a păstra parola existentă" autoComplete="new-password" />
+                            <TextField label={t("gls_username")} value={glsUsername} onChange={setGlsUsername} autoComplete="off" />
+                            <TextField label={t("gls_password")} value={glsPassword} onChange={setGlsPassword} type="password" placeholder={t("pw_placeholder")} autoComplete="new-password" />
                           </FormLayout.Group>
                           <TextField
-                            label="ShipIT Parcel Shop URL (pentru puncte de ridicare)"
+                            label={t("gls_shipit_url")}
                             value={glsShipItUrl}
                             onChange={setGlsShipItUrl}
                             placeholder="ex: https://shipit.gls-group.eu/backend/rs/parcelshop"
-                            helpText="URL-ul ShipIT primit de la GLS Romania. Necesar pentru sincronizarea ParcelShop-urilor. Dacă nu îl ai, contactează GLS Romania."
+                            helpText={t("gls_shipit_help")}
                             autoComplete="off"
                           />
                         </FormLayout>
                         {actionData?.testResult?.courier === "gls" && (
-                          <Banner tone={actionData.testResult.success ? "success" : "critical"} title={actionData.testResult.success ? "Conexiune GLS reușită!" : "Eroare conexiune GLS"}>
+                          <Banner tone={actionData.testResult.success ? "success" : "critical"} title={actionData.testResult.success ? t("conn_success") : t("conn_error")}>
                             {actionData.testResult.error && <Text>{actionData.testResult.error}</Text>}
                           </Banner>
                         )}
@@ -593,31 +591,31 @@ export default function Settings() {
                       <BlockStack gap="400">
                         <InlineStack align="space-between">
                           <Text variant="headingMd" fontWeight="semibold">Packeta (Zásilkovna) — REST API</Text>
-                          {packetaEnabled ? <Badge tone="success">Activ</Badge> : <Badge tone="critical">Inactiv</Badge>}
+                          {packetaEnabled ? <Badge tone="success">{t("status_active")}</Badge> : <Badge tone="critical">{t("status_inactive")}</Badge>}
                         </InlineStack>
-                        <Banner tone="info" title="Cum obții credențialele Packeta">
+                        <Banner tone="info" title={t("packeta_how_title")}>
                           <BlockStack gap="100">
-                            <Text>1. Creează cont pe <strong>client.packeta.com</strong></Text>
-                            <Text>2. Semnează contractul cu Packeta Romania</Text>
-                            <Text>3. Mergi la <strong>Settings → API → API password</strong></Text>
-                            <Text>4. Copiază <strong>API Key</strong> (parolă API) mai jos</Text>
+                            <Text>1. {t("packeta_step1")}</Text>
+                            <Text>2. {t("packeta_step2")}</Text>
+                            <Text>3. {t("packeta_step3")}</Text>
+                            <Text>4. {t("packeta_step4")}</Text>
                           </BlockStack>
                         </Banner>
                         <Divider />
                         <FormLayout>
-                          <Checkbox label="Activează Packeta" checked={packetaEnabled} onChange={setPacketaEnabled} />
+                          <Checkbox label={t("packeta_enable")} checked={packetaEnabled} onChange={setPacketaEnabled} />
                           <TextField
-                            label="API Key (parolă API)"
+                            label={t("packeta_api_key")}
                             value={packetaApiKey}
                             onChange={setPacketaApiKey}
                             type="password"
-                            placeholder="Lasă gol pentru a păstra cheia existentă"
-                            helpText="Din client.packeta.com → Settings → API"
+                            placeholder={t("packeta_api_key_ph")}
+                            helpText={t("packeta_api_key_help")}
                             autoComplete="new-password"
                           />
                         </FormLayout>
                         {actionData?.testResult?.courier === "packeta" && (
-                          <Banner tone={actionData.testResult.success ? "success" : "critical"} title={actionData.testResult.success ? "Conexiune Packeta reușită!" : "Eroare conexiune Packeta"}>
+                          <Banner tone={actionData.testResult.success ? "success" : "critical"} title={actionData.testResult.success ? t("conn_success") : t("conn_error")}>
                             {actionData.testResult.error && <Text>{actionData.testResult.error}</Text>}
                           </Banner>
                         )}
@@ -631,17 +629,17 @@ export default function Settings() {
                   <BlockStack gap="400">
                     <Card>
                       <BlockStack gap="400">
-                        <Text variant="headingMd" fontWeight="semibold">Integrare xConnector</Text>
-                        <Banner tone="info" title="Cum funcționează integrarea cu xConnector">
+                        <Text variant="headingMd" fontWeight="semibold">{t("xconn_title")}</Text>
+                        <Banner tone="info" title={t("xconn_how_title")}>
                           <BlockStack gap="200">
-                            <Text><strong>Picklo este deja compatibil cu xConnector</strong> fără configurare suplimentară: AWB-urile generate sunt scrise automat în câmpurile native Shopify pe care xConnector le citește.</Text>
-                            <Text>Pentru integrare directă contactează InfoQuest: <strong>office@infoquest.ro</strong></Text>
+                            <Text>{t("xconn_info1")}</Text>
+                            <Text>{t("xconn_info2")}</Text>
                           </BlockStack>
                         </Banner>
                         <Divider />
                         <FormLayout>
-                          <Checkbox label="Activează sync xConnector (experimental)" checked={xconnectorEnabled} onChange={setXconnectorEnabled} />
-                          <TextField label="API Key xConnector (partner key)" value={xconnectorApiKey} onChange={setXconnectorApiKey} type="password" placeholder="Lasă gol dacă nu ai un key de partener" helpText="Disponibil doar după acordul de parteneriat cu InfoQuest" autoComplete="new-password" />
+                          <Checkbox label={t("xconn_enable")} checked={xconnectorEnabled} onChange={setXconnectorEnabled} />
+                          <TextField label={t("xconn_api_key")} value={xconnectorApiKey} onChange={setXconnectorApiKey} type="password" placeholder={t("xconn_api_key_ph")} helpText={t("xconn_api_key_help")} autoComplete="new-password" />
                         </FormLayout>
                       </BlockStack>
                     </Card>
@@ -653,11 +651,11 @@ export default function Settings() {
                   <BlockStack gap="400">
                     <Card>
                       <BlockStack gap="400">
-                        <Text variant="headingMd" fontWeight="semibold">Setări widget coș de cumpărături</Text>
+                        <Text variant="headingMd" fontWeight="semibold">{t("widget_title")}</Text>
                         <Divider />
                         <FormLayout>
                           <Select
-                            label="Curier implicit"
+                            label={t("default_courier_label")}
                             value={defaultCourier}
                             onChange={setDefaultCourier}
                             options={[
@@ -667,72 +665,72 @@ export default function Settings() {
                               { label: "GLS",         value: "gls" },
                               { label: "Packeta",     value: "packeta" },
                             ]}
-                            helpText="Curier pre-selectat dacă clientul nu alege manual"
+                            helpText={t("default_courier_help")}
                           />
                           <TextField
-                            label="Greutate implicită (kg)"
+                            label={t("default_weight_label")}
                             value={defaultWeight}
                             onChange={setDefaultWeight}
                             type="number"
                             min="0.1"
                             step="0.1"
                             suffix="kg"
-                            helpText="Greutatea folosită dacă nu e specificată per produs"
+                            helpText={t("default_weight_help")}
                             autoComplete="off"
                           />
-                          <Checkbox label="Arată harta la selectarea punctului de ridicare" checked={showPickupMap} onChange={setShowPickupMap} />
-                          <Checkbox label="Generează AWB automat la primirea comenzii" checked={autoGenerateAwb} onChange={setAutoGenerateAwb} helpText="Activează cu grijă — orice comandă va genera imediat un AWB" />
+                          <Checkbox label={t("show_map_label")} checked={showPickupMap} onChange={setShowPickupMap} />
+                          <Checkbox label={t("auto_awb_label")} checked={autoGenerateAwb} onChange={setAutoGenerateAwb} helpText={t("auto_awb_help")} />
                         </FormLayout>
                       </BlockStack>
                     </Card>
                     <Card>
                       <BlockStack gap="300">
-                        <Text variant="headingMd" fontWeight="semibold">Cache puncte de ridicare</Text>
-                        <Text tone="subdued">Punctele FANbox, Sameday easybox, Cargus ParcelShop, GLS ParcelShop și Packeta Z-BOX sunt salvate local și reîmprospătate automat la 24h.</Text>
+                        <Text variant="headingMd" fontWeight="semibold">{t("cache_title")}</Text>
+                        <Text tone="subdued">{t("cache_desc")}</Text>
                         {actionData?.refreshResult && (
-                          <Banner tone={actionData.refreshResult.errors?.length ? "warning" : "success"} title="Rezultat reîmprospătare">
+                          <Banner tone={actionData.refreshResult.errors?.length ? "warning" : "success"} title={t("cache_result_title")}>
                             <Text>FAN: {actionData.refreshResult.fan || 0} | Sameday: {actionData.refreshResult.sameday || 0} | Cargus: {actionData.refreshResult.cargus || 0} | GLS: {actionData.refreshResult.gls || 0} | Packeta: {actionData.refreshResult.packeta || 0}</Text>
                           </Banner>
                         )}
-                        <Button onClick={handleRefresh} loading={saving}>🔄 Reîmprospătează puncte ridicare</Button>
+                        <Button onClick={handleRefresh} loading={saving}>{t("cache_refresh")}</Button>
                       </BlockStack>
                     </Card>
 
                     <Card>
                       <BlockStack gap="400">
-                        <Text variant="headingMd" fontWeight="semibold">Tarife transport afișate în widget</Text>
-                        <Banner tone="info" title="Cum funcționează">
+                        <Text variant="headingMd" fontWeight="semibold">{t("fees_title")}</Text>
+                        <Banner tone="info" title={t("fees_how_title")}>
                           <BlockStack gap="100">
-                            <Text>1. Configurează tarifele fixe în <strong>Shopify Admin → Settings → Shipping and delivery</strong> (zona Romania)</Text>
-                            <Text>2. Introdu aceleași valori mai jos — vor apărea în widget lângă fiecare opțiune de livrare</Text>
-                            <Text>3. Clientul vede prețul corect în coș, apoi alege rata potrivită în checkout</Text>
+                            <Text>1. {t("fees_step1")}</Text>
+                            <Text>2. {t("fees_step2")}</Text>
+                            <Text>3. {t("fees_step3")}</Text>
                           </BlockStack>
                         </Banner>
                         <Divider />
                         <FormLayout>
                           <FormLayout.Group>
-                            <TextField label="FAN Courier — livrare la domiciliu (RON)" value={fanHomeDeliveryFee} onChange={setFanHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" helpText="0 = Gratuit" autoComplete="off" />
-                            <TextField label="FANbox — ridicare locker (RON)" value={fanPickupFee} onChange={setFanPickupFee} type="number" min="0" step="0.5" suffix="RON" helpText="0 = Gratuit" autoComplete="off" />
+                            <TextField label={t("fee_fan_home")} value={fanHomeDeliveryFee} onChange={setFanHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" helpText={t("fee_free_help")} autoComplete="off" />
+                            <TextField label={t("fee_fan_pickup")} value={fanPickupFee} onChange={setFanPickupFee} type="number" min="0" step="0.5" suffix="RON" helpText={t("fee_free_help")} autoComplete="off" />
                           </FormLayout.Group>
                           <FormLayout.Group>
-                            <TextField label="Sameday — livrare la domiciliu (RON)" value={samedayHomeDeliveryFee} onChange={setSamedayHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" helpText="0 = Gratuit" autoComplete="off" />
-                            <TextField label="Sameday easybox — ridicare locker (RON)" value={samedayPickupFee} onChange={setSamedayPickupFee} type="number" min="0" step="0.5" suffix="RON" helpText="0 = Gratuit" autoComplete="off" />
+                            <TextField label={t("fee_sameday_home")} value={samedayHomeDeliveryFee} onChange={setSamedayHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" helpText={t("fee_free_help")} autoComplete="off" />
+                            <TextField label={t("fee_sameday_pickup")} value={samedayPickupFee} onChange={setSamedayPickupFee} type="number" min="0" step="0.5" suffix="RON" helpText={t("fee_free_help")} autoComplete="off" />
                           </FormLayout.Group>
                           <FormLayout.Group>
-                            <TextField label="Cargus — livrare la domiciliu (RON)" value={cargusHomeDeliveryFee} onChange={setCargusHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" helpText="0 = Gratuit" autoComplete="off" />
-                            <TextField label="Cargus ParcelShop — ridicare (RON)" value={cargusPickupFee} onChange={setCargusPickupFee} type="number" min="0" step="0.5" suffix="RON" helpText="0 = Gratuit" autoComplete="off" />
+                            <TextField label={t("fee_cargus_home")} value={cargusHomeDeliveryFee} onChange={setCargusHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" helpText={t("fee_free_help")} autoComplete="off" />
+                            <TextField label={t("fee_cargus_pickup")} value={cargusPickupFee} onChange={setCargusPickupFee} type="number" min="0" step="0.5" suffix="RON" helpText={t("fee_free_help")} autoComplete="off" />
                           </FormLayout.Group>
                           <FormLayout.Group>
-                            <TextField label="GLS — livrare la domiciliu (RON)" value={glsHomeDeliveryFee} onChange={setGlsHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" helpText="0 = Gratuit" autoComplete="off" />
-                            <TextField label="GLS ParcelShop — ridicare (RON)" value={glsPickupFee} onChange={setGlsPickupFee} type="number" min="0" step="0.5" suffix="RON" helpText="0 = Gratuit" autoComplete="off" />
+                            <TextField label={t("fee_gls_home")} value={glsHomeDeliveryFee} onChange={setGlsHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" helpText={t("fee_free_help")} autoComplete="off" />
+                            <TextField label={t("fee_gls_pickup")} value={glsPickupFee} onChange={setGlsPickupFee} type="number" min="0" step="0.5" suffix="RON" helpText={t("fee_free_help")} autoComplete="off" />
                           </FormLayout.Group>
                           <FormLayout.Group>
-                            <TextField label="Packeta — livrare la domiciliu (RON)" value={packetaHomeDeliveryFee} onChange={setPacketaHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" helpText="0 = Gratuit" autoComplete="off" />
-                            <TextField label="Packeta Z-BOX / Point — ridicare (RON)" value={packetaPickupFee} onChange={setPacketaPickupFee} type="number" min="0" step="0.5" suffix="RON" helpText="0 = Gratuit" autoComplete="off" />
+                            <TextField label={t("fee_packeta_home")} value={packetaHomeDeliveryFee} onChange={setPacketaHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" helpText={t("fee_free_help")} autoComplete="off" />
+                            <TextField label={t("fee_packeta_pickup")} value={packetaPickupFee} onChange={setPacketaPickupFee} type="number" min="0" step="0.5" suffix="RON" helpText={t("fee_free_help")} autoComplete="off" />
                           </FormLayout.Group>
                         </FormLayout>
-                        <Banner tone="warning" title="Nu uita!">
-                          <Text>După salvare, mergi în <strong>Themes → Customize → Cart page → Picklo</strong> și introdu aceleași valori și acolo (câmpurile "Tarif..."). Sunt necesare în ambele locuri.</Text>
+                        <Banner tone="warning" title={t("fees_note_title")}>
+                          <Text>{t("fees_note")}</Text>
                         </Banner>
                       </BlockStack>
                     </Card>
@@ -748,31 +746,31 @@ export default function Settings() {
             <Card>
               <InlineStack gap="300" align="start">
                 <Button variant="primary" size="large" onClick={handleSave} loading={saving}>
-                  Salvează setările
+                  {t("save_settings")}
                 </Button>
                 {tab === 1 && (
                   <Button onClick={() => handleTest("fan")} loading={saving}>
-                    🔌 Testează conexiunea FAN
+                    🔌 {t("test_connection")} FAN
                   </Button>
                 )}
                 {tab === 2 && (
                   <Button onClick={() => handleTest("sameday")} loading={saving}>
-                    🔌 Testează conexiunea Sameday
+                    🔌 {t("test_connection")} Sameday
                   </Button>
                 )}
                 {tab === 3 && (
                   <Button onClick={() => handleTest("cargus")} loading={saving}>
-                    🔌 Testează conexiunea Cargus
+                    🔌 {t("test_connection")} Cargus
                   </Button>
                 )}
                 {tab === 4 && (
                   <Button onClick={() => handleTest("gls")} loading={saving}>
-                    🔌 Testează conexiunea GLS
+                    🔌 {t("test_connection")} GLS
                   </Button>
                 )}
                 {tab === 5 && (
                   <Button onClick={() => handleTest("packeta")} loading={saving}>
-                    🔌 Testează conexiunea Packeta
+                    🔌 {t("test_connection")} Packeta
                   </Button>
                 )}
               </InlineStack>
