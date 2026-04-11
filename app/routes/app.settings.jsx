@@ -15,6 +15,8 @@ import {
   Button, Checkbox, Select, Badge, Banner, Divider, Tabs,
   FormLayout, Box, Frame, Toast,
 } from "@shopify/polaris";
+import { useTranslation } from "../context/i18n.jsx";
+import { LanguageSwitcher } from "../components/LanguageSwitcher.jsx";
 
 // ─── Loader ───────────────────────────────────────────────────────────────────
 export async function loader({ request }) {
@@ -264,6 +266,8 @@ export default function Settings() {
   const [carrierStatus, setCarrierStatus] = useState(null); // null | "loading" | "registered" | "error"
   const [carrierMsg,    setCarrierMsg]    = useState("");
 
+  const { t } = useTranslation();
+
   // ── Toasts ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (actionData?.saved) setToast("✅ Setările au fost salvate!");
@@ -347,14 +351,14 @@ export default function Settings() {
   }, [submit]);
 
   const tabs = [
-    { id: "sender",     content: "📦 Expeditor"   },
-    { id: "fan",        content: "🚛 FAN Courier"  },
-    { id: "sameday",    content: "📬 Sameday"      },
-    { id: "cargus",     content: "🚚 Cargus"       },
-    { id: "gls",        content: "🟡 GLS"          },
-    { id: "packeta",    content: "📮 Packeta"      },
-    { id: "xconnector", content: "🔗 xConnector"  },
-    { id: "widget",     content: "🛒 Widget coș"  },
+    { id: "sender",     content: `📦 ${t("tab_sender")}`     },
+    { id: "fan",        content: "🚛 FAN Courier"              },
+    { id: "sameday",    content: "📬 Sameday"                  },
+    { id: "cargus",     content: "🚚 Cargus"                   },
+    { id: "gls",        content: "🟡 GLS"                      },
+    { id: "packeta",    content: "📮 Packeta"                   },
+    { id: "xconnector", content: "🔗 xConnector"               },
+    { id: "widget",     content: `🛒 ${t("tab_widget")}`       },
   ];
 
   return (
@@ -369,8 +373,14 @@ export default function Settings() {
                 {tab === 0 && (
                   <Card>
                     <BlockStack gap="400">
-                      <Text variant="headingMd" fontWeight="semibold">Date expeditor (sender)</Text>
-                      <Text tone="subdued">Aceste date apar pe toate AWB-urile ca adresă de retur.</Text>
+                      <InlineStack align="space-between" blockAlign="center">
+                        <Text variant="headingMd" fontWeight="semibold">{t("sender_title")}</Text>
+                        <div>
+                          <Text variant="bodySm" tone="subdued" as="span">{t("language_label")}&nbsp;&nbsp;</Text>
+                          <LanguageSwitcher />
+                        </div>
+                      </InlineStack>
+                      <Text tone="subdued">{t("sender_desc")}</Text>
                       <Divider />
                       <FormLayout>
                         <TextField label="Nume firmă / expeditor" value={senderName} onChange={setSenderName} autoComplete="off" />

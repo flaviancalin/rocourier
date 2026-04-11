@@ -155,6 +155,13 @@ export const T = {
     no_coords:             "Fără coord.",
     showing_points:        "Afișând {n} din {t} puncte",
     all_tab:               "Toți",
+
+    // ── Settings ─────────────────────────────────────────────────────────────
+    tab_sender:            "Expeditor",
+    tab_widget:            "Widget coș",
+    sender_title:          "Date expeditor (sender)",
+    sender_desc:           "Aceste date apar pe toate AWB-urile ca adresă de retur.",
+    language_label:        "Limbă interfață:",
   },
 
   en: {
@@ -303,6 +310,11 @@ export const T = {
     no_coords:             "No coords.",
     showing_points:        "Showing {n} of {t} points",
     all_tab:               "All",
+    tab_sender:            "Sender",
+    tab_widget:            "Cart widget",
+    sender_title:          "Sender details",
+    sender_desc:           "These details appear on all AWBs as the return address.",
+    language_label:        "Interface language:",
   },
 
   de: {
@@ -451,6 +463,11 @@ export const T = {
     no_coords:             "Keine Koordinaten",
     showing_points:        "{n} von {t} Punkten angezeigt",
     all_tab:               "Alle",
+    tab_sender:            "Absender",
+    tab_widget:            "Warenkorb-Widget",
+    sender_title:          "Absenderdetails",
+    sender_desc:           "Diese Daten erscheinen auf allen AWBs als Rücksendeadresse.",
+    language_label:        "Oberflächensprache:",
   },
 
   hu: {
@@ -599,6 +616,11 @@ export const T = {
     no_coords:             "Nincs koordináta",
     showing_points:        "{n} / {t} pont megjelenítve",
     all_tab:               "Összes",
+    tab_sender:            "Feladó",
+    tab_widget:            "Kosár widget",
+    sender_title:          "Feladó adatai",
+    sender_desc:           "Ezek az adatok minden AWB-n visszaküldési címként szerepelnek.",
+    language_label:        "Felület nyelve:",
   },
 
   cs: {
@@ -747,6 +769,11 @@ export const T = {
     no_coords:             "Bez souřadnic",
     showing_points:        "Zobrazeno {n} z {t} míst",
     all_tab:               "Vše",
+    tab_sender:            "Odesílatel",
+    tab_widget:            "Widget košíku",
+    sender_title:          "Údaje odesílatele",
+    sender_desc:           "Tyto údaje se zobrazují na všech AWB jako adresa pro vrácení.",
+    language_label:        "Jazyk rozhraní:",
   },
 };
 

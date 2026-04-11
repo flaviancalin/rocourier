@@ -10,7 +10,6 @@ import { NavMenu } from "@shopify/app-bridge-react";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import { authenticate } from "../shopify.server.js";
 import { I18nProvider, useTranslation } from "../context/i18n.jsx";
-import { LanguageSwitcher } from "../components/LanguageSwitcher.jsx";
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
@@ -32,16 +31,6 @@ function AppLayout() {
         <Link to="/app/settings">{t("nav_settings")}</Link>
         <Link to="/app/pickup-points">{t("nav_pickup_points")}</Link>
       </NavMenu>
-
-      {/* Language switcher — fixed top-right overlay inside the iframe */}
-      <div style={{
-        position: "fixed",
-        top: 12,
-        right: 16,
-        zIndex: 9999,
-      }}>
-        <LanguageSwitcher />
-      </div>
 
       <Outlet />
     </AppProvider>

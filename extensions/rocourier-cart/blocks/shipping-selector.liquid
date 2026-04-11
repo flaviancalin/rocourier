@@ -32,7 +32,7 @@
   data-packeta-logo="{{ 'logo-packeta.svg' | asset_url }}"
 >
 
-  <p class="rc-section-title">
+  <p class="rc-section-title" id="rc-section-title">
     {{ block.settings.title | default: 'Metoda de livrare:' }}
   </p>
 
@@ -61,27 +61,27 @@
     <div id="rc-courier-picker" class="rc-courier-picker" style="display:none;">
       {%- if block.settings.fan_enabled -%}
         <button type="button" class="rc-chip" data-courier="fan" data-color="#FF6600">
-          <img src="{{ 'logo-fan.svg' | asset_url }}" alt="FAN Courier" class="rc-chip-logo">
+          <img src="{{ 'logo-fan.svg' | asset_url }}" alt="FAN Courier" class="rc-chip-logo" width="80" height="22">
         </button>
       {%- endif -%}
       {%- if block.settings.sameday_enabled -%}
         <button type="button" class="rc-chip" data-courier="sameday" data-color="#003DA5">
-          <img src="{{ 'logo-sameday.svg' | asset_url }}" alt="Sameday" class="rc-chip-logo">
+          <img src="{{ 'logo-sameday.svg' | asset_url }}" alt="Sameday" class="rc-chip-logo" width="80" height="22">
         </button>
       {%- endif -%}
       {%- if block.settings.cargus_enabled -%}
         <button type="button" class="rc-chip" data-courier="cargus" data-color="#E20020">
-          <img src="{{ 'logo-cargus.svg' | asset_url }}" alt="Cargus" class="rc-chip-logo">
+          <img src="{{ 'logo-cargus.svg' | asset_url }}" alt="Cargus" class="rc-chip-logo" width="80" height="22">
         </button>
       {%- endif -%}
       {%- if block.settings.gls_enabled -%}
         <button type="button" class="rc-chip" data-courier="gls" data-color="#003591">
-          <img src="{{ 'logo-gls.svg' | asset_url }}" alt="GLS" class="rc-chip-logo">
+          <img src="{{ 'logo-gls.svg' | asset_url }}" alt="GLS" class="rc-chip-logo" width="80" height="22">
         </button>
       {%- endif -%}
       {%- if block.settings.packeta_enabled -%}
         <button type="button" class="rc-chip" data-courier="packeta" data-color="#BA2025">
-          <img src="{{ 'logo-packeta.svg' | asset_url }}" alt="Packeta" class="rc-chip-logo">
+          <img src="{{ 'logo-packeta.svg' | asset_url }}" alt="Packeta" class="rc-chip-logo" width="80" height="22">
         </button>
       {%- endif -%}
     </div>
@@ -108,7 +108,7 @@
 
   <!-- Selected pickup point summary -->
   <div id="rc-point-selected" class="rc-point-selected" style="display:none;">
-    <img id="rc-point-logo" class="rc-point-logo" src="" alt="">
+    <img id="rc-point-logo" class="rc-point-logo" src="{{ '' | asset_url }}" alt="" width="60" height="20">
     <div class="rc-point-info">
       <strong id="rc-point-name"></strong>
       <span id="rc-point-addr"></span>
@@ -140,27 +140,27 @@
         <button type="button" class="rc-filter-btn rc-filter-active" id="rc-filter-all" data-courier="all">Toate</button>
         {%- if block.settings.fan_enabled -%}
           <button type="button" class="rc-filter-btn" data-courier="fan">
-            <img src="{{ 'logo-fan.svg' | asset_url }}" alt="FAN" class="rc-filter-logo">
+            <img src="{{ 'logo-fan.svg' | asset_url }}" alt="FAN" class="rc-filter-logo" width="48" height="16">
           </button>
         {%- endif -%}
         {%- if block.settings.sameday_enabled -%}
           <button type="button" class="rc-filter-btn" data-courier="sameday">
-            <img src="{{ 'logo-sameday.svg' | asset_url }}" alt="Sameday" class="rc-filter-logo">
+            <img src="{{ 'logo-sameday.svg' | asset_url }}" alt="Sameday" class="rc-filter-logo" width="48" height="16">
           </button>
         {%- endif -%}
         {%- if block.settings.cargus_enabled -%}
           <button type="button" class="rc-filter-btn" data-courier="cargus">
-            <img src="{{ 'logo-cargus.svg' | asset_url }}" alt="Cargus" class="rc-filter-logo">
+            <img src="{{ 'logo-cargus.svg' | asset_url }}" alt="Cargus" class="rc-filter-logo" width="48" height="16">
           </button>
         {%- endif -%}
         {%- if block.settings.gls_enabled -%}
           <button type="button" class="rc-filter-btn" data-courier="gls">
-            <img src="{{ 'logo-gls.svg' | asset_url }}" alt="GLS" class="rc-filter-logo">
+            <img src="{{ 'logo-gls.svg' | asset_url }}" alt="GLS" class="rc-filter-logo" width="48" height="16">
           </button>
         {%- endif -%}
         {%- if block.settings.packeta_enabled -%}
           <button type="button" class="rc-filter-btn" data-courier="packeta">
-            <img src="{{ 'logo-packeta.svg' | asset_url }}" alt="Packeta" class="rc-filter-logo">
+            <img src="{{ 'logo-packeta.svg' | asset_url }}" alt="Packeta" class="rc-filter-logo" width="48" height="16">
           </button>
         {%- endif -%}
       </div>
