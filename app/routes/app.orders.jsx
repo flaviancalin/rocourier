@@ -15,84 +15,101 @@ import {
 } from "@shopify/polaris";
 import { useTranslation } from "../context/i18n.jsx";
 
+// ─── Background sync (fire-and-forget, never blocks page load) ───────────────
+async function syncShopifyOrders(shop, token) {
+  const FIELDS = "id,name,created_at,note_attributes,shipping_address,customer,total_price,line_items";
+  let nextUrl = `https://${shop}/admin/api/2024-10/orders.json?status=any&limit=250&fields=${FIELDS}`;
+
+  while (nextUrl) {
+    const res = await fetch(nextUrl, { headers: { "X-Shopify-Access-Token": token } });
+    if (!res.ok) break;
+
+    const { orders: shopifyOrders } = await res.json();
+    for (const o of shopifyOrders || []) {
+      const attrs = {};
+      (o.note_attributes || []).forEach((a) => { attrs[a.name] = a.value; });
+
+      const method  = attrs["_rc_method"]        || attrs["_rocourier_method"]        || "home_delivery";
+      const courier = attrs["_rc_courier"]       || attrs["_rocourier_courier"]       || "fan";
+      const pid     = attrs["_rc_point_id"]      || attrs["_rocourier_point_id"]      || null;
+      const pname   = attrs["_rc_point_name"]    || attrs["_rocourier_point_name"]    || null;
+      const paddr   = attrs["_rc_point_address"] || attrs["_rocourier_point_address"] || null;
+
+      const sa = o.shipping_address || {};
+      const weightKg = (o.line_items || []).reduce(
+        (sum, item) => sum + (item.grams || 0) * (item.quantity || 1), 0
+      ) / 1000;
+
+      const data = {
+        shopifyOrderName:    o.name,
+        customerName:        [sa.first_name, sa.last_name].filter(Boolean).join(" ") || o.customer?.first_name || "Unknown",
+        customerPhone:       sa.phone || o.customer?.phone || "",
+        customerEmail:       o.customer?.email || "",
+        shippingAddress1:    sa.address1 || "",
+        shippingCity:        sa.city || "",
+        shippingCounty:      sa.province || "",
+        shippingZip:         sa.zip || "",
+        shippingCountry:     sa.country_code || "RO",
+        shippingMethod:      method,
+        courierType:         courier,
+        pickupPointId:       pid,
+        pickupPointName:     pname,
+        pickupPointAddress:  paddr,
+        codAmount:           parseFloat(o.total_price) || 0,
+        orderTotal:          parseFloat(o.total_price) || 0,
+        weight:              weightKg > 0 ? weightKg : undefined,
+        shopifyCreatedAt:    new Date(o.created_at),
+      };
+
+      await prisma.order.upsert({
+        where: { shop_shopifyOrderId: { shop, shopifyOrderId: String(o.id) } },
+        update: {
+          shopifyOrderName:   data.shopifyOrderName,
+          customerName:       data.customerName,
+          customerPhone:      data.customerPhone,
+          customerEmail:      data.customerEmail,
+          shippingAddress1:   data.shippingAddress1,
+          shippingCity:       data.shippingCity,
+          shippingCounty:     data.shippingCounty,
+          shippingZip:        data.shippingZip,
+          codAmount:          data.codAmount,
+          orderTotal:         data.orderTotal,
+          ...(weightKg > 0 ? { weight: weightKg } : {}),
+        },
+        create: { shop, shopifyOrderId: String(o.id), awbStatus: "pending", ...data },
+      });
+
+      await prisma.order.updateMany({
+        where: { shop, shopifyOrderId: String(o.id), awbStatus: "pending" },
+        data: {
+          shippingMethod:     data.shippingMethod,
+          courierType:        data.courierType,
+          pickupPointId:      data.pickupPointId,
+          pickupPointName:    data.pickupPointName,
+          pickupPointAddress: data.pickupPointAddress,
+        },
+      });
+    }
+
+    // Follow Shopify pagination via Link header
+    const link = res.headers.get("Link") || "";
+    const nextMatch = link.match(/<([^>]+)>;\s*rel="next"/);
+    nextUrl = nextMatch ? nextMatch[1] : null;
+  }
+}
+
 export async function loader({ request }) {
   const { session } = await authenticate.admin(request);
   const url = new URL(request.url);
 
-  let shop = session.shop;
-  const token = session.accessToken;
-
-  if (!shop && token) {
-    const found = await prisma.session.findFirst({ where: { accessToken: token } });
-    if (found) shop = found.shop;
-  }
+  const shop = session.shop;
 
   if (!shop) {
     return json({ orders: [], total: 0, totalPages: 1, page: 1, filters: { status: "", courier: "", method: "", search: "" } });
   }
 
-  // Silent background sync
-  try {
-    const res = await fetch(
-      `https://${shop}/admin/api/2024-10/orders.json?status=any&limit=250&fields=id,name,created_at,note_attributes,shipping_address,customer,total_price`,
-      { headers: { "X-Shopify-Access-Token": token } }
-    );
-    if (res.ok) {
-      const { orders: shopifyOrders } = await res.json();
-      for (const o of shopifyOrders || []) {
-        const attrs = {};
-        (o.note_attributes || []).forEach((a) => { attrs[a.name] = a.value; });
-
-        const method  = attrs["_rc_method"]   || attrs["_rocourier_method"]   || "home_delivery";
-        const courier = attrs["_rc_courier"]  || attrs["_rocourier_courier"]  || "fan";
-        const pid     = attrs["_rc_point_id"] || attrs["_rocourier_point_id"] || null;
-        const pname   = attrs["_rc_point_name"]    || attrs["_rocourier_point_name"]    || null;
-        const paddr   = attrs["_rc_point_address"] || attrs["_rocourier_point_address"] || null;
-
-        const data = {
-          shopifyOrderName:    o.name,
-          customerName:        [o.shipping_address?.first_name, o.shipping_address?.last_name].filter(Boolean).join(" ") || o.customer?.first_name || "Unknown",
-          customerPhone:       o.shipping_address?.phone || o.customer?.phone || "",
-          customerEmail:       o.customer?.email || "",
-          shippingAddress1:    o.shipping_address?.address1 || "",
-          shippingCity:        o.shipping_address?.city || "",
-          shippingCounty:      o.shipping_address?.province || "",
-          shippingZip:         o.shipping_address?.zip || "",
-          shippingCountry:     o.shipping_address?.country_code || "RO",
-          shippingMethod:      method,
-          courierType:         courier,
-          pickupPointId:       pid,
-          pickupPointName:     pname,
-          pickupPointAddress:  paddr,
-          codAmount:           parseFloat(o.total_price) || 0,
-          orderTotal:          parseFloat(o.total_price) || 0,
-          shopifyCreatedAt:    new Date(o.created_at),
-        };
-
-        await prisma.order.upsert({
-          where: { shop_shopifyOrderId: { shop, shopifyOrderId: String(o.id) } },
-          update: {
-            shopifyOrderName:   data.shopifyOrderName,
-            customerName:       data.customerName,
-            customerPhone:      data.customerPhone,
-            customerEmail:      data.customerEmail,
-            shippingAddress1:   data.shippingAddress1,
-            shippingCity:       data.shippingCity,
-            shippingCounty:     data.shippingCounty,
-            shippingZip:        data.shippingZip,
-            shippingMethod:     data.shippingMethod,
-            courierType:        data.courierType,
-            pickupPointId:      data.pickupPointId,
-            pickupPointName:    data.pickupPointName,
-            pickupPointAddress: data.pickupPointAddress,
-            codAmount:          data.codAmount,
-            orderTotal:         data.orderTotal,
-          },
-          create: { shop, shopifyOrderId: String(o.id), awbStatus: "pending", ...data },
-        });
-      }
-    }
-  } catch (_) {}
+  // Fire-and-forget — page loads immediately from DB, sync runs in background
+  syncShopifyOrders(shop, session.accessToken).catch(() => {});
 
   const page    = parseInt(url.searchParams.get("page")    || "1");
   const status  = url.searchParams.get("status")  || "";
@@ -100,17 +117,56 @@ export async function loader({ request }) {
   const method  = url.searchParams.get("method")  || "";
   const search  = url.searchParams.get("search")  || "";
 
-  const result = await getOrders({
-    shop,
-    page,
-    perPage: 25,
-    status:  status  || null,
-    courier: courier || null,
-    method:  method  || null,
-    search:  search  || null,
-  });
+  const [result, settings] = await Promise.all([
+    getOrders({
+      shop,
+      page,
+      perPage: 25,
+      status:  status  || null,
+      courier: courier || null,
+      method:  method  || null,
+      search:  search  || null,
+    }),
+    prisma.shopSettings.findUnique({
+      where: { shop },
+      select: { fanEnabled: true, samedayEnabled: true, cargusEnabled: true, glsEnabled: true, packetaEnabled: true },
+    }),
+  ]);
 
-  return json({ ...result, filters: { status, courier, method, search } });
+  return json({ ...result, filters: { status, courier, method, search }, settings: settings || {} });
+}
+
+// ─── Service options per courier ─────────────────────────────────────────────
+const COURIER_SERVICES = {
+  fan: [
+    { label: "Standard",                value: "Standard" },
+    { label: "Cont Colector (FANbox)",  value: "Cont Colector" },
+    { label: "RedCode",                 value: "RedCode" },
+    { label: "Produse Albe",            value: "Produse Albe" },
+    { label: "Transport Marfă",         value: "Transport Marfa" },
+  ],
+  sameday: [
+    { label: "Standard",                value: "T" },
+    { label: "Locker (NextDay)",        value: "LN" },
+    { label: "Express",                 value: "E" },
+  ],
+  cargus: [
+    { label: "Standard",                value: "standard" },
+    { label: "Priority",                value: "priority" },
+  ],
+  gls: [
+    { label: "Standard",                value: "standard" },
+    { label: "Express",                 value: "express" },
+  ],
+  packeta: [
+    { label: "Standard",                value: "standard" },
+  ],
+};
+
+function defaultServiceForCourier(courierKey, hasPickup) {
+  if (courierKey === "fan")     return hasPickup ? "Cont Colector" : "Standard";
+  if (courierKey === "sameday") return hasPickup ? "LN" : "T";
+  return COURIER_SERVICES[courierKey]?.[0]?.value || "standard";
 }
 
 // ─── Static courier map (brand names, no translation needed) ─────────────────
@@ -135,7 +191,7 @@ const STATUS_TONES = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function OrdersPage() {
-  const { orders, total, totalPages, page, filters } = useLoaderData();
+  const { orders, total, totalPages, page, filters, settings } = useLoaderData();
   const navigate = useNavigate();
   const { t } = useTranslation();
 
@@ -150,6 +206,15 @@ export default function OrdersPage() {
   const [bulkFulfilling, setBulkFulfilling] = useState(false);
   const [fulfillResults, setFulfillResults] = useState([]);
   const [showFulfillResults, setShowFulfillResults] = useState(false);
+
+  // ── AWB Wizard state ────────────────────────────────────────────────────────
+  const [showWizard, setShowWizard]           = useState(false);
+  const [wizardCourier, setWizardCourier]     = useState("fan");
+  const [wizardService, setWizardService]     = useState("Standard");
+  const [wizardWeight, setWizardWeight]       = useState("");
+  const [wizardObs, setWizardObs]             = useState("");
+  const [liveServices, setLiveServices]       = useState({});
+  const [loadingServices, setLoadingServices] = useState(false);
 
   const [searchVal, setSearchVal]   = useState(filters.search);
   const [statusVal, setStatusVal]   = useState(filters.status);
@@ -256,8 +321,37 @@ export default function OrdersPage() {
     window.open(`/api/packing-slip?orderIds=${selectedOrders.join(",")}`, "_blank");
   }
 
-  async function generateSelectedAwbs() {
+  async function openAwbWizard() {
     if (selectedOrders.length === 0) return;
+    const firstOrder = orders.find((o) => o.id === selectedOrders[0]);
+    const firstCourier = firstOrder?.courierType || "fan";
+    const hasPickup = firstOrder?.shippingMethod === "pickup_point";
+    setWizardCourier(firstCourier);
+    setWizardWeight("");
+    setWizardObs("");
+    setShowWizard(true);
+
+    // Fetch live services from each courier's API
+    setLoadingServices(true);
+    try {
+      const res = await fetch("/api/courier-services");
+      const data = await res.json();
+      setLiveServices(data);
+      // Set default service for the pre-filled courier
+      const options = data[firstCourier] || COURIER_SERVICES[firstCourier] || [];
+      const defaultSvc = hasPickup
+        ? (options.find((o) => /locker|fanbox|colector|ln/i.test(o.label)) || options[0])
+        : options[0];
+      setWizardService(defaultSvc?.value || options[0]?.value || "Standard");
+    } catch (_) {
+      setWizardService(defaultServiceForCourier(firstCourier, hasPickup));
+    } finally {
+      setLoadingServices(false);
+    }
+  }
+
+  async function confirmGenerateAwbs() {
+    setShowWizard(false);
     setGeneratingAwb(true);
     setAwbResults([]);
 
@@ -267,7 +361,13 @@ export default function OrdersPage() {
         const res = await fetch("/api/generate-awb", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderId }),
+          body: JSON.stringify({
+            orderId,
+            courierOverride: wizardCourier,
+            serviceOverride: wizardService,
+            ...(wizardWeight ? { weightOverride: parseFloat(wizardWeight) } : {}),
+            ...(wizardObs    ? { observationsOverride: wizardObs }          : {}),
+          }),
         });
         const data = await res.json();
         const order = orders.find((o) => o.id === orderId);
@@ -433,7 +533,7 @@ export default function OrdersPage() {
 
                   {selectedOrders.length > 0 && (
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", padding:"8px 0", borderTop:"1px solid #f0f0f0", borderBottom:"1px solid #f0f0f0" }}>
-                      <Button variant="primary" tone="success" loading={generatingAwb} onClick={generateSelectedAwbs}>
+                      <Button variant="primary" tone="success" loading={generatingAwb} onClick={openAwbWizard}>
                         {generatingAwb ? t("generating") : `${t("generate_awb")} (${selectedOrders.length})`}
                       </Button>
 
@@ -485,6 +585,84 @@ export default function OrdersPage() {
           </Layout.Section>
         </Layout>
       </Page>
+
+      {/* AWB Wizard Modal */}
+      {showWizard && (
+        <Modal
+          open={showWizard}
+          onClose={() => setShowWizard(false)}
+          title={`Generează AWB — ${selectedOrders.length} ${selectedOrders.length === 1 ? "comandă" : "comenzi"}`}
+          primaryAction={{
+            content: "Generează",
+            onAction: confirmGenerateAwbs,
+            tone: "success",
+          }}
+          secondaryActions={[{ content: "Anulează", onAction: () => setShowWizard(false) }]}
+        >
+          <Modal.Section>
+            <BlockStack gap="400">
+              <Select
+                label="Curier"
+                value={wizardCourier}
+                onChange={(v) => {
+                  setWizardCourier(v);
+                  const opts = liveServices[v] || COURIER_SERVICES[v] || [];
+                  setWizardService(opts[0]?.value || "standard");
+                }}
+                options={[
+                  ...(settings?.fanEnabled     ? [{ label: "FAN Courier", value: "fan"     }] : []),
+                  ...(settings?.samedayEnabled ? [{ label: "Sameday",     value: "sameday" }] : []),
+                  ...(settings?.cargusEnabled  ? [{ label: "Cargus",      value: "cargus"  }] : []),
+                  ...(settings?.glsEnabled     ? [{ label: "GLS",         value: "gls"     }] : []),
+                  ...(settings?.packetaEnabled ? [{ label: "Packeta",     value: "packeta" }] : []),
+                  // always include current courier even if not explicitly enabled
+                  ...(!settings?.[`${wizardCourier}Enabled`] && wizardCourier
+                    ? [{ label: COURIER_MAP[wizardCourier]?.label || wizardCourier, value: wizardCourier }]
+                    : []),
+                ].filter((v, i, arr) => arr.findIndex(x => x.value === v.value) === i)}
+              />
+
+              <Select
+                label={loadingServices ? "Tip serviciu (se încarcă...)" : "Tip serviciu"}
+                value={wizardService}
+                onChange={setWizardService}
+                disabled={loadingServices}
+                options={
+                  (liveServices[wizardCourier] || COURIER_SERVICES[wizardCourier] || [{ label: "Standard", value: "standard" }])
+                }
+              />
+
+              <TextField
+                label="Greutate (kg) — opțional"
+                type="number"
+                value={wizardWeight}
+                onChange={setWizardWeight}
+                min="0.1"
+                step="0.1"
+                suffix="kg"
+                placeholder="Lasă gol pentru greutatea din comandă"
+              />
+
+              <TextField
+                label="Observații — opțional"
+                value={wizardObs}
+                onChange={setWizardObs}
+                multiline={2}
+                placeholder="Ex: Fragil, a nu se răsturna"
+              />
+
+              {selectedOrders.length > 1 && (
+                <Banner tone="info">
+                  <Text variant="bodySm">
+                    Curirul și serviciul selectat vor fi aplicate tuturor celor {selectedOrders.length} comenzi.
+                    Greutatea se va aplica individual doar dacă este specificată.
+                  </Text>
+                </Banner>
+              )}
+            </BlockStack>
+          </Modal.Section>
+        </Modal>
+      )}
 
       {/* Fulfill Results Modal */}
       {showFulfillResults && (

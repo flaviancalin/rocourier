@@ -1,4 +1,8 @@
 // app/models/pickup-points.server.js
+// Pickup points are carrier-level public infrastructure — the same locations
+// exist regardless of which merchant is using the app.
+// Sync credentials come from app-level env vars, NOT from merchant settings.
+// Merchant settings only control which couriers to SHOW in their widget.
 import { prisma } from "../db.server.js";
 import { fanGetPickupPoints } from "../services/fan-courier.server.js";
 import { samedayGetLockers } from "../services/sameday.server.js";
@@ -9,12 +13,42 @@ import { packetaGetPickupPoints } from "../services/packeta.server.js";
 const CACHE_TTL_HOURS = 24;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Get pickup points from DB cache (refresh if stale)
+// App-level sync credentials from environment variables
+// Set these in Railway: FAN_SYNC_CLIENT_ID, FAN_SYNC_USERNAME, FAN_SYNC_PASSWORD,
+// SAMEDAY_SYNC_USERNAME, SAMEDAY_SYNC_PASSWORD,
+// CARGUS_SYNC_SUBSCRIPTION_KEY, CARGUS_SYNC_USERNAME, CARGUS_SYNC_PASSWORD,
+// PACKETA_SYNC_API_KEY
+// GLS needs no credentials — uses public JSON API
 // ─────────────────────────────────────────────────────────────────────────────
-export async function getPickupPoints({ settings, couriers = ["fan", "sameday", "cargus", "gls", "packeta"] }) {
+function getSyncCredentials() {
+  return {
+    fan: {
+      clientId: process.env.FAN_SYNC_CLIENT_ID,
+      username: process.env.FAN_SYNC_USERNAME,
+      password: process.env.FAN_SYNC_PASSWORD,
+    },
+    sameday: {
+      username: process.env.SAMEDAY_SYNC_USERNAME,
+      password: process.env.SAMEDAY_SYNC_PASSWORD,
+    },
+    cargus: {
+      subscriptionKey: process.env.CARGUS_SYNC_SUBSCRIPTION_KEY,
+      username:        process.env.CARGUS_SYNC_USERNAME,
+      password:        process.env.CARGUS_SYNC_PASSWORD,
+    },
+    packeta: {
+      apiKey: process.env.PACKETA_SYNC_API_KEY,
+    },
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Get pickup points from DB cache (auto-refresh if stale)
+// couriers: which carriers to return — caller filters by merchant's enabled list
+// ─────────────────────────────────────────────────────────────────────────────
+export async function getPickupPoints({ couriers = ["fan", "sameday", "cargus", "gls", "packeta"] } = {}) {
   const staleThreshold = new Date(Date.now() - CACHE_TTL_HOURS * 3600 * 1000);
 
-  // Check if cache is fresh
   const cachedCount = await prisma.pickupPoint.count({
     where: {
       courier: { in: couriers },
@@ -30,8 +64,8 @@ export async function getPickupPoints({ settings, couriers = ["fan", "sameday", 
     });
   }
 
-  // Cache stale → refresh from APIs
-  await refreshPickupPointsCache({ settings, couriers });
+  // Cache stale — refresh from carrier APIs using app-level credentials
+  await refreshPickupPointsCache({ couriers });
 
   return prisma.pickupPoint.findMany({
     where: { courier: { in: couriers }, isActive: true },
@@ -40,49 +74,49 @@ export async function getPickupPoints({ settings, couriers = ["fan", "sameday", 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Refresh cache from courier APIs
+// Refresh cache from courier APIs using app-level env var credentials
+// No merchant settings needed — pickup points are global data
 // ─────────────────────────────────────────────────────────────────────────────
-export async function refreshPickupPointsCache({ settings, couriers = ["fan", "sameday", "cargus", "gls", "packeta"] }) {
+export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "cargus", "gls", "packeta"] } = {}) {
+  const creds = getSyncCredentials();
   const results = { fan: 0, sameday: 0, cargus: 0, gls: 0, packeta: 0, errors: [] };
 
-  if (couriers.includes("fan") && settings.fanEnabled && settings.fanClientId) {
+  if (couriers.includes("fan") && creds.fan.clientId && creds.fan.username && creds.fan.password) {
     try {
-      const fanPoints = await fanGetPickupPoints({
-        clientId: settings.fanClientId,
-        username: settings.fanUsername,
-        password: settings.fanPassword,
+      const points = await fanGetPickupPoints({
+        clientId: creds.fan.clientId,
+        username: creds.fan.username,
+        password: creds.fan.password,
       });
-
-      // Upsert all FAN points
-      for (const p of fanPoints) {
+      for (const p of points) {
         await prisma.pickupPoint.upsert({
           where: { courier_externalId: { courier: "fan", externalId: p.externalId } },
           update: { ...p, isActive: true, updatedAt: new Date() },
           create: p,
         });
       }
-      results.fan = fanPoints.length;
+      results.fan = points.length;
     } catch (e) {
       results.errors.push(`FAN: ${e.message}`);
     }
+  } else if (couriers.includes("fan") && !creds.fan.clientId) {
+    results.errors.push("FAN: sync credentials not configured (set FAN_SYNC_CLIENT_ID, FAN_SYNC_USERNAME, FAN_SYNC_PASSWORD)");
   }
 
-  if (couriers.includes("sameday") && settings.samedayEnabled && settings.samedayUsername) {
+  if (couriers.includes("sameday") && creds.sameday.username && creds.sameday.password) {
     try {
-      const samedayPoints = await samedayGetLockers({
-        username: settings.samedayUsername,
-        password: settings.samedayPassword,
-        sandbox: !!settings.samedaySandbox,
+      const points = await samedayGetLockers({
+        username: creds.sameday.username,
+        password: creds.sameday.password,
       });
-
-      for (const p of samedayPoints) {
+      for (const p of points) {
         await prisma.pickupPoint.upsert({
           where: { courier_externalId: { courier: "sameday", externalId: p.externalId } },
           update: { ...p, isActive: true, updatedAt: new Date() },
           create: p,
         });
       }
-      results.sameday = samedayPoints.length;
+      results.sameday = points.length;
     } catch (e) {
       if (e.message?.includes("[404]")) {
         results.sameday = 0;
@@ -90,68 +124,59 @@ export async function refreshPickupPointsCache({ settings, couriers = ["fan", "s
         results.errors.push(`Sameday: ${e.message}`);
       }
     }
+  } else if (couriers.includes("sameday") && !creds.sameday.username) {
+    results.errors.push("Sameday: sync credentials not configured (set SAMEDAY_SYNC_USERNAME, SAMEDAY_SYNC_PASSWORD)");
   }
 
-  if (couriers.includes("cargus") && settings.cargusEnabled && settings.cargusSubscriptionKey) {
+  if (couriers.includes("cargus") && creds.cargus.subscriptionKey && creds.cargus.username) {
     try {
-      const cargusPoints = await cargusGetPickupPoints({
-        subscriptionKey: settings.cargusSubscriptionKey,
-        username: settings.cargusUsername,
-        password: settings.cargusPassword,
+      const points = await cargusGetPickupPoints({
+        subscriptionKey: creds.cargus.subscriptionKey,
+        username:        creds.cargus.username,
+        password:        creds.cargus.password,
       });
-
-      for (const p of cargusPoints) {
+      for (const p of points) {
         await prisma.pickupPoint.upsert({
           where: { courier_externalId: { courier: "cargus", externalId: p.externalId } },
           update: { ...p, isActive: true, updatedAt: new Date() },
           create: p,
         });
       }
-      results.cargus = cargusPoints.length;
+      results.cargus = points.length;
     } catch (e) {
       results.errors.push(`Cargus: ${e.message}`);
     }
+  } else if (couriers.includes("cargus") && !creds.cargus.subscriptionKey) {
+    results.errors.push("Cargus: sync credentials not configured (set CARGUS_SYNC_SUBSCRIPTION_KEY, CARGUS_SYNC_USERNAME, CARGUS_SYNC_PASSWORD)");
   }
 
-  if (couriers.includes("gls") && settings.glsEnabled && settings.glsUsername) {
-    if (!settings.glsShipItUrl) {
-      // No ShipIT URL configured — skip silently (zero points, no error)
-      results.gls = 0;
-    } else {
-      try {
-        const glsPoints = await glsGetPickupPoints({
-          username:   settings.glsUsername,
-          password:   settings.glsPassword,
-          shipItUrl:  settings.glsShipItUrl,
+  if (couriers.includes("gls")) {
+    try {
+      const points = await glsGetPickupPoints();
+      for (const p of points) {
+        await prisma.pickupPoint.upsert({
+          where: { courier_externalId: { courier: "gls", externalId: p.externalId } },
+          update: { ...p, isActive: true, updatedAt: new Date() },
+          create: p,
         });
-        for (const p of glsPoints) {
-          await prisma.pickupPoint.upsert({
-            where: { courier_externalId: { courier: "gls", externalId: p.externalId } },
-            update: { ...p, isActive: true, updatedAt: new Date() },
-            create: p,
-          });
-        }
-        results.gls = glsPoints.length;
-      } catch (e) {
-        results.errors.push(`GLS: ${e.message}`);
       }
+      results.gls = points.length;
+    } catch (e) {
+      results.errors.push(`GLS: ${e.message}`);
     }
   }
 
-  if (couriers.includes("packeta") && settings.packetaEnabled && settings.packetaApiKey) {
+  if (couriers.includes("packeta") && creds.packeta.apiKey) {
     try {
-      const packetaPoints = await packetaGetPickupPoints({
-        apiKey: settings.packetaApiKey,
-      });
-
-      for (const p of packetaPoints) {
+      const points = await packetaGetPickupPoints({ apiKey: creds.packeta.apiKey });
+      for (const p of points) {
         await prisma.pickupPoint.upsert({
           where: { courier_externalId: { courier: "packeta", externalId: p.externalId } },
           update: { ...p, isActive: true, updatedAt: new Date() },
           create: p,
         });
       }
-      results.packeta = packetaPoints.length;
+      results.packeta = points.length;
     } catch (e) {
       if (e.message?.includes("[404]")) {
         results.packeta = 0;
@@ -159,6 +184,8 @@ export async function refreshPickupPointsCache({ settings, couriers = ["fan", "s
         results.errors.push(`Packeta: ${e.message}`);
       }
     }
+  } else if (couriers.includes("packeta") && !creds.packeta.apiKey) {
+    results.errors.push("Packeta: sync credentials not configured (set PACKETA_SYNC_API_KEY)");
   }
 
   return results;

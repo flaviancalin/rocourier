@@ -10,6 +10,10 @@ export async function upsertOrderFromWebhook(shop, shopifyOrder) {
     return acc;
   }, {});
 
+  const weightKg = (shopifyOrder.line_items || []).reduce(
+    (sum, item) => sum + (item.grams || 0) * (item.quantity || 1), 0
+  ) / 1000;
+
   const data = {
     shopifyOrderName: shopifyOrder.name,
     customerName: [
@@ -29,6 +33,7 @@ export async function upsertOrderFromWebhook(shop, shopifyOrder) {
     pickupPointName: attrs["_rocourier_point_name"] || null,
     codAmount: parseFloat(shopifyOrder.total_price) || 0,
     orderTotal: parseFloat(shopifyOrder.total_price) || 0,
+    weight: weightKg > 0 ? weightKg : undefined,
     awbStatus: "pending",
     shopifyCreatedAt: new Date(shopifyOrder.created_at),
   };
@@ -41,6 +46,7 @@ export async function upsertOrderFromWebhook(shop, shopifyOrder) {
       pickupPointId: data.pickupPointId,
       pickupPointName: data.pickupPointName,
       codAmount: data.codAmount,
+      ...(weightKg > 0 ? { weight: weightKg } : {}),
     },
     create: { shop, shopifyOrderId: String(shopifyOrder.id), ...data },
   });
@@ -127,10 +133,16 @@ export async function getDashboardStats(shop) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Update AWB data after generation
 // ─────────────────────────────────────────────────────────────────────────────
-export async function updateOrderAwb(id, { awbNumber, awbPdfUrl, awbStatus = "generated" }) {
+export async function updateOrderAwb(id, { awbNumber, awbPdfUrl, awbStatus = "generated", courierType }) {
   return prisma.order.update({
     where: { id },
-    data: { awbNumber, awbPdfUrl, awbStatus, updatedAt: new Date() },
+    data: {
+      awbNumber,
+      awbPdfUrl,
+      awbStatus,
+      updatedAt: new Date(),
+      ...(courierType ? { courierType } : {}),
+    },
   });
 }
 

@@ -125,9 +125,8 @@ export async function action({ request }) {
   }
 
   if (intent === "refresh-pickup-points") {
-    const settings = await prisma.shopSettings.findUnique({ where: { shop: session.shop } });
     try {
-      const result = await refreshPickupPointsCache({ settings });
+      const result = await refreshPickupPointsCache();
       return json({ refreshResult: result });
     } catch (e) {
       return json({ refreshResult: { errors: [e.message] } });
@@ -155,7 +154,6 @@ export async function action({ request }) {
       cargusEnabled:         get("cargusEnabled") === "true",
       glsUsername:     get("glsUsername") || "",
       glsClientNumber: get("glsClientNumber") || "",
-      glsShipItUrl:    get("glsShipItUrl") || "",
       glsEnabled:      get("glsEnabled") === "true",
       glsSandbox:      get("glsSandbox") === "true",
       packetaEnabled: get("packetaEnabled") === "true",
@@ -240,7 +238,6 @@ export default function Settings() {
   const [glsClientNumber, setGlsClientNumber] = useState(settings.glsClientNumber || "");
   const [glsUsername,     setGlsUsername]     = useState(settings.glsUsername || "");
   const [glsPassword,     setGlsPassword]     = useState("");
-  const [glsShipItUrl,    setGlsShipItUrl]    = useState(settings.glsShipItUrl || "");
 
   const [packetaEnabled, setPacketaEnabled] = useState(!!settings.packetaEnabled);
   const [packetaApiKey,  setPacketaApiKey]  = useState("");
@@ -310,7 +307,7 @@ export default function Settings() {
       samedayEnabled: String(samedayEnabled), samedaySandbox: String(samedaySandbox), samedayUsername,
       cargusEnabled: String(cargusEnabled), cargusSubscriptionKey, cargusUsername,
       glsEnabled: String(glsEnabled), glsSandbox: String(glsSandbox),
-      glsClientNumber, glsUsername, glsShipItUrl,
+      glsClientNumber, glsUsername,
       packetaEnabled: String(packetaEnabled),
       xconnectorEnabled: String(xconnectorEnabled),
       defaultCourier, defaultWeight,
@@ -332,7 +329,7 @@ export default function Settings() {
       fanEnabled, fanClientId, fanUsername, fanPassword,
       samedayEnabled, samedayUsername, samedayPassword, samedaySandbox,
       cargusEnabled, cargusSubscriptionKey, cargusUsername, cargusPassword,
-      glsEnabled, glsClientNumber, glsUsername, glsPassword, glsSandbox, glsShipItUrl,
+      glsEnabled, glsClientNumber, glsUsername, glsPassword, glsSandbox,
       packetaEnabled, packetaApiKey,
       xconnectorEnabled, xconnectorApiKey, defaultCourier, defaultWeight,
       showPickupMap, autoGenerateAwb, widgetLanguage,
@@ -568,14 +565,6 @@ export default function Settings() {
                             <TextField label={t("gls_username")} value={glsUsername} onChange={setGlsUsername} autoComplete="off" />
                             <TextField label={t("gls_password")} value={glsPassword} onChange={setGlsPassword} type="password" placeholder={t("pw_placeholder")} autoComplete="new-password" />
                           </FormLayout.Group>
-                          <TextField
-                            label={t("gls_shipit_url")}
-                            value={glsShipItUrl}
-                            onChange={setGlsShipItUrl}
-                            placeholder="ex: https://shipit.gls-group.eu/backend/rs/parcelshop"
-                            helpText={t("gls_shipit_help")}
-                            autoComplete="off"
-                          />
                         </FormLayout>
                         {actionData?.testResult?.courier === "gls" && (
                           <Banner tone={actionData.testResult.success ? "success" : "critical"} title={actionData.testResult.success ? t("conn_success") : t("conn_error")}>
@@ -710,6 +699,29 @@ export default function Settings() {
                           </Banner>
                         )}
                         <Button onClick={handleRefresh} loading={saving}>{t("cache_refresh")}</Button>
+                      </BlockStack>
+                    </Card>
+
+                    <Card>
+                      <BlockStack gap="300">
+                        <Text variant="headingMd" fontWeight="semibold">{t("carrier_service_title")}</Text>
+                        <Text tone="subdued">{t("carrier_service_desc")}</Text>
+                        {carrierStatus === "registered" && (
+                          <Banner tone="success" title={t("carrier_service_success")}>
+                            <Text>{carrierMsg}</Text>
+                          </Banner>
+                        )}
+                        {carrierStatus === "error" && (
+                          <Banner tone="critical" title={t("carrier_service_error")}>
+                            <Text>{carrierMsg}</Text>
+                          </Banner>
+                        )}
+                        <Button
+                          onClick={handleCarrierRegister}
+                          loading={carrierStatus === "loading"}
+                        >
+                          {t("carrier_service_btn")}
+                        </Button>
                       </BlockStack>
                     </Card>
 

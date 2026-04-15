@@ -11,6 +11,17 @@ import { createHash } from "crypto";
 const GLS_PROD    = "https://api.mygls.ro/ParcelService.svc/json";
 const GLS_SANDBOX = "https://api.test.mygls.ro/ParcelService.svc/json";
 
+// GLS Delivery Points JSON API — public, no auth required.
+// Pattern: https://map.gls-hungary.com/data/deliveryPoints/{country_code}.json
+// country_code is lowercase ISO 3166-1 alpha-2 (e.g. "ro", "hu")
+const GLS_DELIVERY_POINTS_BASE = "https://map.gls-hungary.com/data/deliveryPoints";
+
+// Countries to fetch (lowercase ISO codes).
+// Override with GLS_COUNTRIES env var (comma-separated, e.g. "ro,hu,bg").
+// GLS_SHIPIT_COUNTRIES kept as fallback for existing deployments.
+const GLS_COUNTRIES = (process.env.GLS_COUNTRIES || process.env.GLS_SHIPIT_COUNTRIES || "ro")
+  .split(",").map((c) => c.trim().toLowerCase()).filter(Boolean);
+
 function getBase(sandbox = false) {
   return sandbox ? GLS_SANDBOX : GLS_PROD;
 }
@@ -55,13 +66,15 @@ async function glsRequest(base, method, body) {
     throw new Error(`GLS API error [${res.status}] ${method}: ${text}`);
   }
 
-  // Check for GLS error info in response
+  // GLS returns errors with HTTP 200 but with an error list.
+  // The property name is ErrorCode (not Code) — check both for safety.
   const errorList = data.PrintLabelsErrorList || data.GetParcelStatusErrors ||
     data.DeleteLabelsErrorList || data.ErrorList;
   if (errorList?.length > 0) {
     const first = errorList[0];
-    if (first.Code > 0) {
-      throw new Error(`GLS API error ${first.Code}: ${first.Description || JSON.stringify(first)}`);
+    const code = first.ErrorCode ?? first.Code ?? 0;
+    if (code !== 0) {
+      throw new Error(`GLS API error ${code}: ${first.Description || JSON.stringify(first)}`);
     }
   }
 
@@ -70,24 +83,30 @@ async function glsRequest(base, method, body) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Test connection (validate credentials)
+// Calls GetParcelStatuses with a dummy parcel number (1).
+// GLS validates auth before looking up the parcel, so:
+//   - Invalid credentials → ErrorCode 1 "Wrong username or password" → throws
+//   - Valid credentials + parcel not found → different error (or empty) → success
 // ─────────────────────────────────────────────────────────────────────────────
 export async function glsTestConnection({ username, password, sandbox = false }) {
   const base = getBase(sandbox);
   const auth = glsBuildAuth(username, password);
-  // Attempt a GetParcelStatuses call with dummy data — will fail with API error but auth error is different
-  // Actually better to use GetClientReturnAddress which just needs credentials
   try {
-    await glsRequest(base, "GetClientReturnAddress", {
+    await glsRequest(base, "GetParcelStatuses", {
       ...auth,
-      GetClientReturnAddressRequest: {},
+      ParcelNumber: 1,
+      ReturnPOD: false,
+      LanguageIsoCode: "RO",
     });
   } catch (e) {
-    // If the error is about credentials (auth error), rethrow
-    if (e.message.includes("401") || e.message.toLowerCase().includes("auth") ||
-        e.message.toLowerCase().includes("unauthorized")) {
-      throw e;
+    // ErrorCode 1 = wrong credentials; anything else (e.g. parcel not found) means auth passed
+    if (e.message.includes("GLS API error 1:") ||
+        e.message.toLowerCase().includes("password") ||
+        e.message.toLowerCase().includes("credentials") ||
+        e.message.includes("[401]") || e.message.includes("[403]")) {
+      throw new Error(`GLS credentials invalid: ${e.message}`);
     }
-    // Other errors (e.g., missing client number) mean auth passed
+    // Non-auth error = credentials are fine
   }
   return true;
 }
@@ -230,48 +249,38 @@ export async function glsDeleteAwb({ username, password, sandbox = false, parcel
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Get parcel shops via GLS ShipIT REST API
-// The MyGLS parcel management API has no shop endpoint. GLS provides parcel
-// shop locations through a separate ShipIT REST API:
-//   GET {shipItUrl}/country/RO
-//   Auth: Basic Auth (same username/password as MyGLS)
-//   Headers: Accept: application/glsVersion1+json, application/json
-// The exact base URL (shipItUrl) is provided by GLS Romania with your contract.
-// Example: https://shipit.gls-group.eu/backend/rs/parcelshop
+// Get parcel shops via GLS public Delivery Points JSON API
+// No credentials required — public endpoint, no auth.
+// Pattern: https://map.gls-hungary.com/data/deliveryPoints/{country_code}.json
+// Response: { items: [ { id, name, contact, location: [lat, lng], type, ... } ] }
+// id field = use this in MyGLS API calls (PSDParameter)
 // ─────────────────────────────────────────────────────────────────────────────
-export async function glsGetPickupPoints({ username, password, shipItUrl }) {
-  if (!shipItUrl) return [];
+export async function glsGetPickupPoints() {
+  const allPoints = [];
 
-  const base = shipItUrl.replace(/\/$/, "");
-  const basicAuth = Buffer.from(`${username}:${password}`).toString("base64");
+  for (const countryCode of GLS_COUNTRIES) {
+    const url = `${GLS_DELIVERY_POINTS_BASE}/${countryCode}.json`;
+    const res = await fetch(url, { headers: { Accept: "application/json" } });
 
-  const res = await fetch(`${base}/country/RO`, {
-    headers: {
-      Accept: "application/glsVersion1+json, application/json",
-      Authorization: `Basic ${basicAuth}`,
-    },
-  });
+    if (!res.ok) {
+      throw new Error(`GLS Delivery Points API error [${res.status}] GET ${url}`);
+    }
 
-  if (!res.ok) {
-    throw new Error(`GLS ShipIT error [${res.status}] GET /country/RO`);
+    const data = await res.json();
+    const items = data.items || (Array.isArray(data) ? data : []);
+    allPoints.push(...items);
   }
 
-  const data = await res.json();
-  const shops = Array.isArray(data) ? data : (data.parcelShopList || data.parcelShops || []);
-
-  return shops.map((s) => ({
-    id: String(s.parcelShopId || s.id || s.Id),
-    externalId: String(s.parcelShopId || s.id || s.Id),
+  return allPoints.map((s) => ({
+    externalId: String(s.id || s.goldId || ""),
     courier: "gls",
-    type: "parcelshop",
-    name: s.name || s.companyName || "GLS ParcelShop",
-    address: [s.address?.street, s.address?.city, s.address?.countryCode]
-      .filter(Boolean).join(", ") ||
-      [s.street, s.city].filter(Boolean).join(", "),
-    city: s.address?.city || s.city || null,
-    county: s.address?.region || s.county || null,
-    zip: s.address?.zipCode || s.zip || null,
-    lat: parseFloat(s.position?.latitude  || s.latitude)  || null,
-    lng: parseFloat(s.position?.longitude || s.longitude) || null,
+    type: s.type === "parcel-locker" ? "locker" : "parcelshop",
+    name: s.name || "GLS ParcelShop",
+    address: s.contact?.address || "",
+    city: s.contact?.city || null,
+    county: null, // not provided by this API
+    zip: s.contact?.postalCode || null,
+    lat: Array.isArray(s.location) ? (parseFloat(s.location[0]) || null) : null,
+    lng: Array.isArray(s.location) ? (parseFloat(s.location[1]) || null) : null,
   }));
 }
