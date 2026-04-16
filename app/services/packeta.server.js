@@ -15,7 +15,8 @@ const PACKETA_BRANCH_BASE  = "https://www.zasilkovna.cz/api/v6";
 // Packeta's REST API uses XML request/response
 // ─────────────────────────────────────────────────────────────────────────────
 async function packetaXmlRequest(endpoint, xmlBody) {
-  const res = await fetch(`${PACKETA_REST_BASE}/${endpoint}`, {
+  // Packeta REST API is a single endpoint — method is determined by XML root element
+  const res = await fetch(`${PACKETA_REST_BASE}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/xml; charset=utf-8",
@@ -74,7 +75,7 @@ export async function packetaTestConnection({ apiKey }) {
   </attributes>
 </createPacketAttributeValid>`;
 
-  const res = await fetch(`${PACKETA_REST_BASE}/createPacketAttributeValid`, {
+  const res = await fetch(`${PACKETA_REST_BASE}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/xml; charset=utf-8",
