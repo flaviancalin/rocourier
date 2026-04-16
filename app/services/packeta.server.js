@@ -60,7 +60,7 @@ function xmlEscape(str) {
 // ─────────────────────────────────────────────────────────────────────────────
 export async function packetaTestConnection({ apiKey }) {
   const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
-<packetAttributeValid>
+<createPacketAttributeValid>
   <apiPassword>${xmlEscape(apiKey)}</apiPassword>
   <attributes>
     <number>test-conn-001</number>
@@ -72,9 +72,9 @@ export async function packetaTestConnection({ apiKey }) {
     <currency>RON</currency>
     <weight>1</weight>
   </attributes>
-</packetAttributeValid>`;
+</createPacketAttributeValid>`;
 
-  const res = await fetch(`${PACKETA_REST_BASE}/packetAttributeValid`, {
+  const res = await fetch(`${PACKETA_REST_BASE}/createPacketAttributeValid`, {
     method: "POST",
     headers: {
       "Content-Type": "application/xml; charset=utf-8",
@@ -149,7 +149,6 @@ export async function packetaGetPickupPoints({ apiKey }) {
 export async function packetaCreatePacket({
   apiKey,
   order,      // customer order data
-  settings,   // sender settings (senderName, senderEmail)
   pickupPointId = null,  // Packeta branch ID for locker/point delivery
 }) {
   const isPoint = !!pickupPointId;
@@ -208,7 +207,7 @@ export async function packetaCreatePacket({
 // POST /packetLabelPdf (XML) or GET /api/v6/{apiKey}/parcels/print/{id}
 // Returns binary PDF buffer
 // ─────────────────────────────────────────────────────────────────────────────
-export async function packetaDownloadLabel({ apiKey, packetId, format = "A6 on A4" }) {
+export async function packetaDownloadLabel({ apiKey, packetId }) {
   const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
 <packetLabelPdf>
   <apiPassword>${xmlEscape(apiKey)}</apiPassword>
