@@ -7,9 +7,8 @@
 // Auth: API key included in request body (XML) or URL path
 // Contact: technicka.podpora@packeta.com for API key
 
-const PACKETA_REST_BASE         = "https://www.zasilkovna.cz/api/rest";
-const PACKETA_BRANCH_BASE       = "https://www.zasilkovna.cz/api/v6";
-const PACKETA_PICKUP_POINT_API  = "https://pickup-point.api.packeta.com/v5";
+const PACKETA_REST_BASE    = "https://www.zasilkovna.cz/api/rest";
+const PACKETA_BRANCH_BASE  = "https://www.zasilkovna.cz/api/v6";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Core XML helper
@@ -105,36 +104,37 @@ export async function packetaTestConnection({ apiKey }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Get pickup branches (Z-BOX lockers + Packeta partner points)
-// GET https://pickup-point.api.packeta.com/v5/?apikey={key}&country=ro&lang=ro
-// Newer Packeta pickup point API — replaces the deprecated branch.json feed
+// GET https://www.zasilkovna.cz/api/v6/{apiKey}/branch.json
+// apiKey = the short API key from client.packeta.com → Settings → API key
+// (NOT the API password — that's only for XML REST calls)
 // ─────────────────────────────────────────────────────────────────────────────
 export async function packetaGetPickupPoints({ apiKey }) {
-  const params = new URLSearchParams({ apikey: apiKey, country: "ro", lang: "ro" });
-  const res = await fetch(
-    `${PACKETA_PICKUP_POINT_API}/?${params}`,
-    { headers: { Accept: "application/json" } }
-  );
+  const url = `${PACKETA_BRANCH_BASE}/${encodeURIComponent(apiKey)}/branch.json`;
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
 
   if (!res.ok) {
-    throw new Error(`Packeta pickup points error [${res.status}]`);
+    throw new Error(`Packeta branch.json error [${res.status}] — check PACKETA_SYNC_API_KEY is the short API key (not password)`);
   }
 
   const data = await res.json();
-  const points = data.pickupPoints || data.items || (Array.isArray(data) ? data : []);
+  const branches = data.branches || data.pickupPoints || (Array.isArray(data) ? data : []);
 
-  return points
-    .filter((p) => p.status === "open" || p.status === 1 || p.status === "active" || !p.status)
-    .map((p) => ({
-      externalId: String(p.id || p.externalId || ""),
+  return branches
+    .filter((b) =>
+      (b.country === "ro" || b.country === "RO") &&
+      (b.status === 1 || b.status === "active" || b.status === "open")
+    )
+    .map((b) => ({
+      externalId: String(b.id || ""),
       courier: "packeta",
-      type: p.pickupPointType === "zbox" || p.type === "zbox" ? "zbox" : "packeta_point",
-      name: p.name || p.nameStreet || "Packeta Point",
-      address: [p.street, p.city, p.zip].filter(Boolean).join(", "),
-      city: p.city || null,
-      county: p.county || p.region || null,
-      zip: p.zip || null,
-      lat: parseFloat(p.latitude  || p.lat)  || null,
-      lng: parseFloat(p.longitude || p.lng)  || null,
+      type: b.pickupPointType === "zbox" || b.place === "zbox" ? "zbox" : "packeta_point",
+      name: b.name || b.nameStreet || "Packeta Point",
+      address: [b.street, b.city, b.zip].filter(Boolean).join(", "),
+      city: b.city || null,
+      county: b.county || b.region || null,
+      zip: b.zip || null,
+      lat: parseFloat(b.latitude)  || null,
+      lng: parseFloat(b.longitude) || null,
     }));
 }
 
