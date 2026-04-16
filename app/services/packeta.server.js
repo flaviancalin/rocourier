@@ -54,6 +54,54 @@ function xmlEscape(str) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Test connection — validate API password via XML endpoint
+// Uses packetAttributeValid with dummy data; if credentials are wrong Packeta
+// returns "Invalid API password" fault; any other response = credentials OK
+// ─────────────────────────────────────────────────────────────────────────────
+export async function packetaTestConnection({ apiKey }) {
+  const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
+<packetAttributeValid>
+  <apiPassword>${xmlEscape(apiKey)}</apiPassword>
+  <attributes>
+    <number>test-conn-001</number>
+    <name>Test User</name>
+    <email>test@test.com</email>
+    <addressId>1</addressId>
+    <cod>0</cod>
+    <value>1</value>
+    <currency>RON</currency>
+    <weight>1</weight>
+  </attributes>
+</packetAttributeValid>`;
+
+  const res = await fetch(`${PACKETA_REST_BASE}/packetAttributeValid`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/xml; charset=utf-8",
+      Accept: "application/xml, text/xml",
+    },
+    body: xmlBody,
+  });
+
+  const text = await res.text();
+
+  // Invalid API password → explicit fault message
+  if (text.toLowerCase().includes("invalid api password") ||
+      text.toLowerCase().includes("invalid password") ||
+      text.toLowerCase().includes("apipassword")) {
+    throw new Error("Packeta API password invalid");
+  }
+
+  // Any HTTP error other than auth issues
+  if (!res.ok && res.status !== 400 && res.status !== 422) {
+    throw new Error(`Packeta API error [${res.status}]`);
+  }
+
+  // 400/422 with attribute errors = credentials fine, test data invalid (expected)
+  return true;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Get pickup branches (Z-BOX lockers + Packeta partner points)
 // GET /api/v6/{apiKey}/branch.json?lang=en
 // Returns ALL worldwide branches — filter by country field in response

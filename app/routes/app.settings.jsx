@@ -7,7 +7,7 @@ import { fanAuthenticate } from "../services/fan-courier.server.js";
 import { samedayAuthenticate } from "../services/sameday.server.js";
 import { cargusAuthenticate } from "../services/cargus.server.js";
 import { glsTestConnection } from "../services/gls.server.js";
-import { packetaGetPickupPoints } from "../services/packeta.server.js";
+import { packetaTestConnection } from "../services/packeta.server.js";
 import { refreshPickupPointsCache } from "../models/pickup-points.server.js";
 import { useState, useCallback, useEffect } from "react";
 import {
@@ -76,7 +76,7 @@ export async function action({ request }) {
   if (intent === "test-packeta") {
     const settings = await prisma.shopSettings.findUnique({ where: { shop: session.shop } });
     try {
-      await packetaGetPickupPoints({ apiKey: settings.packetaApiKey, country: "ro" });
+      await packetaTestConnection({ apiKey: settings.packetaApiKey });
       return json({ testResult: { courier: "packeta", success: true } });
     } catch (e) {
       return json({ testResult: { courier: "packeta", success: false, error: e.message } });
