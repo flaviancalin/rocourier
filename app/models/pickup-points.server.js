@@ -178,11 +178,7 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
       }
       results.packeta = points.length;
     } catch (e) {
-      if (e.message?.includes("[404]")) {
-        results.packeta = 0;
-      } else {
-        results.errors.push(`Packeta: ${e.message}`);
-      }
+      results.errors.push(`Packeta: ${e.message}`);
     }
   } else if (couriers.includes("packeta") && !creds.packeta.apiKey) {
     results.errors.push("Packeta: sync credentials not configured (set PACKETA_SYNC_API_KEY)");
