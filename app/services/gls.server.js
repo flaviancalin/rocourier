@@ -268,7 +268,7 @@ export async function glsGetPickupPoints() {
 
     const data = await res.json();
     const items = data.items || (Array.isArray(data) ? data : []);
-    allPoints.push(...items);
+    allPoints.push(...items.map((s) => ({ ...s, _country: countryCode })));
   }
 
   return allPoints.map((s) => ({
@@ -278,7 +278,8 @@ export async function glsGetPickupPoints() {
     name: s.name || "GLS ParcelShop",
     address: s.contact?.address || "",
     city: s.contact?.city || null,
-    county: null, // not provided by this API
+    county: null,
+    country: s._country || "ro",
     zip: s.contact?.postalCode || null,
     lat: Array.isArray(s.location) ? (parseFloat(s.location[0]) || null) : null,
     lng: Array.isArray(s.location) ? (parseFloat(s.location[1]) || null) : null,

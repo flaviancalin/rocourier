@@ -158,8 +158,8 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
       for (const p of points) {
         await prisma.pickupPoint.upsert({
           where: { courier_externalId: { courier: "gls", externalId: p.externalId } },
-          update: { ...p, country: "ro", isActive: true, updatedAt: new Date() },
-          create: { ...p, country: "ro" },
+          update: { ...p, isActive: true, updatedAt: new Date() },
+          create: p,
         });
       }
       results.gls = points.length;
