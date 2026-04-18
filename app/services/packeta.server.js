@@ -8,7 +8,8 @@
 // Contact: technicka.podpora@packeta.com for API key
 
 const PACKETA_REST_BASE    = "https://www.zasilkovna.cz/api/rest";
-const PACKETA_BRANCH_BASE  = "https://www.zasilkovna.cz/api/v6";
+const PACKETA_PICKUP_BASE  = "https://pickup-point.api.packeta.com/v5";
+const PACKETA_PARCEL_BASE  = "https://www.zasilkovna.cz/api/v6";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Core XML helper
@@ -109,33 +110,39 @@ export async function packetaTestConnection({ apiKey }) {
 // (NOT the API password — that's only for XML REST calls)
 // ─────────────────────────────────────────────────────────────────────────────
 export async function packetaGetPickupPoints({ apiKey }) {
-  const url = `${PACKETA_BRANCH_BASE}/${encodeURIComponent(apiKey)}/branch.json`;
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  const key = encodeURIComponent(apiKey);
+  const [branchRes, boxRes] = await Promise.all([
+    fetch(`${PACKETA_PICKUP_BASE}/${key}/branch/json?lang=RO`, { headers: { Accept: "application/json" } }),
+    fetch(`${PACKETA_PICKUP_BASE}/${key}/box/json?lang=RO`,    { headers: { Accept: "application/json" } }),
+  ]);
 
-  if (!res.ok) {
-    throw new Error(`Packeta branch.json error [${res.status}] — check PACKETA_SYNC_API_KEY is the short API key (not password)`);
-  }
+  if (!branchRes.ok) throw new Error(`Packeta branch/json error [${branchRes.status}] — check PACKETA_SYNC_API_KEY`);
+  if (!boxRes.ok)    throw new Error(`Packeta box/json error [${boxRes.status}] — check PACKETA_SYNC_API_KEY`);
 
-  const data = await res.json();
-  const branches = data.branches || data.pickupPoints || (Array.isArray(data) ? data : []);
+  const [branches, boxes] = await Promise.all([branchRes.json(), boxRes.json()]);
 
-  return branches
-    .filter((b) =>
-      (b.country === "ro" || b.country === "RO") &&
-      (b.status === 1 || b.status === "active" || b.status === "open")
-    )
-    .map((b) => ({
-      externalId: String(b.id || ""),
-      courier: "packeta",
-      type: b.pickupPointType === "zbox" || b.place === "zbox" ? "zbox" : "packeta_point",
-      name: b.name || b.nameStreet || "Packeta Point",
-      address: [b.street, b.city, b.zip].filter(Boolean).join(", "),
-      city: b.city || null,
-      county: b.county || b.region || null,
-      zip: b.zip || null,
-      lat: parseFloat(b.latitude)  || null,
-      lng: parseFloat(b.longitude) || null,
-    }));
+  const isActive = (b) =>
+    b.country === "ro" &&
+    b.status?.statusId === "1" &&
+    b.displayFrontend === "1";
+
+  const mapPoint = (b, type) => ({
+    externalId: String(b.id || ""),
+    courier: "packeta",
+    type,
+    name: b.name || "Packeta Point",
+    address: [b.street, b.city, b.zip].filter(Boolean).join(", "),
+    city: b.city || null,
+    county: null,
+    zip: b.zip || null,
+    lat: parseFloat(b.latitude)  || null,
+    lng: parseFloat(b.longitude) || null,
+  });
+
+  return [
+    ...(Array.isArray(branches) ? branches : []).filter(isActive).map((b) => mapPoint(b, "packeta_point")),
+    ...(Array.isArray(boxes)    ? boxes    : []).filter(isActive).map((b) => mapPoint(b, "zbox")),
+  ];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -249,7 +256,7 @@ export async function packetaDownloadLabel({ apiKey, packetId }) {
 // ─────────────────────────────────────────────────────────────────────────────
 export async function packetaTrackPacket({ apiKey, awbNumber }) {
   const res = await fetch(
-    `${PACKETA_BRANCH_BASE}/${apiKey}/parcel/${encodeURIComponent(awbNumber)}/statuses`,
+    `${PACKETA_PARCEL_BASE}/${apiKey}/parcel/${encodeURIComponent(awbNumber)}/statuses`,
     { headers: { Accept: "application/json" } }
   );
 
