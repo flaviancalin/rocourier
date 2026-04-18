@@ -122,7 +122,6 @@ export async function packetaGetPickupPoints({ apiKey }) {
   const [branches, boxes] = await Promise.all([branchRes.json(), boxRes.json()]);
 
   const isActive = (b) =>
-    b.country === "ro" &&
     b.status?.statusId === "1" &&
     b.displayFrontend === "1";
 
@@ -134,6 +133,7 @@ export async function packetaGetPickupPoints({ apiKey }) {
     address: [b.street, b.city, b.zip].filter(Boolean).join(", "),
     city: b.city || null,
     county: null,
+    country: b.country?.toLowerCase() || null,
     zip: b.zip || null,
     lat: parseFloat(b.latitude)  || null,
     lng: parseFloat(b.longitude) || null,

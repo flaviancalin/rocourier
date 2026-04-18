@@ -33,6 +33,7 @@
       err_no_method:     "Alege o metodă de livrare înainte de a continua!",
       err_no_point:      "Alege un punct de ridicare de pe hartă!",
       points_count:      "{n} puncte",
+      last_used:         "Ultima alegere",
     },
     en: {
       free:              "Free",
@@ -53,6 +54,7 @@
       err_no_method:     "Please choose a delivery method before continuing!",
       err_no_point:      "Please select a pickup point from the map!",
       points_count:      "{n} points",
+      last_used:         "Last used",
     },
     de: {
       free:              "Kostenlos",
@@ -73,6 +75,7 @@
       err_no_method:     "Bitte wählen Sie eine Liefermethode aus!",
       err_no_point:      "Bitte wählen Sie einen Abholpunkt auf der Karte!",
       points_count:      "{n} Punkte",
+      last_used:         "Zuletzt verwendet",
     },
     hu: {
       free:              "Ingyenes",
@@ -93,6 +96,7 @@
       err_no_method:     "Kérjük, válasszon szállítási módot a folytatás előtt!",
       err_no_point:      "Kérjük, válasszon csomagpontot a térképen!",
       points_count:      "{n} pont",
+      last_used:         "Utoljára használt",
     },
     cs: {
       free:              "Zdarma",
@@ -113,6 +117,7 @@
       err_no_method:     "Před pokračováním vyberte způsob doručení!",
       err_no_point:      "Vyberte výdejní místo na mapě!",
       points_count:      "{n} míst",
+      last_used:         "Naposledy použité",
     },
   };
 
@@ -132,6 +137,7 @@
     const SHOP     = widget.dataset.shop    || "";
     const APP_URL  = (widget.dataset.appUrl || "").replace(/\/$/, "");
     const CURRENCY = widget.dataset.currency || "RON";
+    const COUNTRY  = (widget.dataset.country || "ro").toLowerCase();
 
     // Language — Liquid passes store locale via data-lang; app settings can override via API
     const localeLang = (widget.dataset.lang || "ro").slice(0, 2).toLowerCase();
@@ -220,14 +226,9 @@
     }
 
     // ── DOM refs ───────────────────────────────────────────────────────────────
-    const homeRadio      = $("rc-home");
-    const pickupRadio    = $("rc-pickup");
-    const radios         = document.querySelectorAll('input[name="rc_delivery"]');
-    const hMethod        = $("rc-h-method");
-    const hCourier       = $("rc-h-courier");
-    const hPointId       = $("rc-h-point-id");
-    const hPointNm       = $("rc-h-point-nm");
-    const hPointAd       = $("rc-h-point-ad");
+    const homeRow        = $("rc-home-row");
+    const pickupRow      = $("rc-pickup-row");
+    const methodRows     = document.querySelectorAll(".rc-method-row[data-rc-value]");
     const homeFeeEl      = $("rc-home-fee");
     const pickupFeeEl    = $("rc-pickup-fee");
     const pointSelected  = $("rc-point-selected");
@@ -245,67 +246,94 @@
     const listEmpty      = $("rc-list-empty");
     const listCount      = $("rc-list-count");
     const filterBtns     = document.querySelectorAll(".rc-filter-btn");
+    const filterToggle   = $("rc-filter-toggle");
+    const filtersPanel   = $("rc-type-filters");
+    const bottomSheet    = $("rc-bottom-sheet");
+    const sheetHandle    = $("rc-sheet-handle");
 
     // ── State ──────────────────────────────────────────────────────────────────
-    let allPoints     = [];
-    let filtered      = [];
-    let selectedPoint = null;   // chosen pickup point object
-    let currentFilter = "all";
-    let mapInst       = null;
-    let mapReady      = false;
-    let pointsLoaded  = false;
+    let allPoints        = [];
+    let filtered         = [];
+    let selectedPoint    = null;   // chosen pickup point object
+    let currentFilter    = "all";
+    let mapInst          = null;
+    let clusterGroup     = null;
+    let mapReady         = false;
+    let pointsLoaded     = false;
+    let _userLat         = null;   // customer's latitude (geolocation or IP)
+    let _userLng         = null;   // customer's longitude
+    let _locationFetched = false;  // don't re-fetch on every modal open
 
     // Default courier: first enabled courier (used for home delivery)
     const enabledCouriers  = Object.keys(COURIERS).filter((c) => ENABLED[c]);
     const defaultCourier   = enabledCouriers[0] || null;
 
-    // ── Radio change: Home ──────────────────────────────────────────────────────
+    // JS-only state — no DOM inputs, nothing Shopify can intercept
+    let _method  = "";
+    let _courier = "";
+    let _pid     = "";
+    let _pname   = "";
+    let _paddr   = "";
+
+    // ── Row selection helpers ──────────────────────────────────────────────────
+    function selectRow(value) {
+      methodRows.forEach((r) => {
+        const active = r.dataset.rcValue === value;
+        r.classList.toggle("rc-selected", active);
+        r.setAttribute("aria-checked", active ? "true" : "false");
+      });
+    }
+
+    // ── Method: Home ───────────────────────────────────────────────────────────
     function onHomeSelected() {
-      // Hide pickup point summary
+      selectRow("home");
       if (pointSelected) pointSelected.style.display = "none";
-      // Clear pickup-fee display
-      if (pickupFeeEl) pickupFeeEl.textContent = "";
+      if (pickupFeeEl)   pickupFeeEl.textContent = "";
       hideError();
-      // Auto-set to the default (first enabled) courier
       if (defaultCourier) {
         if (homeFeeEl) homeFeeEl.textContent = feeLabel(FEES[defaultCourier]?.home || 0);
-        setHiddenHome(defaultCourier);
+        _method  = "home_delivery";
+        _courier = defaultCourier;
+        _pid = _pname = _paddr = "";
+        saveSession();
       }
     }
 
-    // ── Radio change: Pickup ────────────────────────────────────────────────────
+    // ── Method: Pickup ─────────────────────────────────────────────────────────
     function onPickupSelected() {
-      // Clear home-fee display
+      selectRow("pickup");
       if (homeFeeEl) homeFeeEl.textContent = "";
-      // If no point selected yet, open the map
       if (!selectedPoint) {
-        clearHiddenPoint();
+        _method = _courier = _pid = _pname = _paddr = "";
         openModal();
       } else {
-        // Restore the pickup-fee for previously selected courier
         updatePickupFee(selectedPoint.courier);
-        if (hMethod)  hMethod.value  = "pickup_point";
-        if (hCourier) hCourier.value = selectedPoint.courier;
-        syncCart();
+        _method  = "pickup_point";
+        _courier = selectedPoint.courier;
+        saveSession();
       }
       hideError();
     }
 
-    radios.forEach((r) => {
-      r.addEventListener("change", () => {
-        if (!r.checked) return;
-        if (r.value === "home")   onHomeSelected();
-        if (r.value === "pickup") onPickupSelected();
+    // Click listeners on the div rows — completely invisible to Shopify
+    if (homeRow)   homeRow.addEventListener("click",   onHomeSelected);
+    if (pickupRow) pickupRow.addEventListener("click", onPickupSelected);
+    // Keyboard accessibility
+    methodRows.forEach((row) => {
+      row.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          if (row.dataset.rcValue === "home")   onHomeSelected();
+          if (row.dataset.rcValue === "pickup") onPickupSelected();
+        }
       });
     });
 
     function setHiddenHome(courier) {
-      if (hMethod)  hMethod.value  = "home_delivery";
-      if (hCourier) hCourier.value = courier;
-      if (hPointId) hPointId.value = "";
-      if (hPointNm) hPointNm.value = "";
-      if (hPointAd) hPointAd.value = "";
-      syncCart();
+      _method  = "home_delivery";
+      _courier = courier;
+      _pid = _pname = _paddr = "";
+      saveSession();
     }
 
     function updatePickupFee(courier) {
@@ -314,26 +342,115 @@
 
     // ── Modal ──────────────────────────────────────────────────────────────────
     let _modalOpen = false;
+    let _scrollY   = 0;
+
+    function lockScroll() {
+      _scrollY = window.scrollY || window.pageYOffset;
+      // iOS Safari-safe scroll lock: position:fixed preserves layout width
+      document.body.style.position   = "fixed";
+      document.body.style.top        = `-${_scrollY}px`;
+      document.body.style.left       = "0";
+      document.body.style.right      = "0";
+      document.body.style.overflowY  = "scroll"; // keep scrollbar width to prevent layout shift
+    }
+
+    function unlockScroll() {
+      document.body.style.position  = "";
+      document.body.style.top       = "";
+      document.body.style.left      = "";
+      document.body.style.right     = "";
+      document.body.style.overflowY = "";
+      window.scrollTo(0, _scrollY);
+    }
+
+    // ── Distance helpers ───────────────────────────────────────────────────────
+    function haversine(lat1, lng1, lat2, lng2) {
+      const R = 6371; // km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) ** 2
+              + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180)
+              * Math.sin(dLng / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+    function formatDist(km) {
+      return km < 1
+        ? Math.round(km * 1000) + " m"
+        : km < 10
+          ? km.toFixed(1) + " km"
+          : Math.round(km) + " km";
+    }
+    function distTo(p) {
+      if (_userLat === null || !p.lat || !p.lng) return null;
+      return haversine(_userLat, _userLng, p.lat, p.lng);
+    }
+
+    // ── User location — geolocation → IP fallback ──────────────────────────────
+    function fetchUserLocation() {
+      if (_locationFetched) return;
+      _locationFetched = true;
+
+      function onCoords(lat, lng) {
+        _userLat = lat;
+        _userLng = lng;
+        // Pan map if already open
+        if (mapInst) mapInst.setView([lat, lng], 12);
+        // Re-render list with distances + sorted
+        if (pointsLoaded) applyFilters();
+      }
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => onCoords(pos.coords.latitude, pos.coords.longitude),
+          () => tryIPLocation(), // denied or unavailable → fall back
+          { timeout: 6000, maximumAge: 300000 }
+        );
+      } else {
+        tryIPLocation();
+      }
+    }
+    function tryIPLocation() {
+      fetch("https://ipapi.co/json/")
+        .then((r) => r.json())
+        .then(({ latitude, longitude }) => {
+          if (latitude && longitude) {
+            _userLat = latitude;
+            _userLng = longitude;
+            if (mapInst) mapInst.setView([latitude, longitude], 12);
+            if (pointsLoaded) applyFilters();
+          }
+        })
+        .catch(() => {});
+    }
 
     function openModal() {
       if (!modal) return;
       _modalOpen = true;
       modal.style.display = "flex";
-      // Prevent body scroll without changing layout (avoids theme scroll-position resets)
-      document.documentElement.style.overflow = "hidden";
-      document.body.style.overflow = "hidden";
+      lockScroll();
       if (!pointsLoaded) fetchPoints();
       else applyFilters();
       tryInitMap();
+      fetchUserLocation();
     }
 
     function tryInitMap(attempts) {
       attempts = attempts || 0;
       if (typeof L !== "undefined") {
         requestAnimationFrame(() => requestAnimationFrame(() => {
+          // If the map container was replaced by a section re-render, reset state
+          const mapEl = $("rc-map");
+          if (mapInst && mapEl && !mapEl.contains(mapInst.getContainer())) {
+            mapInst = null;
+            clusterGroup = null;
+            mapReady = false;
+            window.__rcMarkers = [];
+          }
           initMap();
-          if (mapInst) mapInst.invalidateSize();
-          setTimeout(() => { if (mapInst) mapInst.invalidateSize(); }, 300);
+          if (mapInst) {
+            mapInst.invalidateSize();
+            setTimeout(() => { if (mapInst) mapInst.invalidateSize(); }, 300);
+          }
         }));
       } else if (attempts < 30) {
         setTimeout(() => tryInitMap(attempts + 1), 100);
@@ -344,11 +461,10 @@
       if (!modal) return;
       _modalOpen = false;
       modal.style.display = "none";
-      document.documentElement.style.overflow = "";
-      document.body.style.overflow = "";
-      // If user closed without selecting a point, un-check the pickup radio
+      unlockScroll();
+      // If user closed without selecting a point, deselect the pickup row
       if (!selectedPoint) {
-        if (pickupRadio) pickupRadio.checked = false;
+        selectRow(null);
         clearHiddenPoint();
       }
     }
@@ -359,6 +475,47 @@
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && modal?.style.display === "flex") closeModal();
     });
+
+    // ── Filter toggle ──────────────────────────────────────────────────────────
+    if (filterToggle && filtersPanel) {
+      filterToggle.addEventListener("click", () => {
+        const open = filtersPanel.classList.toggle("rc-filters-open");
+        filterToggle.classList.toggle("rc-filter-toggle-active", open);
+      });
+    }
+
+    // ── Bottom sheet drag (mobile) ─────────────────────────────────────────────
+    if (sheetHandle && bottomSheet) {
+      let dragStart = 0, dragStartH = 0, dragging = false;
+
+      function onDragStart(clientY) {
+        dragging   = true;
+        dragStart  = clientY;
+        dragStartH = bottomSheet.offsetHeight;
+        bottomSheet.style.transition = "none";
+      }
+      function onDragMove(clientY) {
+        if (!dragging) return;
+        const delta  = dragStart - clientY;
+        const newH   = Math.min(Math.max(dragStartH + delta, 120), window.innerHeight * 0.88);
+        bottomSheet.style.height = newH + "px";
+        // Nudge map to recalculate
+        if (mapInst) mapInst.invalidateSize({ animate: false });
+      }
+      function onDragEnd() {
+        if (!dragging) return;
+        dragging = false;
+        bottomSheet.style.transition = "";
+        if (mapInst) mapInst.invalidateSize();
+      }
+
+      sheetHandle.addEventListener("touchstart", (e) => { onDragStart(e.touches[0].clientY); }, { passive: true });
+      sheetHandle.addEventListener("touchmove",  (e) => { onDragMove(e.touches[0].clientY); },  { passive: true });
+      sheetHandle.addEventListener("touchend",   onDragEnd, { passive: true });
+      sheetHandle.addEventListener("mousedown",  (e) => onDragStart(e.clientY));
+      window.addEventListener("mousemove", (e) => { if (dragging) onDragMove(e.clientY); });
+      window.addEventListener("mouseup",   onDragEnd);
+    }
 
     // ── Fetch pickup points ────────────────────────────────────────────────────
     async function fetchPoints() {
@@ -376,7 +533,7 @@
       try {
         const enabledWithPickup = Object.keys(COURIERS).filter((c) => ENABLED[c]);
         const couriersParam = enabledWithPickup.join(",") || "all";
-        const url = `${APP_URL}/api/pickup-points?shop=${encodeURIComponent(SHOP)}&courier=${couriersParam}`;
+        const url = `${APP_URL}/api/pickup-points?shop=${encodeURIComponent(SHOP)}&courier=${couriersParam}&country=${COUNTRY}`;
         const res = await fetch(url, { headers: { Accept: "application/json" } });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -399,7 +556,7 @@
       if (!mapInst || q.length < 4) return;
       _geocodeTimer = setTimeout(async () => {
         try {
-          const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=ro&limit=1`;
+          const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=${COUNTRY}&limit=1`;
           const res  = await fetch(url, { headers: { "Accept": "application/json" } });
           const data = await res.json();
           if (data.length > 0 && mapInst) {
@@ -429,6 +586,11 @@
           .map((s) => (s || "").toLowerCase()).join(" ");
         return words.every((w) => haystack.includes(w));
       });
+      // Sort by distance when we have the user's location
+      if (_userLat !== null) {
+        filtered.sort((a, b) => (distTo(a) ?? Infinity) - (distTo(b) ?? Infinity));
+      }
+
       renderList(filtered);
       if (mapInst) renderMarkers(filtered);
       if (listEmpty) listEmpty.style.display = filtered.length === 0 ? "block" : "none";
@@ -452,7 +614,19 @@
     function renderList(points) {
       if (!pointsList) return;
       pointsList.innerHTML = "";
-      points.forEach((p) => {
+
+      // Float last-used point to the top (if it's in the current filtered set)
+      const fav = loadFavourite();
+      let favPoint = null;
+      let orderedPoints = points;
+      if (fav) {
+        favPoint = points.find((p) => p.id === fav.id);
+        if (favPoint) {
+          orderedPoints = [favPoint, ...points.filter((p) => p.id !== fav.id)];
+        }
+      }
+
+      orderedPoints.forEach((p) => {
         const cfg   = COURIERS[p.courier] || { pickupLabel: p.courier, color: "#888", badgeClass: "" };
         const isSel = selectedPoint?.id === p.id;
         const li    = document.createElement("li");
@@ -466,12 +640,19 @@
                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><path d="M12 2v2.5M12 19.5v2.5M2 12h2.5M19.5 12h2.5"/></svg>
              </button>`
           : "";
+        const isFav = favPoint && p.id === favPoint.id;
+        const km    = distTo(p);
+        const distBadge = km !== null
+          ? `<span class="rc-dist-badge">${formatDist(km)}</span>`
+          : "";
         li.innerHTML = `
           <div class="rc-item-top">
             ${logoUrl
               ? `<img src="${logoUrl}" alt="${esc(cfg.label)}" class="rc-item-logo">`
               : `<span class="rc-item-badge ${cfg.badgeClass}" style="background:${cfg.color}22;color:${cfg.color};border:1px solid ${cfg.color}44">${esc(cfg.pickupLabel)}</span>`
             }
+            ${isFav ? `<span class="rc-last-used-badge">⭐ ${t("last_used")}</span>` : ""}
+            ${distBadge}
             ${targetBtn}
           </div>
           <strong class="rc-item-name">${esc(p.name)}</strong>
@@ -517,17 +698,44 @@
       const el = $("rc-map");
       if (!el) return;
 
-      mapInst = L.map("rc-map", { zoomControl: true }).setView([45.94, 24.97], 7);
+      mapInst = L.map("rc-map", {
+        zoomControl: true,
+        preferCanvas: true,       // canvas renderer — much faster on mobile
+        zoomSnap: 0.5,
+        wheelPxPerZoomLevel: 80,  // smoother mouse-wheel zoom
+      }).setView([45.94, 24.97], 7);
+
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
         maxZoom: 19,
+        keepBuffer: 4,            // pre-load more tiles while panning
+        updateWhenIdle: false,    // load tiles continuously while moving
+        updateWhenZooming: true,
       }).addTo(mapInst);
 
       mapReady = true;
       window.__rcMarkers = [];
 
-      // ── "My location" floating button ─────────────────────────────────────
-      const mapPanel = el.parentElement;
+      // Marker clustering
+      clusterGroup = L.markerClusterGroup({
+        maxClusterRadius: 60,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        zoomToBoundsOnClick: true,
+        iconCreateFunction(cluster) {
+          const count = cluster.getChildCount();
+          const size  = count < 10 ? 34 : count < 100 ? 40 : 46;
+          return L.divIcon({
+            html: `<div class="rc-cluster-icon" style="width:${size}px;height:${size}px;line-height:${size}px">${count}</div>`,
+            className: "",
+            iconSize: [size, size],
+          });
+        },
+      });
+      clusterGroup.addTo(mapInst);
+
+      // ── "My location" floating button (appended to map panel) ─────────────
+      const mapPanel = $("rc-map-panel");
       if (mapPanel) {
         const locBtn = document.createElement("button");
         locBtn.type      = "button";
@@ -548,8 +756,8 @@
     }
 
     function renderMarkers(points) {
-      if (!mapInst) return;
-      (window.__rcMarkers || []).forEach((m) => mapInst.removeLayer(m));
+      if (!mapInst || !clusterGroup) return;
+      clusterGroup.clearLayers();
       window.__rcMarkers = [];
 
       const coords = [];
@@ -595,7 +803,6 @@
           : `<div style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;margin-bottom:6px;background:${cfg.color}22;color:${cfg.color};border:1px solid ${cfg.color}44">${esc(cfg.pickupLabel)}</div>`;
 
         const marker = L.marker([p.lat, p.lng], { icon })
-          .addTo(mapInst)
           .bindPopup(
             `<div style="min-width:170px;font-family:inherit">
               ${logoHtml}
@@ -608,6 +815,7 @@
           );
 
         marker._rcId = p.id;
+        clusterGroup.addLayer(marker);
         window.__rcMarkers.push(marker);
         coords.push([p.lat, p.lng]);
       });
@@ -627,14 +835,13 @@
       selectedPoint = p;
       const cfg = COURIERS[p.courier] || { pickupLabel: p.courier, badgeClass: "", color: "#888" };
 
-      if (hMethod)  hMethod.value  = "pickup_point";
-      if (hCourier) hCourier.value = p.courier;
-      if (hPointId) hPointId.value = p.externalId || p.id;
-      if (hPointNm) hPointNm.value = p.name;
-      if (hPointAd) hPointAd.value = p.address;
+      _method  = "pickup_point";
+      _courier = p.courier;
+      _pid     = p.externalId || p.id;
+      _pname   = p.name;
+      _paddr   = p.address;
 
-      // Check the pickup radio
-      if (pickupRadio) pickupRadio.checked = true;
+      selectRow("pickup");
 
       // Update pickup fee to this courier's fee
       updatePickupFee(p.courier);
@@ -655,35 +862,57 @@
       if (pointSelected) pointSelected.style.display = "flex";
 
       hideError();
+      saveSession();
+      saveFavourite(p);
       renderList(filtered);
       renderMarkers(filtered);
-      closeModal();   // clears _modalOpen first
-      syncCart();     // now safe — modal is closed, no page re-render risk
+      closeModal();
     }
 
     function clearHiddenPoint() {
-      if (hMethod)  hMethod.value  = "";
-      if (hCourier) hCourier.value = "";
-      if (hPointId) hPointId.value = "";
-      if (hPointNm) hPointNm.value = "";
-      if (hPointAd) hPointAd.value = "";
+      _method = _courier = _pid = _pname = _paddr = "";
     }
 
-    // ── Sync cart attributes ───────────────────────────────────────────────────
+    // ── Session storage (fast, no network, no Shopify re-render) ─────────────
+    const SS_KEY = "rc_" + SHOP.replace(/\./g, "_");
+    function saveSession() {
+      try {
+        sessionStorage.setItem(SS_KEY, JSON.stringify({
+          method: _method, courier: _courier, pid: _pid, pname: _pname, paddr: _paddr,
+        }));
+      } catch (_) {}
+    }
+    function loadSession() {
+      try { return JSON.parse(sessionStorage.getItem(SS_KEY) || "null"); } catch (_) { return null; }
+    }
+
+    // ── Favourite / last-used pickup point (localStorage — persists across visits) ──
+    const LS_KEY = "rc_fav_" + SHOP.replace(/\./g, "_");
+    function saveFavourite(p) {
+      try {
+        localStorage.setItem(LS_KEY, JSON.stringify({
+          id: p.id, externalId: p.externalId || p.id,
+          name: p.name, address: p.address, courier: p.courier,
+          lat: p.lat, lng: p.lng,
+        }));
+      } catch (_) {}
+    }
+    function loadFavourite() {
+      try { return JSON.parse(localStorage.getItem(LS_KEY) || "null"); } catch (_) { return null; }
+    }
+
+    // ── Sync cart attributes — only called at checkout, never during browsing ──
     function syncCart() {
-      // Don't fire while the pickup modal is open — the cart update triggers
-      // Shopify theme section listeners that re-render / scroll the page on mobile
-      if (_modalOpen) return;
       fetch("/cart/update.js", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           attributes: {
-            _rc_method:        hMethod?.value  || "",
-            _rc_courier:       hCourier?.value || "",
-            _rc_point_id:      hPointId?.value || "",
-            _rc_point_name:    hPointNm?.value || "",
-            _rc_point_address: hPointAd?.value || "",
+            _rc_method:        _method,
+            _rc_courier:       _courier,
+            _rc_point_id:      _pid,
+            _rc_point_name:    _pname,
+            _rc_point_address: _paddr,
           },
         }),
       }).catch(() => {});
@@ -691,16 +920,14 @@
 
     // ── Checkout guard ─────────────────────────────────────────────────────────
     function blockCheckout(e) {
-      const checkedRadio = [...radios].find((r) => r.checked);
-
-      if (!checkedRadio) {
+      if (!_method) {
         e.preventDefault(); e.stopPropagation();
         showError(t("err_no_method"));
         widget.scrollIntoView({ behavior: "smooth", block: "center" });
         return false;
       }
 
-      if (checkedRadio.value === "pickup" && !selectedPoint) {
+      if (_method === "pickup_point" && !selectedPoint) {
         e.preventDefault(); e.stopPropagation();
         showError(t("err_no_point"));
         widget.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -708,6 +935,8 @@
         return false;
       }
 
+      // Only sync to cart at checkout — prevents Shopify section re-renders during browsing
+      syncCart();
       return true;
     }
 
@@ -736,51 +965,55 @@
     function showError(msg) { if (errorBox) { errorBox.textContent = msg; errorBox.style.display = "block"; } }
     function hideError()    { if (errorBox) errorBox.style.display = "none"; }
 
-    // ── Restore from cart attributes ───────────────────────────────────────────
+    // ── Restore state — sessionStorage first (fast, no cart update event) ──────
+    function applyRestoredState(method, courier, pid, pname, paddr) {
+      if (!method || !courier) return;
+
+      if (method === "home_delivery") {
+        const c = courier || defaultCourier;
+        if (c) {
+          selectRow("home");
+          if (homeFeeEl) homeFeeEl.textContent = feeLabel(FEES[c]?.home || 0);
+          _method = "home_delivery"; _courier = c;
+          _pid = _pname = _paddr = "";
+        }
+      } else if (method === "pickup_point" && pid) {
+        selectRow("pickup");
+        selectedPoint = { id: pid, externalId: pid, courier, name: pname, address: paddr };
+        _method = "pickup_point"; _courier = courier;
+        _pid = pid; _pname = pname; _paddr = paddr;
+        updatePickupFee(courier);
+        const cfg     = COURIERS[courier] || { label: courier, color: "#888" };
+        const logoUrl = LOGOS[courier] || "";
+        if (pointLogo) {
+          if (logoUrl) { pointLogo.src = logoUrl; pointLogo.alt = cfg.label; pointLogo.style.display = "block"; }
+          else { pointLogo.style.display = "none"; }
+        }
+        if (pointName) pointName.textContent = pname;
+        if (pointAddr) pointAddr.textContent = paddr;
+        if (pointSelected) pointSelected.style.display = "flex";
+      }
+    }
+
     async function restore() {
+      // 1. Try sessionStorage first — instant, no network, no cart update event
+      const ss = loadSession();
+      if (ss && ss.method && ss.courier) {
+        applyRestoredState(ss.method, ss.courier, ss.pid, ss.pname, ss.paddr);
+        return;
+      }
+      // 2. Fall back to cart.js (read-only, no update event triggered)
       try {
         const res  = await fetch("/cart.js");
         const cart = await res.json();
         const a    = cart.attributes || {};
-
-        const method  = a["_rc_method"]       || "";
-        const courier = a["_rc_courier"]       || "";
-        const pid     = a["_rc_point_id"]      || "";
-        const pname   = a["_rc_point_name"]    || "";
-        const paddr   = a["_rc_point_address"] || "";
-
-        if (!method || !courier) return;
-
-        if (method === "home_delivery") {
-          if (homeRadio) homeRadio.checked = true;
-          const c = courier || defaultCourier;
-          if (c) {
-            if (homeFeeEl) homeFeeEl.textContent = feeLabel(FEES[c]?.home || 0);
-            setHiddenHome(c);
-          }
-        } else if (method === "pickup_point" && pid) {
-          if (pickupRadio) pickupRadio.checked = true;
-
-          selectedPoint = { id: pid, externalId: pid, courier, name: pname, address: paddr };
-
-          if (hMethod)  hMethod.value  = "pickup_point";
-          if (hCourier) hCourier.value = courier;
-          if (hPointId) hPointId.value = pid;
-          if (hPointNm) hPointNm.value = pname;
-          if (hPointAd) hPointAd.value = paddr;
-
-          updatePickupFee(courier);
-
-          const cfg     = COURIERS[courier] || { label: courier, color: "#888" };
-          const logoUrl = LOGOS[courier] || "";
-          if (pointLogo) {
-            if (logoUrl) { pointLogo.src = logoUrl; pointLogo.alt = cfg.label; pointLogo.style.display = "block"; }
-            else { pointLogo.style.display = "none"; }
-          }
-          if (pointName) pointName.textContent = pname;
-          if (pointAddr) pointAddr.textContent = paddr;
-          if (pointSelected) pointSelected.style.display = "flex";
-        }
+        applyRestoredState(
+          a["_rc_method"]       || "",
+          a["_rc_courier"]      || "",
+          a["_rc_point_id"]     || "",
+          a["_rc_point_name"]   || "",
+          a["_rc_point_address"]|| ""
+        );
       } catch (_) {}
     }
 

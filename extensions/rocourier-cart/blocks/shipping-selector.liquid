@@ -1,6 +1,6 @@
 {% comment %}
   RoCourier — Unified Shipping Selector
-  2 rows: Home Delivery (courier chip picker) + Pickup Point (map)
+  No <input> elements — pure div/button UI to avoid Shopify cart section re-renders
 {% endcomment %}
 
 <div
@@ -10,6 +10,7 @@
   data-app-url="{{ block.settings.app_url }}"
   data-currency="{{ cart.currency.iso_code | default: 'RON' }}"
   data-lang="{{ request.locale.iso_code | slice: 0, 2 | downcase }}"
+  data-country="{{ localization.country.iso_code | downcase | default: 'ro' }}"
   data-fan-enabled="{{ block.settings.fan_enabled }}"
   data-fan-home-fee="{{ block.settings.fan_home_fee | default: 0 }}"
   data-fan-pickup-fee="{{ block.settings.fan_pickup_fee | default: 0 }}"
@@ -37,15 +38,16 @@
   data-packeta-pin="{{ 'pin-packeta.png' | asset_url }}"
 >
 
+  {%- if block.settings.show_title != false -%}
   <p class="rc-section-title" id="rc-section-title">
     {{ block.settings.title | default: 'Metoda de livrare:' }}
   </p>
+  {%- endif -%}
 
   <div class="rc-methods" role="radiogroup" aria-label="Metoda de livrare">
 
     <!-- ── HOME DELIVERY row ───────────────────────────────────────────── -->
-    <label class="rc-method-row" for="rc-home">
-      <input type="radio" id="rc-home" name="rc_delivery" value="home">
+    <div class="rc-method-row" id="rc-home-row" role="radio" aria-checked="false" tabindex="0" data-rc-value="home">
       <span class="rc-method-icon rc-icon-home">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="1" y="3" width="15" height="13" rx="1"/>
@@ -56,15 +58,14 @@
       </span>
       <span class="rc-method-text">
         <strong id="rc-home-label">Livrare la domiciliu</strong>
-        <small id="rc-home-sub">Alege curierul preferat</small>
+        <small id="rc-home-sub">Livrare standard la adresă</small>
       </span>
       <span id="rc-home-fee" class="rc-method-fee"></span>
       <span class="rc-method-radio"></span>
-    </label>
+    </div>
 
     <!-- ── PICKUP POINT row ────────────────────────────────────────────── -->
-    <label class="rc-method-row rc-row-last" for="rc-pickup">
-      <input type="radio" id="rc-pickup" name="rc_delivery" value="pickup">
+    <div class="rc-method-row rc-row-last" id="rc-pickup-row" role="radio" aria-checked="false" tabindex="0" data-rc-value="pickup">
       <span class="rc-method-icon rc-icon-box">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="2" y="3" width="20" height="18" rx="2"/>
@@ -78,13 +79,13 @@
       </span>
       <span id="rc-pickup-fee" class="rc-method-fee"></span>
       <span class="rc-method-radio"></span>
-    </label>
+    </div>
 
   </div>
 
   <!-- Selected pickup point summary -->
   <div id="rc-point-selected" class="rc-point-selected" style="display:none;">
-    <img id="rc-point-logo" class="rc-point-logo" src="{{ '' | asset_url }}" alt="" width="60" height="20">
+    <img id="rc-point-logo" class="rc-point-logo" src="" alt="" width="60" height="20">
     <div class="rc-point-info">
       <strong id="rc-point-name"></strong>
       <span id="rc-point-addr"></span>
@@ -101,17 +102,37 @@
   <div class="rc-modal-backdrop" id="rc-modal-backdrop"></div>
   <div class="rc-modal-inner">
 
-    <div class="rc-modal-header">
-      <div class="rc-modal-search-wrap">
-        <svg class="rc-search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input
-          type="text"
-          id="rc-search"
-          class="rc-search-input"
-          placeholder="{{ block.settings.search_placeholder | default: 'Oraș, cod poștal, adresă...' }}"
-          autocomplete="off"
-        >
+    <!-- Map panel — fills space above the bottom sheet -->
+    <div class="rc-map-panel" id="rc-map-panel">
+      <div id="rc-map"></div>
+      <button type="button" id="rc-modal-close" class="rc-modal-close" aria-label="Close">✕</button>
+    </div>
+
+    <!-- Bottom sheet — draggable on mobile, side panel on desktop -->
+    <div class="rc-bottom-sheet" id="rc-bottom-sheet">
+      <!-- Drag handle (mobile only) -->
+      <div class="rc-sheet-handle" id="rc-sheet-handle">
+        <div class="rc-sheet-pill"></div>
       </div>
+
+      <!-- Search + filter toggle -->
+      <div class="rc-sheet-header">
+        <div class="rc-modal-search-wrap">
+          <svg class="rc-search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input
+            type="text"
+            id="rc-search"
+            class="rc-search-input"
+            placeholder="{{ block.settings.search_placeholder | default: 'Oraș, cod poștal, adresă...' }}"
+            autocomplete="off"
+          >
+        </div>
+        <button type="button" class="rc-filter-toggle" id="rc-filter-toggle" aria-label="Filters">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+        </button>
+      </div>
+
+      <!-- Courier filter chips -->
       <div class="rc-modal-filters" id="rc-type-filters">
         <button type="button" class="rc-filter-btn rc-filter-active" id="rc-filter-all" data-courier="all">Toate</button>
         {%- if block.settings.fan_enabled -%}
@@ -140,11 +161,9 @@
           </button>
         {%- endif -%}
       </div>
-      <button type="button" id="rc-modal-close" class="rc-modal-close" aria-label="Close">✕</button>
-    </div>
 
-    <div class="rc-modal-body">
-      <div class="rc-list-panel">
+      <!-- Scrollable list -->
+      <div class="rc-sheet-body">
         <div id="rc-list-loading" class="rc-list-loading">
           <div class="rc-spinner"></div>
           <span id="rc-loading-text">Se încarcă punctele de ridicare...</span>
@@ -153,23 +172,33 @@
         <ul id="rc-points-list" class="rc-points-list"></ul>
         <div id="rc-list-count" class="rc-list-count" style="display:none;"></div>
       </div>
-      <div class="rc-map-panel">
-        <div id="rc-map"></div>
-      </div>
     </div>
 
   </div>
 </div>
 
-<input type="hidden" id="rc-h-method"    name="attributes[_rc_method]"        value="">
-<input type="hidden" id="rc-h-courier"   name="attributes[_rc_courier]"       value="">
-<input type="hidden" id="rc-h-point-id"  name="attributes[_rc_point_id]"      value="">
-<input type="hidden" id="rc-h-point-nm"  name="attributes[_rc_point_name]"    value="">
-<input type="hidden" id="rc-h-point-ad"  name="attributes[_rc_point_address]" value="">
+{%- comment -%} Theme customisation — injected as CSS custom properties {%- endcomment -%}
+{%- assign rc_radius_map = block.settings.border_radius | default: 'rounded' -%}
+{%- if rc_radius_map == 'sharp' -%}{%- assign rc_radius = '0px' -%}
+{%- elsif rc_radius_map == 'pill' -%}{%- assign rc_radius = '24px' -%}
+{%- else -%}{%- assign rc_radius = '10px' -%}
+{%- endif -%}
+<style>
+  #rocourier-widget,
+  #rocourier-widget ~ * {
+    --rc-primary:    {{ block.settings.primary_color | default: '#222222' }};
+    --rc-bg:         {{ block.settings.widget_bg     | default: '#ffffff' }};
+    --rc-border:     {{ block.settings.border_color  | default: '#e0e0e0' }};
+    --rc-radius:     {{ rc_radius }};
+  }
+</style>
 
 <link rel="stylesheet" href="{{ 'leaflet.css' | asset_url }}">
+<link rel="stylesheet" href="{{ 'MarkerCluster.css' | asset_url }}">
+<link rel="stylesheet" href="{{ 'MarkerCluster.Default.css' | asset_url }}">
 <link rel="stylesheet" href="{{ 'rocourier.css' | asset_url }}">
 <script src="{{ 'leaflet.js' | asset_url }}" defer></script>
+<script src="{{ 'leaflet.markercluster.js' | asset_url }}" defer></script>
 <script src="{{ 'rocourier.js' | asset_url }}" defer></script>
 
 {% schema %}
@@ -178,6 +207,19 @@
   "target": "section",
   "settings": [
     { "type": "text",     "id": "app_url",            "label": "App URL",              "default": "https://rocourier-production.up.railway.app" },
+    { "type": "header",   "content": "Aspect widget" },
+    { "type": "color",    "id": "primary_color",      "label": "Culoare principală",   "default": "#222222" },
+    { "type": "color",    "id": "widget_bg",          "label": "Fundal widget",        "default": "#ffffff" },
+    { "type": "color",    "id": "border_color",       "label": "Culoare bordură",      "default": "#e0e0e0" },
+    { "type": "select",   "id": "border_radius",      "label": "Colțuri",
+      "options": [
+        { "value": "sharp",   "label": "Drepte (0px)" },
+        { "value": "rounded", "label": "Rotunjite (10px)" },
+        { "value": "pill",    "label": "Pill (24px)" }
+      ],
+      "default": "rounded"
+    },
+    { "type": "checkbox", "id": "show_title",         "label": "Afișează titlul secțiunii", "default": true },
     { "type": "text",     "id": "title",              "label": "Titlu secțiune",       "default": "Metoda de livrare:" },
     { "type": "text",     "id": "search_placeholder", "label": "Placeholder căutare",  "default": "Oraș, cod poștal, adresă..." },
     { "type": "header",   "content": "FAN Courier" },

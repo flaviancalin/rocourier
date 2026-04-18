@@ -66,7 +66,7 @@ model ShopSettings {
   glsUsername      String?
   glsPassword      String?
   glsClientNumber  String?   // GLS client number (integer, from GLS contract)
-  glsShipItUrl     String?   // ShipIT REST API base URL for parcel shop sync (from GLS Romania)
+  glsShipItUrl     String?   // Deprecated — no longer used, kept for schema compatibility
   glsEnabled       Boolean  @default(false)
   glsSandbox       Boolean  @default(false)
 
@@ -192,21 +192,23 @@ model AwbEvent {
 
 // ─── Pickup Points Cache (refreshed every 24h) ───────────────────────────────
 model PickupPoint {
-  id        String @id @default(cuid())
+  id         String @id @default(cuid())
   externalId String  // ID from courier API
-  courier   String   // "fan" | "sameday"
-  name      String
-  address   String
-  city      String?
-  county    String?
-  zip       String?
-  lat       Float?
-  lng       Float?
-  type      String?  // "fanbox" | "easybox" | "pudo"
-  isActive  Boolean  @default(true)
-  updatedAt DateTime @updatedAt
+  courier    String  // "fan" | "sameday" | "cargus" | "gls" | "packeta"
+  name       String
+  address    String
+  city       String?
+  county     String?
+  zip        String?
+  country    String? @default("ro")  // ISO 3166-1 alpha-2 lowercase
+  lat        Float?
+  lng        Float?
+  type       String?  // "fanbox" | "easybox" | "pudo" | "packeta_point" | "zbox"
+  isActive   Boolean  @default(true)
+  updatedAt  DateTime @updatedAt
 
   @@unique([courier, externalId])
   @@index([courier])
   @@index([county])
+  @@index([country])
 }

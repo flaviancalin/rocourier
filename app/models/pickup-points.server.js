@@ -46,20 +46,22 @@ function getSyncCredentials() {
 // Get pickup points from DB cache (auto-refresh if stale)
 // couriers: which carriers to return — caller filters by merchant's enabled list
 // ─────────────────────────────────────────────────────────────────────────────
-export async function getPickupPoints({ couriers = ["fan", "sameday", "cargus", "gls", "packeta"] } = {}) {
+export async function getPickupPoints({ couriers = ["fan", "sameday", "cargus", "gls", "packeta"], country = null } = {}) {
   const staleThreshold = new Date(Date.now() - CACHE_TTL_HOURS * 3600 * 1000);
+  const countryFilter = country ? { country } : {};
 
   const cachedCount = await prisma.pickupPoint.count({
     where: {
       courier: { in: couriers },
       isActive: true,
       updatedAt: { gte: staleThreshold },
+      ...countryFilter,
     },
   });
 
   if (cachedCount > 0) {
     return prisma.pickupPoint.findMany({
-      where: { courier: { in: couriers }, isActive: true },
+      where: { courier: { in: couriers }, isActive: true, ...countryFilter },
       orderBy: { county: "asc" },
     });
   }
@@ -68,7 +70,7 @@ export async function getPickupPoints({ couriers = ["fan", "sameday", "cargus", 
   await refreshPickupPointsCache({ couriers });
 
   return prisma.pickupPoint.findMany({
-    where: { courier: { in: couriers }, isActive: true },
+    where: { courier: { in: couriers }, isActive: true, ...countryFilter },
     orderBy: { county: "asc" },
   });
 }
@@ -91,8 +93,8 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
       for (const p of points) {
         await prisma.pickupPoint.upsert({
           where: { courier_externalId: { courier: "fan", externalId: p.externalId } },
-          update: { ...p, isActive: true, updatedAt: new Date() },
-          create: p,
+          update: { ...p, country: "ro", isActive: true, updatedAt: new Date() },
+          create: { ...p, country: "ro" },
         });
       }
       results.fan = points.length;
@@ -112,8 +114,8 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
       for (const p of points) {
         await prisma.pickupPoint.upsert({
           where: { courier_externalId: { courier: "sameday", externalId: p.externalId } },
-          update: { ...p, isActive: true, updatedAt: new Date() },
-          create: p,
+          update: { ...p, country: "ro", isActive: true, updatedAt: new Date() },
+          create: { ...p, country: "ro" },
         });
       }
       results.sameday = points.length;
@@ -138,8 +140,8 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
       for (const p of points) {
         await prisma.pickupPoint.upsert({
           where: { courier_externalId: { courier: "cargus", externalId: p.externalId } },
-          update: { ...p, isActive: true, updatedAt: new Date() },
-          create: p,
+          update: { ...p, country: "ro", isActive: true, updatedAt: new Date() },
+          create: { ...p, country: "ro" },
         });
       }
       results.cargus = points.length;
@@ -156,8 +158,8 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
       for (const p of points) {
         await prisma.pickupPoint.upsert({
           where: { courier_externalId: { courier: "gls", externalId: p.externalId } },
-          update: { ...p, isActive: true, updatedAt: new Date() },
-          create: p,
+          update: { ...p, country: "ro", isActive: true, updatedAt: new Date() },
+          create: { ...p, country: "ro" },
         });
       }
       results.gls = points.length;
