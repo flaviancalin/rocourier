@@ -137,7 +137,7 @@
     const SHOP     = widget.dataset.shop    || "";
     const APP_URL  = (widget.dataset.appUrl || "").replace(/\/$/, "");
     const CURRENCY = widget.dataset.currency || "RON";
-    const COUNTRY  = (widget.dataset.country || "ro").toLowerCase();
+    const COUNTRY  = (new URLSearchParams(location.search).get("rc_country") || widget.dataset.country || "ro").toLowerCase();
 
     // Language — Liquid passes store locale via data-lang; app settings can override via API
     const localeLang = (widget.dataset.lang || "ro").slice(0, 2).toLowerCase();
