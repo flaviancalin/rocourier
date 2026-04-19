@@ -256,7 +256,9 @@ export async function fanCreateAwb({
     ],
   };
 
+  console.error("[FAN] intern-awb payload:", JSON.stringify(payload));
   const data = await fanRequest("/intern-awb", { method: "POST", token, body: payload, clientId });
+  console.error("[FAN] intern-awb response:", JSON.stringify(data));
 
   if (data.data?.[0]?.awb) {
     return {

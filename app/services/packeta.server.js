@@ -39,7 +39,10 @@ async function packetaXmlRequest(endpoint, xmlBody) {
   if (status && status !== "ok") {
     const msgMatch = text.match(/<message[^>]*>([^<]+)<\/message>/i) ||
                      text.match(/<string>([^<]+)<\/string>/i);
-    throw new Error(`Packeta API fault: ${msgMatch?.[1] || text}`);
+    const detailMatch = text.match(/<detail[^>]*>([\s\S]*?)<\/detail>/i);
+    const detail = detailMatch?.[1]?.replace(/<[^>]+>/g, " ").trim();
+    const msg = msgMatch?.[1] || text.slice(0, 400);
+    throw new Error(`Packeta API fault: ${msg}${detail ? ` | detail: ${detail}` : ""}`);
   }
 
   return text; // raw XML — caller extracts what they need

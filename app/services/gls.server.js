@@ -48,6 +48,10 @@ function glsBuildAuth(username, password) {
 // URL: {base}/{methodName}
 // ─────────────────────────────────────────────────────────────────────────────
 async function glsRequest(base, method, body) {
+  // Log request for debugging (Password is a byte array — truncate for readability)
+  const logBody = { ...body, Password: body.Password ? `[${body.Password.length} bytes]` : undefined };
+  console.error(`[GLS] POST ${method}`, JSON.stringify(logBody));
+
   const res = await fetch(`${base}/${method}`, {
     method: "POST",
     headers: {
@@ -58,6 +62,7 @@ async function glsRequest(base, method, body) {
   });
 
   const text = await res.text();
+  console.error(`[GLS] ${method} response [${res.status}]:`, text.slice(0, 500));
   let data;
   try { data = JSON.parse(text); } catch { data = { raw: text }; }
 
@@ -127,14 +132,22 @@ export async function glsCreateAwb({
   const base = getBase(sandbox);
   const auth = glsBuildAuth(username, password);
 
+  const resolvedClientNumber = clientNumber || parseInt(settings.glsClientNumber) || 0;
+  if (!resolvedClientNumber) {
+    throw new Error("GLS AWB: Client Number not configured. Set glsClientNumber in Settings → GLS.");
+  }
+
   // Build GLS service list: AOS = ParcelShop delivery, SAT = Saturday delivery
   const glsServiceList = [];
   if (pickupPointId) glsServiceList.push({ Code: "AOS", PSDParameter: String(pickupPointId) });
   if (saturdayDelivery) glsServiceList.push({ Code: "SAT" });
 
+  // GLS rejects '#' and special characters in ClientReference
+  const clientReference = (order.shopifyOrderName || "").replace(/^#/, "").replace(/[^a-zA-Z0-9_\-. ]/g, "").trim();
+
   const parcel = {
-    ClientNumber:    clientNumber || parseInt(settings.glsClientNumber) || 0,
-    ClientReference: order.shopifyOrderName || "",
+    ClientNumber:    resolvedClientNumber,
+    ClientReference: clientReference,
     Count:           order.packageCount || 1,
     ...(order.codAmount > 0 ? {
       CODAmount:    order.codAmount,

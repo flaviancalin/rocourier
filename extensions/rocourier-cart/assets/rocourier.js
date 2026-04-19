@@ -718,7 +718,10 @@
         preferCanvas: true,       // canvas renderer — much faster on mobile
         zoomSnap: 0.5,
         wheelPxPerZoomLevel: 80,  // smoother mouse-wheel zoom
-      }).setView([45.94, 24.97], 7);
+      }).setView(
+        _userLat !== null ? [_userLat, _userLng] : [45.94, 24.97],
+        _userLat !== null ? 12 : 7
+      );
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -1032,6 +1035,8 @@
       } catch (_) {}
     }
 
+    // Pre-fetch user location early so it's ready when the modal opens
+    fetchUserLocation();
     restore();
   }
 
