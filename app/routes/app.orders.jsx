@@ -11,7 +11,7 @@ import {
   Page, Layout, Card, DataTable, Badge, Button, Text,
   BlockStack, InlineStack, Select, TextField,
   Pagination, Modal, Banner, Checkbox, EmptyState,
-  Toast, Frame,
+  Toast, Frame, RadioButton, FormLayout, Spinner, Box, Divider,
 } from "@shopify/polaris";
 import { useTranslation } from "../context/i18n.jsx";
 
@@ -136,7 +136,49 @@ export async function loader({ request }) {
   return json({ ...result, filters: { status, courier, method, search }, settings: settings || {} });
 }
 
-// ─── Service options per courier ─────────────────────────────────────────────
+// ─── Per-courier service lists ────────────────────────────────────────────────
+const FAN_OBSERVATIONS = [
+  "Livrare urgentă", "Livrare luni", "De contactat telefonic",
+  "Atenție - FRAGIL", "Livrare personală cu BI/CI",
+  "Cu ștampilă și semnătură", "Livrare după ora 16:00", "Livrare interval 09:00-17:00",
+];
+
+const FULL_COURIER_SERVICES = {
+  fan: [
+    { label: "Standard",                       value: "Standard" },
+    { label: "RedCode",                        value: "RedCode" },
+    { label: "Export",                         value: "Export" },
+    { label: "Cont Colector (FANbox)",         value: "Cont Colector" },
+    { label: "Produse Albe",                   value: "Produse Albe" },
+    { label: "Transport Marfă",                value: "Transport Marfa" },
+    { label: "Transport Marfă Produse Albe",   value: "Transport Marfa Produse Albe" },
+  ],
+  sameday: [
+    { label: "Standard",          value: "T" },
+    { label: "Locker (NextDay)",  value: "LN" },
+    { label: "Express",           value: "E" },
+  ],
+  cargus: [
+    { label: "Standard",                        value: "10" },
+    { label: "Economic Standard (< 31 kg)",     value: "34" },
+    { label: "Standard Plus (31–50 kg)",        value: "35" },
+    { label: "Palet (> 50 kg)",                 value: "36" },
+    { label: "Pudo point / Easy Collect",       value: "38" },
+    { label: "Standard Multipiece",            value: "39" },
+  ],
+  gls:     [{ label: "Business Parcel", value: "standard" }],
+  packeta: [{ label: "Standard",        value: "standard" }],
+};
+
+function needsPickupPoint(courier, service, glsParcelShop) {
+  if (courier === "fan")     return service === "Cont Colector";
+  if (courier === "sameday") return /^LN|locker|easybox/i.test(String(service));
+  if (courier === "cargus")  return String(service) === "38";
+  if (courier === "packeta") return true;
+  if (courier === "gls")     return !!glsParcelShop;
+  return false;
+}
+
 const COURIER_SERVICES = {
   fan: [
     { label: "Standard",                value: "Standard" },
@@ -207,7 +249,7 @@ export default function OrdersPage() {
   const [fulfillResults, setFulfillResults] = useState([]);
   const [showFulfillResults, setShowFulfillResults] = useState(false);
 
-  // ── AWB Wizard state ────────────────────────────────────────────────────────
+  // ── Bulk AWB Wizard state ───────────────────────────────────────────────────
   const [showWizard, setShowWizard]           = useState(false);
   const [wizardCourier, setWizardCourier]     = useState("fan");
   const [wizardService, setWizardService]     = useState("Standard");
@@ -215,6 +257,52 @@ export default function OrdersPage() {
   const [wizardObs, setWizardObs]             = useState("");
   const [liveServices, setLiveServices]       = useState({});
   const [loadingServices, setLoadingServices] = useState(false);
+
+  // ── Single-order 4-step wizard state ───────────────────────────────────────
+  const [activeOrder, setActiveOrder]         = useState(null);
+  const [singleWizardOpen, setSingleWizardOpen] = useState(false);
+  const [singleWizardStep, setSingleWizardStep] = useState(1);
+  const [singleGenerating, setSingleGenerating] = useState(false);
+  const [singleError, setSingleError]         = useState(null);
+  // Step 1
+  const [swCourier, setSwCourier]             = useState("fan");
+  const [swService, setSwService]             = useState("Standard");
+  const [swFanObs, setSwFanObs]               = useState([]);
+  const [swOpenPackage, setSwOpenPackage]     = useState(false);
+  const [swSaturday, setSwSaturday]           = useState(false);
+  const [swMorning, setSwMorning]             = useState(false);
+  const [swGlsShop, setSwGlsShop]             = useState(false);
+  const [swCargusReimb, setSwCargusReimb]     = useState("cash");
+  const [swSwap, setSwSwap]                   = useState(false);
+  const [swInsured, setSwInsured]             = useState("0");
+  // Step 2
+  const [swName, setSwName]                   = useState("");
+  const [swPhone, setSwPhone]                 = useState("");
+  const [swEmail, setSwEmail]                 = useState("");
+  const [swAddress, setSwAddress]             = useState("");
+  const [swAddrDetails, setSwAddrDetails]     = useState("");
+  const [swCity, setSwCity]                   = useState("");
+  const [swCounty, setSwCounty]               = useState("");
+  const [swZip, setSwZip]                     = useState("");
+  const [swCountry, setSwCountry]             = useState("RO");
+  const [swCompany, setSwCompany]             = useState("");
+  const [swPickupPoint, setSwPickupPoint]     = useState(null);
+  const [swPickupSearch, setSwPickupSearch]   = useState("");
+  const [swPickupPoints, setSwPickupPoints]   = useState([]);
+  const [swLoadingPP, setSwLoadingPP]         = useState(false);
+  // Step 3
+  const [swWeight, setSwWeight]               = useState("1");
+  const [swPkgCount, setSwPkgCount]           = useState("1");
+  const [swHeight, setSwHeight]               = useState("0");
+  const [swWidth, setSwWidth]                 = useState("0");
+  const [swLength, setSwLength]               = useState("0");
+  const [swCod, setSwCod]                     = useState("0");
+  const [swDeclared, setSwDeclared]           = useState("0");
+  const [swPayer, setSwPayer]                 = useState("recipient");
+  // Step 4
+  const [swNotes, setSwNotes]                 = useState("");
+  const [swNotify, setSwNotify]               = useState(false);
+  const [swDispatched, setSwDispatched]       = useState(false);
 
   const [searchVal, setSearchVal]   = useState(filters.search);
   const [statusVal, setStatusVal]   = useState(filters.status);
@@ -390,6 +478,99 @@ export default function OrdersPage() {
     setTimeout(() => navigate(window.location.pathname + window.location.search), 1500);
   }
 
+  // ── Single-order wizard helpers ────────────────────────────────────────────
+  async function loadSwPickupPoints(c) {
+    setSwLoadingPP(true); setSwPickupPoints([]); setSwPickupSearch("");
+    try {
+      const res  = await fetch(`/api/pickup-points?shop=${encodeURIComponent(activeOrder?.shop || "")}&courier=${c}`);
+      const data = await res.json();
+      setSwPickupPoints(data.points || []);
+    } catch (_) { setSwPickupPoints([]); }
+    finally { setSwLoadingPP(false); }
+  }
+
+  function openSingleWizard(o) {
+    const isPickup = o.shippingMethod === "pickup_point";
+    const c = o.courierType || "fan";
+    const opts = liveServices[c] || FULL_COURIER_SERVICES[c] || [];
+    let svc = opts[0]?.value || "Standard";
+    if (isPickup) {
+      const lockerOpt = opts.find((x) => /locker|fanbox|colector|ln|pudo/i.test(x.label + x.value));
+      if (lockerOpt) svc = lockerOpt.value;
+    }
+    setActiveOrder(o);
+    setSingleWizardStep(1); setSingleError(null);
+    setSwCourier(c); setSwService(svc);
+    setSwFanObs([]); setSwOpenPackage(false); setSwSaturday(false);
+    setSwMorning(false); setSwGlsShop(isPickup && c === "gls");
+    setSwCargusReimb("cash"); setSwSwap(false); setSwInsured("0");
+    setSwName(o.customerName || ""); setSwPhone(o.customerPhone || "");
+    setSwEmail(o.customerEmail || ""); setSwAddress(o.shippingAddress1 || "");
+    setSwAddrDetails(""); setSwCity(o.shippingCity || "");
+    setSwCounty(o.shippingCounty || ""); setSwZip(o.shippingZip || "");
+    setSwCountry(o.shippingCountry || "RO"); setSwCompany("");
+    setSwPickupPoint(isPickup && o.pickupPointId
+      ? { externalId: o.pickupPointId, name: o.pickupPointName || "", address: o.pickupPointAddress || "" }
+      : null
+    );
+    setSwPickupPoints([]); setSwPickupSearch("");
+    setSwWeight(String(o.weight || 1)); setSwPkgCount(String(o.packageCount || 1));
+    setSwHeight("0"); setSwWidth("0"); setSwLength("0");
+    setSwCod(String(o.codAmount || 0)); setSwDeclared("0"); setSwPayer("recipient");
+    setSwNotes(""); setSwNotify(false); setSwDispatched(false);
+    setSingleWizardOpen(true);
+    if (needsPickupPoint(c, svc, isPickup && c === "gls")) {
+      // defer so activeOrder is set
+      setTimeout(() => loadSwPickupPoints(c), 0);
+    }
+  }
+
+  async function submitSingleWizard() {
+    if (!activeOrder) return;
+    setSingleGenerating(true); setSingleError(null);
+    const allObs = [...swFanObs, ...(swNotes ? [swNotes] : [])].join(", ");
+    try {
+      const res = await fetch("/api/generate-awb", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: activeOrder.id,
+          courierOverride: swCourier, serviceOverride: swService,
+          recipientName: swName, recipientPhone: swPhone, recipientEmail: swEmail,
+          recipientAddress: swAddress, recipientCity: swCity,
+          recipientCounty: swCounty, recipientZip: swZip, recipientCountry: swCountry,
+          weightOverride: parseFloat(swWeight) || 1,
+          packageCountOverride: parseInt(swPkgCount) || 1,
+          height: parseFloat(swHeight) || 0, width: parseFloat(swWidth) || 0, length: parseFloat(swLength) || 0,
+          codAmountOverride: parseFloat(swCod),
+          declaredValue: parseFloat(swDeclared) || 0,
+          shipmentPayer: swPayer,
+          insuredValue: parseFloat(swInsured) || 0,
+          openPackage: swOpenPackage || undefined,
+          saturdayDelivery: swSaturday || undefined,
+          morningDelivery: swMorning || undefined,
+          swapService: swSwap || undefined,
+          glsParcelShop: (swCourier === "gls" && swGlsShop) || undefined,
+          cargusReimbursement: swCourier === "cargus" ? swCargusReimb : undefined,
+          observationsOverride: allObs || undefined,
+          pickupPointIdOverride: swPickupPoint?.externalId || undefined,
+          notifyCustomer: swNotify || undefined,
+          markAsDispatched: swDispatched || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setToastMsg(`AWB generat: ${data.awbNumber}`);
+        setSingleWizardOpen(false);
+        setTimeout(() => navigate(window.location.pathname + window.location.search), 800);
+      } else {
+        setSingleError(data.error || "Eroare la generare AWB");
+        setSingleWizardStep(4);
+      }
+    } catch (e) { setSingleError(e.message); }
+    finally { setSingleGenerating(false); }
+  }
+
   // ── Table rows ─────────────────────────────────────────────────────────────
   const rows = orders.map((o) => {
     const tone       = STATUS_TONES[o.awbStatus] || "default";
@@ -397,7 +578,7 @@ export default function OrdersPage() {
 
     return [
       <Checkbox label="" labelHidden checked={selectedOrders.includes(o.id)} onChange={() => toggleSelect(o.id)} />,
-      <Button variant="plain" onClick={() => navigate(`/app/orders/${o.id}`)}>
+      <Button variant="plain" onClick={() => openSingleWizard(o)}>
         <strong>{o.shopifyOrderName}</strong>
       </Button>,
       o.customerName || "—",
@@ -717,6 +898,304 @@ export default function OrdersPage() {
           </Modal.Section>
         </Modal>
       )}
+
+      {/* ── Single-order 4-step AWB wizard ─────────────────────────────── */}
+      {singleWizardOpen && activeOrder && (() => {
+        const swShowPickup = needsPickupPoint(swCourier, swService, swGlsShop);
+        const swServiceOpts = liveServices[swCourier] || FULL_COURIER_SERVICES[swCourier] || [{ label: "Standard", value: "standard" }];
+        const swSteps = ["Curier", "Destinatar", "Conținut", "Observații"];
+
+        function SwStepIndicator() {
+          return (
+            <div style={{ display:"flex", borderRadius:6, overflow:"hidden", marginBottom:20, border:"1px solid #ddd" }}>
+              {swSteps.map((label, i) => {
+                const n = i + 1, active = n === singleWizardStep, done = n < singleWizardStep;
+                return (
+                  <div key={n} onClick={() => done && setSingleWizardStep(n)} style={{
+                    flex:1, padding:"10px 4px", textAlign:"center", fontSize:13,
+                    fontWeight: active ? 600 : 400,
+                    background: active ? "#008060" : done ? "#00a374" : "#f5f5f5",
+                    color: (active || done) ? "#fff" : "#555",
+                    cursor: done ? "pointer" : "default",
+                    borderRight: i < 3 ? "1px solid rgba(255,255,255,0.25)" : "none",
+                    userSelect:"none",
+                  }}>{n}. {label}</div>
+                );
+              })}
+            </div>
+          );
+        }
+
+        function renderSwStep1() {
+          return (
+            <BlockStack gap="400">
+              <InlineStack gap="400" align="start">
+                <div style={{ flex:1 }}>
+                  <Select label="Curier" value={swCourier} helpText="Poți suprascrie curierul selectat."
+                    onChange={(v) => {
+                      setSwCourier(v);
+                      const opts = liveServices[v] || FULL_COURIER_SERVICES[v] || [];
+                      setSwService(opts[0]?.value || "standard");
+                      setSwFanObs([]); setSwOpenPackage(false); setSwSaturday(false);
+                      setSwMorning(false); setSwGlsShop(false); setSwSwap(false);
+                      setSwPickupPoint(null); setSwPickupPoints([]);
+                    }}
+                    options={[
+                      ...(settings?.fanEnabled     ? [{ label:"FAN Courier", value:"fan"     }] : []),
+                      ...(settings?.samedayEnabled ? [{ label:"Sameday",     value:"sameday" }] : []),
+                      ...(settings?.cargusEnabled  ? [{ label:"Cargus",      value:"cargus"  }] : []),
+                      ...(settings?.glsEnabled     ? [{ label:"GLS",         value:"gls"     }] : []),
+                      ...(settings?.packetaEnabled ? [{ label:"Packeta",     value:"packeta" }] : []),
+                    ]}
+                  />
+                </div>
+                <div style={{ flex:1 }}>
+                  <Select label="Tip serviciu" value={swService} helpText="Selectează serviciul potrivit."
+                    onChange={(v) => { setSwService(v); setSwPickupPoint(null); setSwPickupPoints([]);
+                      if (needsPickupPoint(swCourier, v, swGlsShop)) loadSwPickupPoints(swCourier);
+                    }}
+                    options={swServiceOpts}
+                  />
+                </div>
+              </InlineStack>
+
+              {swCourier === "fan" && (
+                <InlineStack gap="500" align="start" blockAlign="start">
+                  <div style={{ flex:1 }}>
+                    <Text variant="bodyMd" fontWeight="semibold">Observații (max 3)</Text>
+                    <div style={{ marginTop:8 }}>
+                      {FAN_OBSERVATIONS.map((obs) => (
+                        <div key={obs} style={{ marginBottom:6 }}>
+                          <Checkbox label={obs} checked={swFanObs.includes(obs)}
+                            disabled={!swFanObs.includes(obs) && swFanObs.length >= 3}
+                            onChange={() => setSwFanObs((p) => p.includes(obs) ? p.filter((x) => x !== obs) : p.length < 3 ? [...p, obs] : p)} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <Text variant="bodyMd" fontWeight="semibold">Opțiuni</Text>
+                    <div style={{ marginTop:8 }}>
+                      <div style={{ marginBottom:8 }}><Checkbox label="Livrare sâmbătă" checked={swSaturday} onChange={setSwSaturday} /></div>
+                      <div style={{ marginBottom:8 }}><Checkbox label="Deschidere la livrare" checked={swOpenPackage} onChange={setSwOpenPackage} helpText="Destinatarul verifică înainte de a accepta" /></div>
+                      <div style={{ marginBottom:8 }}><Checkbox label="Serviciu Swap" checked={swSwap} onChange={setSwSwap} /></div>
+                    </div>
+                  </div>
+                </InlineStack>
+              )}
+
+              {swCourier === "cargus" && (
+                <InlineStack gap="500" align="start" blockAlign="start">
+                  <div style={{ flex:1 }}>
+                    <Text variant="bodyMd" fontWeight="semibold">Tip ramburs</Text>
+                    <div style={{ marginTop:8 }}>
+                      <RadioButton label="Ramburs cash" checked={swCargusReimb === "cash"} id="sw-cash" name="swReimb" onChange={() => setSwCargusReimb("cash")} />
+                      <RadioButton label="Ramburs cont colector" checked={swCargusReimb === "account"} id="sw-account" name="swReimb" onChange={() => setSwCargusReimb("account")} />
+                    </div>
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <Text variant="bodyMd" fontWeight="semibold">Opțiuni</Text>
+                    <div style={{ marginTop:8 }}>
+                      <div style={{ marginBottom:8 }}><Checkbox label="Deschidere la livrare" checked={swOpenPackage} onChange={setSwOpenPackage} /></div>
+                      <div style={{ marginBottom:8 }}><Checkbox label="Livrare sâmbătă" checked={swSaturday} onChange={setSwSaturday} /></div>
+                      <div style={{ marginBottom:8 }}><Checkbox label="Livrare dimineața" checked={swMorning} onChange={setSwMorning} /></div>
+                      <div style={{ marginBottom:8 }}><Checkbox label="Serviciu Swap" checked={swSwap} onChange={setSwSwap} /></div>
+                    </div>
+                  </div>
+                </InlineStack>
+              )}
+
+              {swCourier === "sameday" && (
+                <InlineStack gap="500" align="start" blockAlign="start">
+                  <div style={{ flex:1 }}><Checkbox label="Deschidere la livrare" checked={swOpenPackage} onChange={setSwOpenPackage} /></div>
+                  <div style={{ flex:1 }}><TextField label="Valoare asigurată (RON)" type="number" value={swInsured} onChange={setSwInsured} min="0" suffix="RON" /></div>
+                </InlineStack>
+              )}
+
+              {swCourier === "gls" && (
+                <InlineStack gap="400" blockAlign="start">
+                  <div style={{ flex:1 }}>
+                    <Checkbox label="Livrare la ParcelShop / Locker" checked={swGlsShop}
+                      onChange={(v) => { setSwGlsShop(v); setSwPickupPoint(null); setSwPickupPoints([]); if (v) loadSwPickupPoints("gls"); }} />
+                  </div>
+                  <div style={{ flex:1 }}><Checkbox label="Livrare sâmbătă" checked={swSaturday} onChange={setSwSaturday} /></div>
+                </InlineStack>
+              )}
+            </BlockStack>
+          );
+        }
+
+        function renderSwStep2() {
+          const q = swPickupSearch.toLowerCase();
+          const filteredPP = swPickupPoints.filter((p) =>
+            !q || [p.name, p.city, p.county, p.address].some((f) => (f || "").toLowerCase().includes(q))
+          ).slice(0, 30);
+          return (
+            <BlockStack gap="400">
+              {swShowPickup && (
+                <BlockStack gap="200">
+                  <Text variant="headingSm" fontWeight="semibold">
+                    {swCourier === "fan" ? "FANbox *" : swCourier === "gls" ? "GLS ParcelShop *" :
+                     swCourier === "cargus" ? "PUDO / Ship & Go *" : swCourier === "sameday" ? "Easybox *" : "Punct de ridicare *"}
+                  </Text>
+                  {swPickupPoint ? (
+                    <InlineStack align="space-between" blockAlign="center" gap="200">
+                      <BlockStack gap="050">
+                        <Text variant="bodySm" fontWeight="semibold">{swPickupPoint.name}</Text>
+                        <Text variant="bodySm" tone="subdued">{swPickupPoint.address}</Text>
+                      </BlockStack>
+                      <Button size="micro" onClick={() => { setSwPickupPoint(null); loadSwPickupPoints(swCourier); }}>Schimbă</Button>
+                    </InlineStack>
+                  ) : (
+                    <BlockStack gap="200">
+                      <TextField labelHidden label="Caută" placeholder="Caută după oraș, adresă, nume..."
+                        value={swPickupSearch} onChange={setSwPickupSearch} autoComplete="off" />
+                      {swLoadingPP
+                        ? <InlineStack align="center"><Spinner size="small" /></InlineStack>
+                        : <div style={{ maxHeight:160, overflowY:"auto", border:"1px solid #e0e0e0", borderRadius:6 }}>
+                            {filteredPP.length === 0
+                              ? <Box padding="400"><Text tone="subdued" alignment="center">
+                                  {swPickupPoints.length === 0 ? "Nicio locație. Sincronizează din Setări." : "Nicio potrivire."}
+                                </Text></Box>
+                              : filteredPP.map((p) => (
+                                  <div key={p.id} role="button" tabIndex={0}
+                                    onClick={() => setSwPickupPoint(p)}
+                                    onKeyDown={(e) => e.key === "Enter" && setSwPickupPoint(p)}
+                                    style={{ padding:"8px 12px", cursor:"pointer", borderBottom:"1px solid #f5f5f5" }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.background = "#f9fafb"; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
+                                    <Text variant="bodySm" fontWeight="semibold">{p.name}</Text>
+                                    <br />
+                                    <Text variant="bodySm" tone="subdued">
+                                      {[p.city, p.county].filter(Boolean).join(", ")}{p.address ? ` — ${p.address}` : ""}
+                                    </Text>
+                                  </div>
+                                ))}
+                          </div>
+                      }
+                    </BlockStack>
+                  )}
+                  <Divider />
+                </BlockStack>
+              )}
+              <FormLayout>
+                <FormLayout.Group>
+                  <TextField label="Nume" value={swName} onChange={setSwName} autoComplete="off" />
+                  <TextField label="Email" value={swEmail} onChange={setSwEmail} autoComplete="off" type="email" />
+                  <TextField label="Telefon" value={swPhone} onChange={setSwPhone} autoComplete="off" />
+                </FormLayout.Group>
+                <FormLayout.Group>
+                  <TextField label="Adresă" value={swAddress} onChange={setSwAddress} autoComplete="off" />
+                  <TextField label="Detalii adresă (bloc, ap.)" value={swAddrDetails} onChange={setSwAddrDetails} autoComplete="off" />
+                </FormLayout.Group>
+                <FormLayout.Group>
+                  <TextField label="Localitate" value={swCity} onChange={setSwCity} autoComplete="off" />
+                  <TextField label="Județ" value={swCounty} onChange={setSwCounty} autoComplete="off" />
+                </FormLayout.Group>
+                <FormLayout.Group>
+                  <TextField label="Cod poștal" value={swZip} onChange={setSwZip} autoComplete="off" />
+                  <TextField label="Țară" value={swCountry} onChange={setSwCountry} autoComplete="off" />
+                </FormLayout.Group>
+                <TextField label="Companie (opțional)" value={swCompany} onChange={setSwCompany} autoComplete="off" />
+              </FormLayout>
+            </BlockStack>
+          );
+        }
+
+        function renderSwStep3() {
+          return (
+            <BlockStack gap="400">
+              <Card background="bg-surface-secondary">
+                <Text variant="bodySm" fontWeight="semibold">{activeOrder.shopifyOrderName}</Text>
+                <Text variant="bodySm" tone="subdued">Total: {activeOrder.orderTotal > 0 ? `${activeOrder.orderTotal.toFixed(2)} RON` : "—"}</Text>
+              </Card>
+              <FormLayout>
+                <FormLayout.Group>
+                  <TextField label="Ramburs (COD)" type="number" value={swCod} onChange={setSwCod} min="0" step="0.01" suffix="RON" />
+                  <TextField label="Valoare declarată" type="number" value={swDeclared} onChange={setSwDeclared} min="0" step="0.01" suffix="RON" />
+                </FormLayout.Group>
+                <FormLayout.Group>
+                  <Select label="Plata transportului" value={swPayer} onChange={setSwPayer}
+                    options={[{ label:"Destinatar", value:"recipient" }, { label:"Expeditor", value:"sender" }]} />
+                  <TextField label="Nr. colete" type="number" value={swPkgCount} onChange={setSwPkgCount} min="1" step="1" />
+                </FormLayout.Group>
+                <FormLayout.Group>
+                  <TextField label="Greutate" type="number" value={swWeight} onChange={setSwWeight} min="0.1" step="0.1" suffix="kg" />
+                </FormLayout.Group>
+                <Text variant="bodyMd" fontWeight="semibold">Dimensiuni colet</Text>
+                <FormLayout.Group>
+                  <TextField label="Înălțime" type="number" value={swHeight} onChange={setSwHeight} min="0" suffix="cm" />
+                  <TextField label="Lățime" type="number" value={swWidth} onChange={setSwWidth} min="0" suffix="cm" />
+                  <TextField label="Lungime" type="number" value={swLength} onChange={setSwLength} min="0" suffix="cm" />
+                </FormLayout.Group>
+              </FormLayout>
+            </BlockStack>
+          );
+        }
+
+        function renderSwStep4() {
+          return (
+            <BlockStack gap="400">
+              {singleError && <Banner tone="critical" title="Eroare" onDismiss={() => setSingleError(null)}><Text>{singleError}</Text></Banner>}
+              <TextField label="Conținut colet / Observații" value={swNotes} onChange={setSwNotes} multiline={4}
+                placeholder="Ex: Fragil, a nu se răsturna."
+                helpText={swCourier === "fan" && swFanObs.length > 0 ? `Obs. selectate: ${swFanObs.join(", ")}` : undefined}
+              />
+              <BlockStack gap="300">
+                <Checkbox label="Trimite notificare Shopify clientului" checked={swNotify} onChange={setSwNotify}
+                  helpText="Shopify trimite email de confirmare livrare" />
+                <Checkbox label="Marchează comanda ca expediată" checked={swDispatched} onChange={setSwDispatched}
+                  helpText="Setează fulfillment-ul la 'success' în Shopify" />
+              </BlockStack>
+              <Card background="bg-surface-secondary">
+                <BlockStack gap="150">
+                  <Text variant="bodySm" fontWeight="semibold">Rezumat</Text>
+                  <Text variant="bodySm" tone="subdued">
+                    Curier: <strong>{swCourier.toUpperCase()}</strong> · Serviciu: <strong>{swServiceOpts.find((x) => x.value === swService)?.label || swService}</strong>
+                  </Text>
+                  <Text variant="bodySm" tone="subdued">Destinatar: <strong>{swName}</strong> — {swPhone}</Text>
+                  {swShowPickup && swPickupPoint
+                    ? <Text variant="bodySm" tone="subdued">📦 {swPickupPoint.name}</Text>
+                    : <Text variant="bodySm" tone="subdued">🚚 {swAddress}, {swCity}</Text>
+                  }
+                  <Text variant="bodySm" tone="subdued">
+                    Ramburs: <strong>{parseFloat(swCod) > 0 ? `${parseFloat(swCod).toFixed(2)} RON` : "Nu"}</strong>
+                    {" · "}Greutate: <strong>{swWeight} kg</strong>
+                    {" · "}Colete: <strong>{swPkgCount}</strong>
+                  </Text>
+                </BlockStack>
+              </Card>
+            </BlockStack>
+          );
+        }
+
+        return (
+          <Modal open={singleWizardOpen} onClose={() => setSingleWizardOpen(false)} size="large"
+            title={`Generează AWB — ${activeOrder.shopifyOrderName}`}>
+            <Modal.Section>
+              <SwStepIndicator />
+              {singleWizardStep === 1 && renderSwStep1()}
+              {singleWizardStep === 2 && renderSwStep2()}
+              {singleWizardStep === 3 && renderSwStep3()}
+              {singleWizardStep === 4 && renderSwStep4()}
+              <div style={{ display:"flex", justifyContent:"flex-end", gap:8, marginTop:24, paddingTop:16, borderTop:"1px solid #e0e0e0" }}>
+                {singleWizardStep > 1 && <Button onClick={() => setSingleWizardStep((s) => s - 1)}>Anterior</Button>}
+                {singleWizardStep < 4
+                  ? <Button variant="primary" onClick={() => {
+                      if (singleWizardStep === 2 && swShowPickup && !swPickupPoint) {
+                        setSingleError("Selectează un punct de ridicare înainte de a continua."); return;
+                      }
+                      setSingleError(null); setSingleWizardStep((s) => s + 1);
+                    }}>Următor</Button>
+                  : <Button variant="primary" tone="success" loading={singleGenerating} onClick={submitSingleWizard}>
+                      {singleGenerating ? "Se generează..." : "Generează AWB"}
+                    </Button>
+                }
+              </div>
+            </Modal.Section>
+          </Modal>
+        );
+      })()}
 
       {toastMsg && (
         <Toast content={toastMsg} onDismiss={() => setToastMsg(null)} />
