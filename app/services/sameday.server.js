@@ -255,6 +255,8 @@ export async function samedayCreateAwb({
   serviceCode,          // e.g. "T" or "LN"
   countyId,             // recipient county id
   cityId,               // recipient city id
+  openPackage = false,  // allow recipient to inspect before accepting
+  insuredValue = 0,     // declared value for insurance
 }) {
   const token = await samedayAuthenticate({ username, password, sandbox });
   const base = getBase(sandbox);
@@ -270,7 +272,7 @@ export async function samedayCreateAwb({
     awbPayment: 1,         // 1 = recipient pays transport
     cashOnDelivery: order.codAmount || 0,
     cashOnDeliveryReturns: order.codAmount > 0 ? 1 : 0,
-    insuredValue: 0,
+    insuredValue: insuredValue || 0,
     thirdPartyPickup: 0,
     observation: order.notes || "",
     clientReference: order.shopifyOrderName || "",
@@ -286,6 +288,7 @@ export async function samedayCreateAwb({
     },
     // If easybox delivery, set the locker
     ...(isLocker ? { lockerId: lockerDestId } : {}),
+    ...(openPackage ? { openPackage: 1 } : {}),
   };
 
   const data = await samedayRequest(base, "/api/awb", {

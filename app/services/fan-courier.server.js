@@ -8,6 +8,30 @@
 const FAN_BASE = process.env.FAN_API_BASE || "https://api.fancourier.ro";
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Normalize Romanian phone to 10-digit local format (0XXXXXXXXX)
+// FAN API does not accept +40 international prefix or spaces
+function normalizePhone(phone) {
+  if (!phone) return "";
+  const digits = phone.replace(/\D/g, ""); // strip all non-digits
+  if (digits.startsWith("40") && digits.length === 11) return "0" + digits.slice(2);
+  if (digits.startsWith("0") && digits.length === 10) return digits;
+  return digits; // return as-is if format unknown
+}
+
+// Normalize county name: FAN expects Title Case (e.g. "Dolj", not "DOLJ" or "dolj")
+function normalizeCounty(county) {
+  if (!county) return "Bucuresti";
+  // Map Shopify English names to Romanian
+  const map = { "Bucharest": "Bucuresti", "Ilfov": "Ilfov" };
+  const mapped = map[county] || county;
+  // Title case: first letter upper, rest lower — handles "DOLJ" → "Dolj"
+  return mapped.charAt(0).toUpperCase() + mapped.slice(1).toLowerCase();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Token cache (per clientId, in-process; for multi-instance use Redis)
 // ─────────────────────────────────────────────────────────────────────────────
 const tokenCache = new Map(); // clientId → { token, expiresAt }
@@ -25,7 +49,7 @@ function setCachedToken(clientId, token, ttlSeconds = 3600) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Core helper
 // ─────────────────────────────────────────────────────────────────────────────
-async function fanRequest(path, { method = "GET", token, body } = {}) {
+async function fanRequest(path, { method = "GET", token, body, clientId, _retry = false } = {}) {
   const headers = {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -41,6 +65,12 @@ async function fanRequest(path, { method = "GET", token, body } = {}) {
   const text = await res.text();
   let data;
   try { data = JSON.parse(text); } catch { data = { raw: text }; }
+
+  // On 401, clear stale cached token and retry once with a fresh one
+  if (res.status === 401 && clientId && !_retry) {
+    tokenCache.delete(clientId);
+    return fanRequest(path, { method, body, clientId, _retry: true });
+  }
 
   if (!res.ok) {
     throw new Error(`FAN Courier API error [${res.status}] ${path}: ${text}`);
@@ -153,18 +183,36 @@ export async function fanCalculatePrice({ clientId, username, password, params }
 // ─────────────────────────────────────────────────────────────────────────────
 export async function fanCreateAwb({
   clientId, username, password,
-  order,      // { customerName, customerPhone, shippingAddress1, shippingCity, shippingCounty, shippingZip, codAmount, notes, weight }
+  order,      // { customerName, customerPhone, shippingAddress1, shippingCity, shippingCounty, shippingZip, codAmount, notes, weight, packageCount }
   settings,   // { senderName, senderPhone, senderCity, senderZip, senderAddress, senderCounty }
   pickupPointId = null, // if set → FANbox delivery
+  serviceOverride = null, // e.g. "Standard", "Cont Colector", "RedCode", "Produse Albe"
+  observations = null,    // optional observations text
+  openPackage = false,    // allow recipient to inspect before accepting
 }) {
   const token = await fanAuthenticate({ clientId, username, password });
 
-  // Determine service based on delivery type
-  const service = pickupPointId ? "Cont Colector" : "Standard";
+  // Validate required fields before hitting FAN API
+  if (!order.customerName || order.customerName === "Unknown") {
+    throw new Error("FAN AWB: recipient name is missing. Re-sync the order from Shopify first.");
+  }
+  if (!order.customerPhone) {
+    throw new Error("FAN AWB: recipient phone is missing.");
+  }
+  if (!settings.senderName || !settings.senderCity || !settings.senderAddress) {
+    throw new Error("FAN AWB: sender details not configured. Fill in Settings → FAN Courier sender info.");
+  }
+
+  // If pickup point id is invalid/null, fall back to home delivery
+  const effectivePickupId = pickupPointId && pickupPointId !== "null" ? pickupPointId : null;
+  // serviceOverride takes priority; "Cont Colector" also implies locker delivery
+  const service = serviceOverride || (effectivePickupId ? "Cont Colector" : "Standard");
+  // When service is "Cont Colector" we need the pickup point; for other services ignore it
+  const finalPickupId = service === "Cont Colector" ? effectivePickupId : null;
 
   const payload = {
     clientId,
-    info: [
+    shipments: [
       {
         service,
         bank: "",
@@ -177,30 +225,30 @@ export async function fanCreateAwb({
         declaredValue: 0,
         payment: "destinatar",
         content: "Colet",
-        observation: order.notes || "",
-        openPackage: 0,
+        observation: observations || order.notes || "",
+        openPackage: openPackage ? 1 : 0,
         dimensions: { width: 20, height: 15, length: 30 },
         // ── Recipient ──────────────────────────────────────────────────
         recipient: {
           name: order.customerName,
-          phone: order.customerPhone,
-          address: pickupPointId
-            ? { id: parseInt(pickupPointId) }
+          phone: normalizePhone(order.customerPhone),
+          address: finalPickupId
+            ? { id: parseInt(String(finalPickupId).replace(/\D/g, ""), 10) }
             : {
-                county: order.shippingCounty || "Bucuresti",
+                county: normalizeCounty(order.shippingCounty),
                 city: order.shippingCity || "Bucuresti",
-                street: order.shippingAddress1,
-                zipCode: order.shippingZip,
+                street: order.shippingAddress1 || "",
+                zipCode: order.shippingZip || "",
               },
         },
         // ── Sender ─────────────────────────────────────────────────────
         sender: {
           name: settings.senderName,
-          phone: settings.senderPhone,
+          phone: normalizePhone(settings.senderPhone),
           address: {
-            county: settings.senderCounty || "Bucuresti",
+            county: normalizeCounty(settings.senderCounty),
             city: settings.senderCity,
-            zipCode: settings.senderZip,
+            zipCode: settings.senderZip || "",
             street: settings.senderAddress,
           },
         },
@@ -208,7 +256,7 @@ export async function fanCreateAwb({
     ],
   };
 
-  const data = await fanRequest("/intern-awb", { method: "POST", token, body: payload });
+  const data = await fanRequest("/intern-awb", { method: "POST", token, body: payload, clientId });
 
   if (data.data?.[0]?.awb) {
     return {

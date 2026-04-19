@@ -16,7 +16,12 @@ export async function action({ request }) {
   const { shop } = session;
 
   const formData = await request.json();
-  const { orderId, courierOverride, weightOverride } = formData;
+  const {
+    orderId, courierOverride, weightOverride, packageCountOverride,
+    serviceOverride, observationsOverride,
+    openPackage, saturdayDelivery, morningDelivery, insuredValue,
+    pickupPointIdOverride, glsParcelShop,
+  } = formData;
 
   // Load order and settings
   const [order, settings] = await Promise.all([
@@ -31,8 +36,12 @@ export async function action({ request }) {
   const orderData = {
     ...order,
     weight: weightOverride || order.weight || settings.defaultWeight || 1,
+    packageCount: packageCountOverride || order.packageCount || 1,
     shopifyOrderName: order.shopifyOrderName,
   };
+
+  // Effective pickup point: wizard override takes priority over the stored order pickup point
+  const effectivePickupId = pickupPointIdOverride || (order.shippingMethod === "pickup_point" ? order.pickupPointId : null);
 
   let awbResult;
 
@@ -48,7 +57,10 @@ export async function action({ request }) {
         password: settings.fanPassword,
         order: orderData,
         settings,
-        pickupPointId: order.shippingMethod === "pickup_point" ? order.pickupPointId : null,
+        pickupPointId: effectivePickupId,
+        serviceOverride: serviceOverride || null,
+        observations: observationsOverride || null,
+        openPackage: !!openPackage,
       });
 
     } else if (courier === "sameday") {
@@ -72,8 +84,8 @@ export async function action({ request }) {
         return json({ error: "No sender pickup point configured in Sameday. Contact software@sameday.ro" }, { status: 400 });
       }
 
-      const isLocker = order.shippingMethod === "pickup_point";
-      const serviceCode = isLocker ? "LN" : "T";
+      const isLocker = !!effectivePickupId;
+      const serviceCode = serviceOverride || (isLocker ? "LN" : "T");
       const service = services.find((s) => s.code === serviceCode) || services[0];
 
       awbResult = await samedayCreateAwb({
@@ -82,11 +94,13 @@ export async function action({ request }) {
         order: orderData,
         settings,
         senderPickupPointId: senderPickupPoint.id,
-        lockerDestId: isLocker ? order.pickupPointId : null,
+        lockerDestId: isLocker ? effectivePickupId : null,
         serviceId: service.id,
         serviceCode: service.code,
         countyId: order.samedayCountyId || null,
         cityId: order.samedayCityId || null,
+        openPackage: !!openPackage,
+        insuredValue: insuredValue ? parseFloat(insuredValue) : 0,
       });
 
     } else if (courier === "cargus") {
@@ -106,16 +120,18 @@ export async function action({ request }) {
         return json({ error: "No sender location configured in Cargus. Contact urgentcargus.ro" }, { status: 400 });
       }
 
-      const isLocker = order.shippingMethod === "pickup_point";
-
       awbResult = await cargusCreateAwb({
         subscriptionKey: settings.cargusSubscriptionKey,
         username: settings.cargusUsername,
         password: settings.cargusPassword,
         order: orderData,
-        settings,
         senderLocationId: senderLocation.LocationId || senderLocation.locationId,
-        pudoPointId: isLocker ? order.pickupPointId : null,
+        pudoPointId: effectivePickupId || null,
+        serviceIdOverride: serviceOverride || null,
+        observations: observationsOverride || null,
+        openPackage: !!openPackage,
+        saturdayDelivery: !!saturdayDelivery,
+        morningDelivery: !!morningDelivery,
       });
 
     } else if (courier === "gls") {
@@ -130,7 +146,8 @@ export async function action({ request }) {
         order: orderData,
         settings,
         clientNumber: parseInt(settings.glsClientNumber) || 0,
-        pickupPointId: order.shippingMethod === "pickup_point" ? order.pickupPointId : null,
+        pickupPointId: glsParcelShop ? effectivePickupId : (order.shippingMethod === "pickup_point" ? effectivePickupId : null),
+        saturdayDelivery: !!saturdayDelivery,
       });
 
     } else if (courier === "packeta") {
@@ -142,7 +159,7 @@ export async function action({ request }) {
         apiKey: settings.packetaApiKey,
         order: orderData,
         settings,
-        pickupPointId: order.shippingMethod === "pickup_point" ? order.pickupPointId : null,
+        pickupPointId: effectivePickupId,
       });
     }
 
@@ -150,10 +167,11 @@ export async function action({ request }) {
       throw new Error("AWB generation returned unsuccessful result");
     }
 
-    // Update our DB
+    // Update our DB — also persist the actual courier used (wizard may override order.courierType)
     const updatedOrder = await updateOrderAwb(order.id, {
       awbNumber: awbResult.awbNumber,
       awbStatus: "generated",
+      courierType: courier,
       // Store courier-specific IDs needed for deletion / label download
       ...(awbResult.parcelId  ? { awbPdfUrl: `gls_parcelid:${awbResult.parcelId}`   } : {}),
       ...(awbResult.packetId  ? { awbPdfUrl: `packeta_id:${awbResult.packetId}`     } : {}),

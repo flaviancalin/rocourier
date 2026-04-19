@@ -25,7 +25,7 @@ function setCachedToken(subscriptionKey, token, ttlSeconds = 82800) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Core helper
 // ─────────────────────────────────────────────────────────────────────────────
-async function cargusRequest(path, { method = "GET", token, subscriptionKey, body } = {}) {
+async function cargusRequest(path, { method = "GET", token, subscriptionKey, body, _retry = false } = {}) {
   const headers = {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -43,6 +43,12 @@ async function cargusRequest(path, { method = "GET", token, subscriptionKey, bod
   const text = await res.text();
   let data;
   try { data = JSON.parse(text); } catch { data = text; }
+
+  // On 401, clear stale cached token and retry once with a fresh one
+  if (res.status === 401 && subscriptionKey && !_retry) {
+    tokenCache.delete(subscriptionKey);
+    return cargusRequest(path, { method, subscriptionKey, body, _retry: true });
+  }
 
   if (!res.ok) {
     throw new Error(`Cargus API error [${res.status}] ${path}: ${text}`);
@@ -124,6 +130,16 @@ export async function cargusGetPickupPoints({ subscriptionKey, username, passwor
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Get available services for the account
+// GET /Services
+// ─────────────────────────────────────────────────────────────────────────────
+export async function cargusGetServices({ subscriptionKey, username, password }) {
+  const token = await cargusAuthenticate({ subscriptionKey, username, password });
+  const data = await cargusRequest("Services", { token, subscriptionKey });
+  return Array.isArray(data) ? data : (data?.value || data?.data || []);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Create AWB
 // POST /Awbs
 // ServiceId: 34 (≤31kg standard), 35 (31-50kg), 36 (>50kg)
@@ -134,17 +150,19 @@ export async function cargusGetPickupPoints({ subscriptionKey, username, passwor
 export async function cargusCreateAwb({
   subscriptionKey, username, password,
   order,      // customer order data
-  settings,   // sender settings
   senderLocationId,    // YOUR pickup point LocationId (from cargusGetSenderLocations)
   pudoPointId = null,  // PUDO/Ship&Go point Id for locker delivery
+  serviceIdOverride = null, // integer service ID from wizard (e.g. 10 = Standard, 22 = Express)
+  observations = null,
+  openPackage = false,
+  saturdayDelivery = false,
+  morningDelivery = false,
 }) {
   const token = await cargusAuthenticate({ subscriptionKey, username, password });
 
-  // Select service ID by weight
   const weight = order.weight || 1;
-  let serviceId = 34;
-  if (weight > 50) serviceId = 36;
-  else if (weight > 31) serviceId = 35;
+  // ServiceId: 10 = Standard, 22 = Express. Use override from wizard if provided.
+  const serviceId = serviceIdOverride ? parseInt(serviceIdOverride) : 10;
 
   const isLocker = !!pudoPointId;
 
@@ -180,12 +198,12 @@ export async function cargusCreateAwb({
     CashRepayment: order.codAmount || 0,
     BankRepayment: 0,
     OtherRepayment: "",
-    OpenPackage:   false,
+    OpenPackage:   openPackage,
     PriceTableId:  0,
     ShipmentPayer: 2, // 2 = recipient pays shipping
-    SaturdayDelivery: false,
-    MorningDelivery:  false,
-    Observations:  order.notes || "",
+    SaturdayDelivery: saturdayDelivery,
+    MorningDelivery:  morningDelivery,
+    Observations:  observations || order.notes || "",
     PackageContent: "Colet",
     CustomString:  order.shopifyOrderName || "",
     // PUDO delivery

@@ -10,7 +10,7 @@ import { useState } from "react";
 import {
   Page, Layout, Card, BlockStack, InlineStack, Text, Badge,
   Button, Divider, Timeline, Box, Banner, Modal, Select,
-  TextField, Spinner, Toast, Frame,
+  TextField, Spinner, Toast, Frame, Checkbox,
 } from "@shopify/polaris";
 
 export async function loader({ request, params }) {
@@ -37,6 +37,34 @@ const COURIER_LABELS = {
   packeta: "Packeta",
 };
 
+const COURIER_SERVICES = {
+  fan: [
+    { label: "Standard",                 value: "Standard" },
+    { label: "Cont Colector (FANbox)",   value: "Cont Colector" },
+    { label: "RedCode",                  value: "RedCode" },
+    { label: "Produse Albe",             value: "Produse Albe" },
+    { label: "Transport Marfă",          value: "Transport Marfa" },
+  ],
+  sameday: [
+    { label: "Standard",                 value: "T" },
+    { label: "Locker (NextDay)",         value: "LN" },
+    { label: "Express",                  value: "E" },
+  ],
+  cargus: [
+    { label: "Standard",                          value: "10" },
+    { label: "Economic Standard (< 31 kg)",       value: "34" },
+    { label: "Standard Plus (31–50 kg)",          value: "35" },
+    { label: "Pudo point / Easy Collect",         value: "38" },
+    { label: "Standard Multipiece",              value: "39" },
+  ],
+  gls: [
+    { label: "Business Parcel (Standard)",        value: "standard" },
+  ],
+  packeta: [
+    { label: "Standard",                 value: "standard" },
+  ],
+};
+
 const STATUS_MAP = {
   pending:          { label: "În așteptare",    tone: "warning",  icon: "⏳" },
   generated:        { label: "AWB generat",     tone: "info",     icon: "🏷️" },
@@ -59,11 +87,92 @@ export default function OrderDetail() {
   const [modalOpen, setModalOpen]     = useState(false);
   const [deleteOpen, setDeleteOpen]   = useState(false);
   const [weight, setWeight]           = useState(String(order.weight || 1));
-  const [courier, setCourier]         = useState(order.courierType);
+  const [packageCount, setPackageCount] = useState(String(order.packageCount || 1));
+  const [courier, setCourier]         = useState(order.courierType || "fan");
   const [toast, setToast]             = useState(null);
   const [error, setError]             = useState(null);
 
+  // Derive default service from order's delivery method
+  function defaultService(courierKey, isPickup) {
+    if (courierKey === "fan")     return isPickup ? "Cont Colector" : "Standard";
+    if (courierKey === "sameday") return isPickup ? "LN" : "T";
+    if (courierKey === "cargus")  return isPickup ? "38" : "10";
+    return (COURIER_SERVICES[courierKey]?.[0]?.value) || "standard";
+  }
+
+  const [service, setService]           = useState(() => defaultService(order.courierType || "fan", order.shippingMethod === "pickup_point"));
+  const [observations, setObservations] = useState("");
+  const [openPackage, setOpenPackage]   = useState(false);
+  const [saturdayDelivery, setSaturdayDelivery] = useState(false);
+  const [morningDelivery, setMorningDelivery]   = useState(false);
+  const [insuredValue, setInsuredValue] = useState("0");
+  const [glsParcelShop, setGlsParcelShop] = useState(
+    order.shippingMethod === "pickup_point" && order.courierType === "gls"
+  );
+  const [selectedPickupPoint, setSelectedPickupPoint] = useState(
+    order.shippingMethod === "pickup_point" && order.pickupPointId
+      ? { externalId: order.pickupPointId, name: order.pickupPointName || "", address: order.pickupPointAddress || "", city: null }
+      : null
+  );
+  const [pickupSearch, setPickupSearch]         = useState("");
+  const [pickupPoints, setPickupPoints]         = useState([]);
+  const [loadingPickupPoints, setLoadingPickupPoints] = useState(false);
+  const [liveServices, setLiveServices]       = useState({});
+  const [loadingServices, setLoadingServices] = useState(false);
+
+  function needsPickupPoint(c, svc) {
+    if (c === "fan")     return svc === "Cont Colector";
+    if (c === "sameday") return /^LN|locker|easybox/i.test(String(svc));
+    if (c === "cargus")  return ["38"].includes(String(svc));
+    if (c === "packeta") return true;
+    if (c === "gls")     return glsParcelShop;
+    return false;
+  }
+
+  async function loadPickupPointsForCourier(c) {
+    setLoadingPickupPoints(true);
+    setPickupPoints([]);
+    setPickupSearch("");
+    try {
+      const res = await fetch(`/api/pickup-points?shop=${encodeURIComponent(order.shop)}&courier=${c}`);
+      const data = await res.json();
+      setPickupPoints(data.points || []);
+    } catch (_) {
+      setPickupPoints([]);
+    } finally {
+      setLoadingPickupPoints(false);
+    }
+  }
+
   const statusCfg = STATUS_MAP[order.awbStatus] || { label: order.awbStatus, tone: "default", icon: "📦" };
+
+  // ── Open modal + fetch live services ──────────────────────────────────────
+  async function openGenerateModal() {
+    setModalOpen(true);
+    setLoadingServices(true);
+    try {
+      const res = await fetch("/api/courier-services");
+      const data = await res.json();
+      setLiveServices(data);
+      const opts = data[courier] || COURIER_SERVICES[courier] || [];
+      const isPickup = order.shippingMethod === "pickup_point";
+      const defaultSvc = isPickup
+        ? (opts.find((o) => /locker|fanbox|colector|ln/i.test(o.label)) || opts[0])
+        : opts[0];
+      const svc = defaultSvc?.value || service;
+      setService(svc);
+      // Pre-load pickup points if the initial courier+service combo requires them
+      if (needsPickupPoint(courier, svc) || (courier === "gls" && glsParcelShop)) {
+        loadPickupPointsForCourier(courier);
+      }
+    } catch (_) {
+      if (needsPickupPoint(courier, service) || (courier === "gls" && glsParcelShop)) {
+        loadPickupPointsForCourier(courier);
+      }
+    } finally {
+      setLoadingServices(false);
+    }
+  }
 
   // ── Generate AWB ───────────────────────────────────────────────────────────
   async function handleGenerateAwb() {
@@ -77,6 +186,15 @@ export default function OrderDetail() {
           orderId: order.id,
           courierOverride: courier,
           weightOverride: parseFloat(weight),
+          packageCountOverride: parseInt(packageCount) || 1,
+          serviceOverride: service,
+          observationsOverride: observations || undefined,
+          openPackage: openPackage || undefined,
+          saturdayDelivery: saturdayDelivery || undefined,
+          morningDelivery: morningDelivery || undefined,
+          insuredValue: parseFloat(insuredValue) || undefined,
+          pickupPointIdOverride: selectedPickupPoint?.externalId || undefined,
+          glsParcelShop: (courier === "gls" && glsParcelShop) || undefined,
         }),
       });
       const data = await res.json();
@@ -153,7 +271,7 @@ export default function OrderDetail() {
         backAction={{ content: "Comenzi", onAction: () => navigate("/app/orders") }}
         primaryAction={
           !order.awbNumber
-            ? { content: "Generează AWB", onAction: () => setModalOpen(true), tone: "success" }
+            ? { content: "Generează AWB", onAction: openGenerateModal, tone: "success" }
             : undefined
         }
         secondaryActions={[
@@ -336,7 +454,21 @@ export default function OrderDetail() {
             <Select
               label="Curier"
               value={courier}
-              onChange={setCourier}
+              onChange={(v) => {
+                setCourier(v);
+                const opts = liveServices[v] || COURIER_SERVICES[v] || [];
+                const svc = opts[0]?.value || "standard";
+                setService(svc);
+                setOpenPackage(false);
+                setSaturdayDelivery(false);
+                setMorningDelivery(false);
+                setGlsParcelShop(false);
+                setSelectedPickupPoint(null);
+                setPickupPoints([]);
+                if (needsPickupPoint(v, svc) || v === "packeta") {
+                  loadPickupPointsForCourier(v);
+                }
+              }}
               options={[
                 ...(settings?.fanEnabled     ? [{ label: "FAN Courier", value: "fan"     }] : []),
                 ...(settings?.samedayEnabled ? [{ label: "Sameday",     value: "sameday" }] : []),
@@ -346,14 +478,186 @@ export default function OrderDetail() {
               ]}
             />
 
+            <Select
+              label={loadingServices ? "Tip serviciu (se încarcă...)" : "Tip serviciu"}
+              value={service}
+              onChange={(svc) => {
+                setService(svc);
+                setSelectedPickupPoint(null);
+                setPickupPoints([]);
+                if (needsPickupPoint(courier, svc)) {
+                  loadPickupPointsForCourier(courier);
+                }
+              }}
+              disabled={loadingServices}
+              options={liveServices[courier] || COURIER_SERVICES[courier] || [{ label: "Standard", value: "standard" }]}
+            />
+
+            <InlineStack gap="400">
+              <div style={{ flex: 1 }}>
+                <TextField
+                  label="Greutate (kg)"
+                  type="number"
+                  value={weight}
+                  onChange={setWeight}
+                  min="0.1"
+                  step="0.1"
+                  suffix="kg"
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <TextField
+                  label="Nr. colete"
+                  type="number"
+                  value={packageCount}
+                  onChange={setPackageCount}
+                  min="1"
+                  step="1"
+                />
+              </div>
+            </InlineStack>
+
+            {/* Per-courier special options */}
+            {(courier === "fan" || courier === "sameday" || courier === "cargus") && (
+              <Checkbox
+                label="Deschidere la livrare"
+                checked={openPackage}
+                onChange={setOpenPackage}
+                helpText="Destinatarul poate verifica coletul înainte de a-l accepta"
+              />
+            )}
+            {courier === "gls" && (
+              <Checkbox
+                label="Livrare la ParcelShop / Locker"
+                checked={glsParcelShop}
+                onChange={(checked) => {
+                  setGlsParcelShop(checked);
+                  setSelectedPickupPoint(null);
+                  setPickupPoints([]);
+                  if (checked) loadPickupPointsForCourier("gls");
+                }}
+              />
+            )}
+            {(courier === "cargus" || courier === "gls") && (
+              <Checkbox
+                label="Livrare sâmbătă"
+                checked={saturdayDelivery}
+                onChange={setSaturdayDelivery}
+              />
+            )}
+            {courier === "cargus" && (
+              <Checkbox
+                label="Livrare dimineața (Morning Delivery)"
+                checked={morningDelivery}
+                onChange={setMorningDelivery}
+              />
+            )}
+            {courier === "sameday" && (
+              <TextField
+                label="Valoare asigurată (RON)"
+                type="number"
+                value={insuredValue}
+                onChange={setInsuredValue}
+                min="0"
+                step="1"
+                suffix="RON"
+              />
+            )}
+
+            {/* Pickup point selector — shows when service requires a locker/parcelshop */}
+            {(needsPickupPoint(courier, service) || (courier === "gls" && glsParcelShop)) && (
+              <BlockStack gap="200">
+                <Text variant="headingSm">
+                  {courier === "fan"     ? "FANbox *" :
+                   courier === "gls"     ? "GLS ParcelShop *" :
+                   courier === "cargus"  ? "PUDO / Ship & Go *" :
+                   courier === "sameday" ? "Easybox *" :
+                                          "Punct de ridicare *"}
+                </Text>
+                {selectedPickupPoint ? (
+                  <InlineStack align="space-between" blockAlign="start" gap="200">
+                    <BlockStack gap="050">
+                      <Text variant="bodySm" fontWeight="semibold">{selectedPickupPoint.name}</Text>
+                      <Text variant="bodySm" tone="subdued">
+                        {[selectedPickupPoint.city, selectedPickupPoint.county].filter(Boolean).join(", ")}
+                        {selectedPickupPoint.address ? ` — ${selectedPickupPoint.address}` : ""}
+                      </Text>
+                    </BlockStack>
+                    <Button size="micro" onClick={() => { setSelectedPickupPoint(null); loadPickupPointsForCourier(courier); }}>
+                      Schimbă
+                    </Button>
+                  </InlineStack>
+                ) : (
+                  <BlockStack gap="200">
+                    <TextField
+                      labelHidden
+                      label="Caută punct"
+                      placeholder="Caută după oraș, adresă, nume..."
+                      value={pickupSearch}
+                      onChange={setPickupSearch}
+                      autoComplete="off"
+                    />
+                    {loadingPickupPoints ? (
+                      <InlineStack align="center"><Spinner size="small" /></InlineStack>
+                    ) : (
+                      <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid #e0e0e0", borderRadius: 8 }}>
+                        {(() => {
+                          const q = pickupSearch.toLowerCase();
+                          const filtered = pickupPoints.filter((p) =>
+                            !q ||
+                            p.name?.toLowerCase().includes(q) ||
+                            (p.city || "").toLowerCase().includes(q) ||
+                            (p.county || "").toLowerCase().includes(q) ||
+                            (p.address || "").toLowerCase().includes(q)
+                          ).slice(0, 30);
+                          if (filtered.length === 0) {
+                            return (
+                              <Box padding="400">
+                                <Text tone="subdued" alignment="center">
+                                  {pickupPoints.length === 0
+                                    ? "Nicio locație disponibilă. Sincronizează pickup points din Settings."
+                                    : "Nicio potrivire găsită."}
+                                </Text>
+                              </Box>
+                            );
+                          }
+                          return filtered.map((p) => (
+                            <div
+                              key={p.id}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => setSelectedPickupPoint(p)}
+                              onKeyDown={(e) => e.key === "Enter" && setSelectedPickupPoint(p)}
+                              style={{
+                                padding: "8px 12px",
+                                cursor: "pointer",
+                                borderBottom: "1px solid #f5f5f5",
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#f9fafb"; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                            >
+                              <Text variant="bodySm" fontWeight="semibold">{p.name}</Text>
+                              <br />
+                              <Text variant="bodySm" tone="subdued">
+                                {[p.city, p.county].filter(Boolean).join(", ")}
+                                {p.address ? ` — ${p.address}` : ""}
+                              </Text>
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    )}
+                  </BlockStack>
+                )}
+              </BlockStack>
+            )}
+
             <TextField
-              label="Greutate (kg)"
-              type="number"
-              value={weight}
-              onChange={setWeight}
-              min="0.1"
-              step="0.1"
-              suffix="kg"
+              label="Observații (opțional)"
+              value={observations}
+              onChange={setObservations}
+              multiline={2}
+              placeholder="Ex: Fragil, a nu se răsturna"
             />
 
             <Card background="bg-surface-secondary">

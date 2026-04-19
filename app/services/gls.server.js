@@ -122,6 +122,7 @@ export async function glsCreateAwb({
   settings,      // sender settings (including glsClientNumber)
   clientNumber,  // GLS client number (integer from GLS contract)
   pickupPointId = null,  // GLS ParcelShop ID for locker delivery
+  saturdayDelivery = false, // add SAT service code for Saturday delivery
 }) {
   const base = getBase(sandbox);
   const auth = glsBuildAuth(username, password);
@@ -155,15 +156,13 @@ export async function glsCreateAwb({
       ContactPhone:  order.customerPhone    || "",
       ContactEmail:  order.customerEmail    || "",
     },
-    // GLS ParcelShop delivery (Service AOS)
-    ...(pickupPointId ? {
-      ServiceList: [
-        {
-          Code: "AOS",
-          PSDParameter: String(pickupPointId),
-        },
-      ],
-    } : {}),
+    // GLS services: AOS = ParcelShop delivery, SAT = Saturday delivery
+    ...(() => {
+      const services = [];
+      if (pickupPointId) services.push({ Code: "AOS", PSDParameter: String(pickupPointId) });
+      if (saturdayDelivery) services.push({ Code: "SAT" });
+      return services.length > 0 ? { ServiceList: services } : {};
+    })(),
   };
 
   const result = await glsRequest(base, "PrintLabels", {
