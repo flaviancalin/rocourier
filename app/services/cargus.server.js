@@ -157,6 +157,9 @@ export async function cargusCreateAwb({
   openPackage = false,
   saturdayDelivery = false,
   morningDelivery = false,
+  shipmentPayer = 2,    // 1=sender, 2=recipient
+  bankRepayment = null, // collecting account repayment (null = use codAmount)
+  cashRepayment = null, // cash repayment (null = use codAmount)
 }) {
   const token = await cargusAuthenticate({ subscriptionKey, username, password });
 
@@ -194,12 +197,12 @@ export async function cargusCreateAwb({
     TotalWeight:   weight,
     ServiceId:     serviceId,
     DeclaredValue: 0,
-    CashRepayment: order.codAmount || 0,
-    BankRepayment: 0,
+    CashRepayment: cashRepayment !== null ? cashRepayment : (order.codAmount || 0),
+    BankRepayment: bankRepayment !== null ? bankRepayment : 0,
     OtherRepayment: "",
     OpenPackage:   openPackage,
     PriceTableId:  0,
-    ShipmentPayer: 2, // 2 = recipient pays shipping
+    ShipmentPayer: shipmentPayer,
     SaturdayDelivery: saturdayDelivery,
     MorningDelivery:  morningDelivery,
     Observations:  observations || order.notes || "",

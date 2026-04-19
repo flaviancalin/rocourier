@@ -21,6 +21,13 @@ export async function action({ request }) {
     serviceOverride, observationsOverride,
     openPackage, saturdayDelivery, morningDelivery, insuredValue,
     pickupPointIdOverride, glsParcelShop,
+    // New wizard fields
+    recipientName, recipientPhone, recipientEmail,
+    recipientAddress, recipientCity, recipientCounty, recipientZip, recipientCountry,
+    codAmountOverride, declaredValue, shipmentPayer,
+    height, width, length,
+    cargusReimbursement, swapService,
+    notifyCustomer, markAsDispatched,
   } = formData;
 
   // Load order and settings
@@ -35,8 +42,19 @@ export async function action({ request }) {
   const courier = courierOverride || order.courierType;
   const orderData = {
     ...order,
-    weight: weightOverride || order.weight || settings.defaultWeight || 1,
+    // Recipient overrides from wizard Step 2
+    customerName:    recipientName    || order.customerName,
+    customerPhone:   recipientPhone   || order.customerPhone,
+    customerEmail:   recipientEmail   || order.customerEmail,
+    shippingAddress1: recipientAddress || order.shippingAddress1,
+    shippingCity:    recipientCity    || order.shippingCity,
+    shippingCounty:  recipientCounty  || order.shippingCounty,
+    shippingZip:     recipientZip     || order.shippingZip,
+    shippingCountry: recipientCountry || order.shippingCountry,
+    // Content overrides from wizard Step 3
+    weight:       weightOverride       || order.weight || settings.defaultWeight || 1,
     packageCount: packageCountOverride || order.packageCount || 1,
+    codAmount:    codAmountOverride !== undefined ? parseFloat(codAmountOverride) : order.codAmount,
     shopifyOrderName: order.shopifyOrderName,
   };
 
@@ -132,6 +150,11 @@ export async function action({ request }) {
         openPackage: !!openPackage,
         saturdayDelivery: !!saturdayDelivery,
         morningDelivery: !!morningDelivery,
+        // ShipmentPayer: 1=sender, 2=recipient
+        shipmentPayer: shipmentPayer === "sender" ? 1 : 2,
+        // Reimbursement: cash vs collecting account
+        bankRepayment: cargusReimbursement === "account" ? (orderData.codAmount || 0) : 0,
+        cashRepayment: cargusReimbursement === "account" ? 0 : (orderData.codAmount || 0),
       });
 
     } else if (courier === "gls") {
