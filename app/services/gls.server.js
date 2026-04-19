@@ -27,13 +27,12 @@ function getBase(sandbox = false) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Password hashing: SHA512(password) → signed byte array
-// The GLS API expects Password as byte[] (signed int values, -128..127)
+// Password hashing: SHA512(password) → unsigned byte array (0-255)
+// C# byte[] is unsigned — do NOT convert to signed values
 // ─────────────────────────────────────────────────────────────────────────────
 function glsHashPassword(password) {
   const hash = createHash("sha512").update(password, "utf8").digest();
-  // Convert to signed byte array (Java/C# signed byte convention)
-  return Array.from(hash).map((b) => (b > 127 ? b - 256 : b));
+  return Array.from(hash); // unsigned 0-255
 }
 
 function glsBuildAuth(username, password) {
