@@ -10,6 +10,13 @@ export async function upsertOrderFromWebhook(shop, shopifyOrder) {
     return acc;
   }, {});
 
+  // Support both _rc_ (current widget) and _rocourier_ (legacy) attribute prefixes
+  const rcMethod      = attrs["_rc_method"]        || attrs["_rocourier_method"]        || "home_delivery";
+  const rcCourier     = attrs["_rc_courier"]       || attrs["_rocourier_courier"]       || "fan";
+  const rcPointId     = attrs["_rc_point_id"]      || attrs["_rocourier_point_id"]      || null;
+  const rcPointName   = attrs["_rc_point_name"]    || attrs["_rocourier_point_name"]    || null;
+  const rcPointAddr   = attrs["_rc_point_address"] || attrs["_rocourier_point_address"] || null;
+
   const weightKg = (shopifyOrder.line_items || []).reduce(
     (sum, item) => sum + (item.grams || 0) * (item.quantity || 1), 0
   ) / 1000;
@@ -27,10 +34,11 @@ export async function upsertOrderFromWebhook(shop, shopifyOrder) {
     shippingCounty: shopifyOrder.shipping_address?.province || "",
     shippingZip: shopifyOrder.shipping_address?.zip || "",
     shippingCountry: shopifyOrder.shipping_address?.country_code || "RO",
-    shippingMethod: attrs["_rocourier_method"] || "home_delivery",
-    courierType: attrs["_rocourier_courier"] || "fan",
-    pickupPointId: attrs["_rocourier_point_id"] || null,
-    pickupPointName: attrs["_rocourier_point_name"] || null,
+    shippingMethod: rcMethod,
+    courierType: rcCourier,
+    pickupPointId: rcPointId,
+    pickupPointName: rcPointName,
+    pickupPointAddress: rcPointAddr,
     codAmount: parseFloat(shopifyOrder.total_price) || 0,
     orderTotal: parseFloat(shopifyOrder.total_price) || 0,
     weight: weightKg > 0 ? weightKg : undefined,
@@ -45,6 +53,7 @@ export async function upsertOrderFromWebhook(shop, shopifyOrder) {
       courierType: data.courierType,
       pickupPointId: data.pickupPointId,
       pickupPointName: data.pickupPointName,
+      pickupPointAddress: data.pickupPointAddress,
       codAmount: data.codAmount,
       ...(weightKg > 0 ? { weight: weightKg } : {}),
     },

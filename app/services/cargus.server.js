@@ -160,11 +160,10 @@ export async function cargusCreateAwb({
 }) {
   const token = await cargusAuthenticate({ subscriptionKey, username, password });
 
-  const weight = order.weight || 1;
-  // ServiceId: 10 = Standard, 22 = Express. Use override from wizard if provided.
-  const serviceId = serviceIdOverride ? parseInt(serviceIdOverride) : 10;
-
+  const weight   = order.weight || 1;
   const isLocker = !!pudoPointId;
+  // ServiceId: 10 = Standard, 38 = PUDO/Easy Collect. Auto-detect PUDO when locker point is provided.
+  const serviceId = serviceIdOverride ? parseInt(serviceIdOverride) : (isLocker ? 38 : 10);
 
   const payload = {
     SenderClientId: null,

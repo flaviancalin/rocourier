@@ -611,6 +611,8 @@
     });
 
     // ── Render list ────────────────────────────────────────────────────────────
+    const LIST_LIMIT = 60; // max list items rendered at once — map clustering handles the rest
+
     function renderList(points) {
       if (!pointsList) return;
       pointsList.innerHTML = "";
@@ -626,7 +628,11 @@
         }
       }
 
-      orderedPoints.forEach((p) => {
+      // Limit list to LIST_LIMIT items — search to narrow down
+      const showPoints = orderedPoints.slice(0, LIST_LIMIT);
+      const hasMore    = orderedPoints.length > LIST_LIMIT;
+
+      showPoints.forEach((p) => {
         const cfg   = COURIERS[p.courier] || { pickupLabel: p.courier, color: "#888", badgeClass: "" };
         const isSel = selectedPoint?.id === p.id;
         const li    = document.createElement("li");
@@ -690,6 +696,15 @@
 
         pointsList.appendChild(li);
       });
+
+      // Prompt to search when list is truncated
+      if (hasMore) {
+        const hint = document.createElement("li");
+        hint.className = "rc-item rc-list-hint";
+        hint.style.cssText = "text-align:center;padding:10px;color:#666;font-size:12px;cursor:default";
+        hint.textContent = `+ ${orderedPoints.length - LIST_LIMIT} mai multe — caută pentru a filtra`;
+        pointsList.appendChild(hint);
+      }
     }
 
     // ── Leaflet map ────────────────────────────────────────────────────────────

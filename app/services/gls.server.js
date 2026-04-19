@@ -127,6 +127,11 @@ export async function glsCreateAwb({
   const base = getBase(sandbox);
   const auth = glsBuildAuth(username, password);
 
+  // Build GLS service list: AOS = ParcelShop delivery, SAT = Saturday delivery
+  const glsServiceList = [];
+  if (pickupPointId) glsServiceList.push({ Code: "AOS", PSDParameter: String(pickupPointId) });
+  if (saturdayDelivery) glsServiceList.push({ Code: "SAT" });
+
   const parcel = {
     ClientNumber:    clientNumber || parseInt(settings.glsClientNumber) || 0,
     ClientReference: order.shopifyOrderName || "",
@@ -156,13 +161,7 @@ export async function glsCreateAwb({
       ContactPhone:  order.customerPhone    || "",
       ContactEmail:  order.customerEmail    || "",
     },
-    // GLS services: AOS = ParcelShop delivery, SAT = Saturday delivery
-    ...(() => {
-      const services = [];
-      if (pickupPointId) services.push({ Code: "AOS", PSDParameter: String(pickupPointId) });
-      if (saturdayDelivery) services.push({ Code: "SAT" });
-      return services.length > 0 ? { ServiceList: services } : {};
-    })(),
+    ...(glsServiceList.length > 0 ? { ServiceList: glsServiceList } : {}),
   };
 
   const result = await glsRequest(base, "PrintLabels", {

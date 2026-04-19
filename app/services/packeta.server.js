@@ -160,21 +160,27 @@ export async function packetaCreatePacket({
   // For home delivery Packeta needs an address (addressId = null and full address)
   // For pickup point delivery: addressId = branch ID, no address needed
 
+  // Packeta <number> must be alphanumeric — strip Shopify's leading '#'
+  const orderNumber = (order.shopifyOrderName || order.shopifyOrderId || "")
+    .replace(/^#/, "").replace(/[^a-zA-Z0-9_-]/g, "");
+  // Packeta requires value >= cod; use at least 1 RON
+  const declaredValue = Math.max(order.orderTotal || order.codAmount || 0, 1);
+
   const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
 <createPacket>
   <apiPassword>${xmlEscape(apiKey)}</apiPassword>
   <packetAttributes>
-    <number>${xmlEscape(order.shopifyOrderName || order.shopifyOrderId || "")}</number>
+    <number>${xmlEscape(orderNumber)}</number>
     <name>${xmlEscape(order.customerName || "")}</name>
     <email>${xmlEscape(order.customerEmail || "")}</email>
     <phone>${xmlEscape(order.customerPhone || "")}</phone>
     <cod>${(order.codAmount || 0).toFixed(2)}</cod>
-    <value>${(order.orderTotal || order.codAmount || 0).toFixed(2)}</value>
+    <value>${declaredValue.toFixed(2)}</value>
     <currency>RON</currency>
     <weight>${(order.weight || 1).toFixed(3)}</weight>
     <eshopOrderNumber>${xmlEscape(order.shopifyOrderName || "")}</eshopOrderNumber>
     ${isPoint
-      ? `<addressId>${xmlEscape(pickupPointId)}</addressId>`
+      ? `<addressId>${xmlEscape(String(pickupPointId))}</addressId>`
       : `<street>${xmlEscape(order.shippingAddress1 || "")}</street>
     <city>${xmlEscape(order.shippingCity || "")}</city>
     <zip>${xmlEscape(order.shippingZip || "")}</zip>
