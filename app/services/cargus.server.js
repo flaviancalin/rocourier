@@ -208,8 +208,11 @@ export async function cargusCreateAwb({
     Observations:  observations || order.notes || "",
     PackageContent: "Colet",
     CustomString:  order.shopifyOrderName || "",
-    // PUDO delivery
-    ...(isLocker ? { DeliveryPudoPoint: parseInt(pudoPointId) } : {}),
+    // PUDO delivery — ParcelCodes required for service 38
+    ...(isLocker ? {
+      DeliveryPudoPoint: parseInt(pudoPointId),
+      ParcelCodes: Array.from({ length: order.packageCount || 1 }, () => ""),
+    } : {}),
   };
 
   const data = await cargusRequest("Awbs", {
