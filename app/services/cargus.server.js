@@ -211,7 +211,7 @@ export async function cargusCreateAwb({
     // PUDO delivery — ParcelCodes required for service 38
     ...(isLocker ? {
       DeliveryPudoPoint: parseInt(pudoPointId),
-      ParcelCodes: Array.from({ length: order.packageCount || 1 }, () => ""),
+      ParcelCodes: Array.from({ length: order.packageCount || 1 }, () => null),
     } : {}),
   };
 

@@ -228,7 +228,7 @@ export async function packetaDownloadLabel({ apiKey, packetId }) {
   <offset>0</offset>
 </packetLabelPdf>`;
 
-  const res = await fetch(`${PACKETA_REST_BASE}/packetLabelPdf`, {
+  const res = await fetch(`${PACKETA_REST_BASE}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/xml; charset=utf-8",

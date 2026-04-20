@@ -139,7 +139,8 @@ export async function glsCreateAwb({
 
   // Build GLS service list: AOS = ParcelShop delivery, SAT = Saturday delivery
   const glsServiceList = [];
-  if (pickupPointId) glsServiceList.push({ Code: "AOS", PSDParameter: String(pickupPointId) });
+  // PSDParameter must be the goldId integer — string IDs like "RO011857-PARCELSH01" are rejected
+  if (pickupPointId) glsServiceList.push({ Code: "AOS", PSDParameter: parseInt(pickupPointId) || String(pickupPointId) });
   if (saturdayDelivery) glsServiceList.push({ Code: "SAT" });
 
   // GLS rejects '#' and special characters in ClientReference
@@ -282,7 +283,7 @@ export async function glsGetPickupPoints() {
   }
 
   return allPoints.map((s) => ({
-    externalId: String(s.id || s.goldId || ""),
+    externalId: String(s.goldId || s.id || ""),
     courier: "gls",
     type: s.type === "parcel-locker" ? "locker" : "parcelshop",
     name: s.name || "GLS ParcelShop",
