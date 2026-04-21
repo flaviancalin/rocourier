@@ -1,11 +1,9 @@
 // app/routes/api.estimate-shipping.js
-// Returns an estimated shipping price for the given courier + parameters.
-// Best-effort — returns null rather than throwing so the wizard stays usable.
+// Best-effort shipping price estimate — returns null rather than throwing.
+// Service imports are dynamic to avoid Remix/Vite "server-only referenced by client" error.
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
-import { fanAuthenticate } from "../services/fan-courier.server.js";
-import { samedayAuthenticate, samedayGetClientPickupPoints, samedayGetServices, samedayCalculatePrice } from "../services/sameday.server.js";
 
 export async function action({ request }) {
   const { session } = await authenticate.admin(request);
@@ -21,37 +19,31 @@ export async function action({ request }) {
   try {
     // ── FAN Courier ──────────────────────────────────────────────────────────
     if (courier === "fan" && settings.fanClientId && settings.fanUsername && settings.fanPassword) {
-      const token = await fanAuthenticate({
+      const { fanCalculatePrice } = await import("../services/fan-courier.server.js");
+      const data = await fanCalculatePrice({
         clientId: settings.fanClientId,
         username: settings.fanUsername,
         password: settings.fanPassword,
+        params: {
+          service: service || "Standard",
+          recipientCounty: recipientCounty || "",
+          recipientCity: recipientCity || "",
+          weight: parseFloat(weight) || 1,
+          packageCount: parseInt(packageCount) || 1,
+          codAmount: parseFloat(codAmount) || 0,
+        },
       });
-
-      const res = await fetch(`${process.env.FAN_API_BASE || "https://api.fancourier.ro"}/price`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          clientId: settings.fanClientId,
-          modality: service || "Standard",
-          recipient: { judCode: recipientCounty || "", locCode: recipientCity || "" },
-          packages: { weight: parseFloat(weight) || 1, type: 1, number: parseInt(packageCount) || 1 },
-          payment: "destinatar",
-          cod: parseFloat(codAmount) || 0,
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const price = data?.data?.total ?? data?.data?.price ?? data?.data;
-        if (price != null && !isNaN(parseFloat(price))) {
-          return json({ price: parseFloat(price).toFixed(2), currency: "RON", courier: "FAN Courier" });
-        }
+      const price = data?.total ?? data?.price ?? data;
+      if (price != null && !isNaN(parseFloat(price))) {
+        return json({ price: parseFloat(price).toFixed(2), currency: "RON", courier: "FAN Courier" });
       }
     }
 
     // ── Sameday ──────────────────────────────────────────────────────────────
     if (courier === "sameday" && settings.samedayUsername && settings.samedayPassword) {
-      // Need sender pickup point and service ID from Sameday
+      const { samedayGetClientPickupPoints, samedayGetServices, samedayCalculatePrice } =
+        await import("../services/sameday.server.js");
+
       const [senderPoints, services] = await Promise.all([
         samedayGetClientPickupPoints({ username: settings.samedayUsername, password: settings.samedayPassword }),
         samedayGetServices({ username: settings.samedayUsername, password: settings.samedayPassword }),
@@ -61,7 +53,6 @@ export async function action({ request }) {
       const svc = services.find((s) => s.code === service) || services[0];
 
       if (senderPoint && svc) {
-        // Fetch county ID from order if available
         const order = orderId ? await prisma.order.findFirst({ where: { shop, id: orderId } }) : null;
         const countyId = order?.samedayCountyId;
         const cityId   = order?.samedayCityId;
@@ -73,11 +64,10 @@ export async function action({ request }) {
             pickupPointId: senderPoint.id,
             serviceId: svc.id,
             destCountyId: countyId,
-            destCityId: cityId || undefined,
+            ...(cityId ? { destCityId: cityId } : {}),
             weight: parseFloat(weight) || 1,
             codAmount: parseFloat(codAmount) || 0,
           });
-
           const price = data?.totalAmount ?? data?.amount ?? data?.price;
           if (price != null && !isNaN(parseFloat(price))) {
             return json({ price: parseFloat(price).toFixed(2), currency: "RON", courier: "Sameday" });
@@ -87,7 +77,7 @@ export async function action({ request }) {
     }
 
   } catch (_) {
-    // Silently fail — price estimate is informational only
+    // Non-fatal — price estimate is informational only
   }
 
   return json({ price: null });
