@@ -213,11 +213,11 @@ function defaultServiceForCourier(courierKey, hasPickup) {
 
 // ─── Static courier map (brand names, no translation needed) ─────────────────
 const COURIER_MAP = {
-  fan:     { label: "FAN Courier", color: "#e65100" },
-  sameday: { label: "Sameday",     color: "#1565c0" },
-  cargus:  { label: "Cargus",      color: "#c62828" },
-  gls:     { label: "GLS",         color: "#f9a825" },
-  packeta: { label: "Packeta",     color: "#ba000d" },
+  fan:     { label: "FAN Courier", color: "#e65100", logo: "/logo-fan.svg"     },
+  sameday: { label: "Sameday",     color: "#1565c0", logo: "/logo-sameday.svg" },
+  cargus:  { label: "Cargus",      color: "#c62828", logo: "/logo-cargus.png"  },
+  gls:     { label: "GLS",         color: "#f9a825", logo: "/logo-gls.svg"     },
+  packeta: { label: "Packeta",     color: "#ba000d", logo: "/logo-packeta.svg" },
 };
 
 const STATUS_TONES = {
@@ -748,7 +748,7 @@ export default function OrdersPage() {
                   {/* Table header */}
                   <div style={{
                     display:"grid",
-                    gridTemplateColumns:"36px 110px 1fr 110px 110px 140px 110px 100px 140px",
+                    gridTemplateColumns:"36px 100px minmax(160px,1fr) 90px 95px 130px 105px 95px 130px",
                     gap:0,
                     padding:"8px 16px",
                     background:"#f6f6f7",
@@ -792,7 +792,7 @@ export default function OrdersPage() {
                         <div
                           style={{
                             display:"grid",
-                            gridTemplateColumns:"36px 110px 1fr 110px 110px 140px 110px 100px 140px",
+                            gridTemplateColumns:"36px 100px minmax(160px,1fr) 90px 95px 130px 105px 95px 130px",
                             gap:0,
                             padding:"10px 16px",
                             alignItems:"center",
@@ -821,22 +821,36 @@ export default function OrdersPage() {
                           </div>
 
                           {/* Customer name + address */}
-                          <div>
-                            <Text variant="bodySm" fontWeight="semibold">{o.customerName || "—"}</Text>
-                            <div style={{ fontSize:11, color:"#6d7175", marginTop:1 }}>
+                          <div style={{ minWidth:0 }}>
+                            <div style={{ fontWeight:600, fontSize:13, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                              {o.customerName || "—"}
+                            </div>
+                            <div style={{ fontSize:11, color:"#6d7175", marginTop:1, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}
+                              title={[o.shippingAddress1, o.shippingCity, o.shippingCounty].filter(Boolean).join(", ")}>
                               {[o.shippingAddress1, o.shippingCity, o.shippingCounty].filter(Boolean).join(", ") || "—"}
                             </div>
                           </div>
 
-                          {/* Courier badge */}
+                          {/* Courier badge — logo */}
                           <div>
-                            <span style={{
-                              display:"inline-block", padding:"2px 7px", borderRadius:10, fontSize:11,
-                              fontWeight:600, background:`${courierCfg.color}18`, color:courierCfg.color,
-                              border:`1px solid ${courierCfg.color}44`, whiteSpace:"nowrap",
-                            }}>
-                              {courierCfg.label}
-                            </span>
+                            {courierCfg.logo
+                              ? <span style={{
+                                  display:"inline-flex", alignItems:"center", justifyContent:"center",
+                                  padding:"3px 7px", borderRadius:8,
+                                  background:`${courierCfg.color}15`,
+                                  border:`1px solid ${courierCfg.color}33`,
+                                }}>
+                                  <img src={courierCfg.logo} alt={courierCfg.label}
+                                    style={{ height:20, maxWidth:64, objectFit:"contain", display:"block" }} />
+                                </span>
+                              : <span style={{
+                                  display:"inline-block", padding:"2px 7px", borderRadius:10, fontSize:11,
+                                  fontWeight:600, background:`${courierCfg.color}18`, color:courierCfg.color,
+                                  border:`1px solid ${courierCfg.color}44`, whiteSpace:"nowrap",
+                                }}>
+                                  {courierCfg.label}
+                                </span>
+                            }
                           </div>
 
                           {/* Delivery method */}
