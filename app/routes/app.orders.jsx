@@ -8,7 +8,7 @@ import { getOrders } from "../models/order.server.js";
 import { prisma } from "../db.server.js";
 import { useState } from "react";
 import {
-  Page, Layout, Card, DataTable, Badge, Button, Text,
+  Page, Layout, Card, Tabs, Badge, Button, Text,
   BlockStack, InlineStack, Select, TextField,
   Pagination, Modal, Banner, Checkbox, EmptyState,
   Toast, Frame, RadioButton, FormLayout, Spinner, Box, Divider,
@@ -303,6 +303,11 @@ export default function OrdersPage() {
   const [swNotes, setSwNotes]                 = useState("");
   const [swNotify, setSwNotify]               = useState(false);
   const [swDispatched, setSwDispatched]       = useState(false);
+  const [swEstPrice, setSwEstPrice]           = useState(null);
+  const [swEstLoading, setSwEstLoading]       = useState(false);
+
+  const [activeTab, setActiveTab]     = useState(0);
+  const [expandedRows, setExpandedRows] = useState([]);
 
   const [searchVal, setSearchVal]   = useState(filters.search);
   const [statusVal, setStatusVal]   = useState(filters.status);
@@ -518,6 +523,7 @@ export default function OrdersPage() {
     setSwHeight("0"); setSwWidth("0"); setSwLength("0");
     setSwCod(String(o.codAmount || 0)); setSwDeclared("0"); setSwPayer("recipient");
     setSwNotes(""); setSwNotify(false); setSwDispatched(false);
+    setSwEstPrice(null); setSwEstLoading(false);
     setSingleWizardOpen(true);
     if (needsPickupPoint(c, svc, isPickup && c === "gls")) {
       // defer so activeOrder is set
@@ -571,37 +577,45 @@ export default function OrdersPage() {
     finally { setSingleGenerating(false); }
   }
 
-  // ── Table rows ─────────────────────────────────────────────────────────────
-  const rows = orders.map((o) => {
-    const tone       = STATUS_TONES[o.awbStatus] || "default";
-    const courierCfg = COURIER_MAP[o.courierType] || { label: o.courierType, color: "#888" };
+  async function estimateShipping() {
+    setSwEstPrice(null); setSwEstLoading(true);
+    try {
+      const res = await fetch("/api/estimate-shipping", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: activeOrder?.id,
+          courier: swCourier, service: swService,
+          weight: parseFloat(swWeight) || 1,
+          packageCount: parseInt(swPkgCount) || 1,
+          codAmount: parseFloat(swCod) || 0,
+          recipientCity: swCity, recipientCounty: swCounty,
+        }),
+      });
+      const data = await res.json();
+      if (data.price) setSwEstPrice(data);
+    } catch (_) { /* non-fatal */ }
+    finally { setSwEstLoading(false); }
+  }
 
-    return [
-      <Checkbox label="" labelHidden checked={selectedOrders.includes(o.id)} onChange={() => toggleSelect(o.id)} />,
-      <Button variant="plain" onClick={() => openSingleWizard(o)}>
-        <strong>{o.shopifyOrderName}</strong>
-      </Button>,
-      o.customerName || "—",
-      <span style={{
-        display:"inline-block", padding:"2px 8px", borderRadius:12, fontSize:12,
-        fontWeight:600, background:`${courierCfg.color}22`, color:courierCfg.color,
-        border:`1px solid ${courierCfg.color}44`,
-      }}>
-        {courierCfg.label}
-      </span>,
-      o.shippingMethod === "pickup_point"
-        ? `📦 ${o.pickupPointName || t("pickup_short")}`
-        : `🚚 ${t("at_home")}`,
-      o.awbNumber
-        ? <code style={{ fontSize:12, background:"#f4f6f8", padding:"2px 6px", borderRadius:4 }}>{o.awbNumber}</code>
-        : <Text tone="subdued">—</Text>,
-      <Badge tone={tone}>{t(`status_${o.awbStatus}`) || o.awbStatus}</Badge>,
-      o.codAmount > 0
-        ? <Text fontWeight="semibold">{o.codAmount.toFixed(2)} RON</Text>
-        : <Text tone="subdued">—</Text>,
-      new Date(o.createdAt).toLocaleDateString("ro-RO", { day:"2-digit", month:"2-digit", year:"numeric" }),
-    ];
-  });
+  // ── Tab filtering ──────────────────────────────────────────────────────────
+  const TABS = [
+    { content: "Comenzi noi",  id: "new"        },
+    { content: "În progres",   id: "progress"   },
+    { content: "Expediate",    id: "dispatched" },
+    { content: "Toate",        id: "all"        },
+  ];
+  const TAB_FILTER = [
+    (o) => o.awbStatus === "pending",
+    (o) => ["generated", "picked_up", "in_transit", "out_for_delivery"].includes(o.awbStatus),
+    (o) => ["delivered", "returned", "failed"].includes(o.awbStatus),
+    () => true,
+  ];
+  const displayedOrders = orders.filter(TAB_FILTER[activeTab] || (() => true));
+
+  function toggleExpand(id) {
+    setExpandedRows((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  }
 
   return (
     <Frame>
@@ -691,76 +705,270 @@ export default function OrdersPage() {
             </Card>
           </Layout.Section>
 
-          {/* Table */}
+          {/* Orders table */}
           <Layout.Section>
-            <Card>
-              {orders.length === 0 ? (
-                <EmptyState
-                  heading={t("no_orders_found")}
-                  image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-                >
-                  <p>{t("no_orders_hint")}</p>
-                </EmptyState>
-              ) : (
-                <BlockStack gap="300">
-                  <InlineStack align="space-between" blockAlign="center">
-                    <Button variant="plain" onClick={selectAll}>
-                      {selectedOrders.length === orders.length ? t("deselect_all") : t("select_all")}
-                    </Button>
-                    {selectedOrders.length > 0 && (
-                      <Text tone="subdued">{selectedOrders.length} {t("selected")}</Text>
-                    )}
-                  </InlineStack>
+            <Card padding="0">
+              <Tabs tabs={TABS} selected={activeTab} onSelect={(i) => { setActiveTab(i); setExpandedRows([]); }} />
 
-                  {selectedOrders.length > 0 && (
-                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", padding:"8px 0", borderTop:"1px solid #f0f0f0", borderBottom:"1px solid #f0f0f0" }}>
-                      <Button variant="primary" tone="success" loading={generatingAwb} onClick={openAwbWizard}>
-                        {generatingAwb ? t("generating") : `${t("generate_awb")} (${selectedOrders.length})`}
+              {/* Bulk action bar */}
+              {selectedOrders.length > 0 && (
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap", padding:"10px 16px", background:"#f6f6f7", borderBottom:"1px solid #e1e3e5" }}>
+                  <Button variant="primary" tone="success" loading={generatingAwb} onClick={openAwbWizard}>
+                    {generatingAwb ? t("generating") : `${t("generate_awb")} (${selectedOrders.length})`}
+                  </Button>
+                  {selectedWithAwb.length > 0 && (
+                    <>
+                      <Button loading={bulkPrinting} onClick={handleBulkPrint}>
+                        {bulkPrinting ? t("downloading") : t("print_awbs", { n: selectedWithAwb.length })}
                       </Button>
-
-                      {selectedWithAwb.length > 0 && (
-                        <>
-                          <Button loading={bulkPrinting} onClick={handleBulkPrint}>
-                            {bulkPrinting ? t("downloading") : t("print_awbs", { n: selectedWithAwb.length })}
-                          </Button>
-                          <Button loading={bulkFulfilling} onClick={handleBulkFulfill}>
-                            {bulkFulfilling ? t("fulfilling") : t("fulfill_shopify", { n: selectedWithAwb.length })}
-                          </Button>
-                        </>
-                      )}
-
-                      <Button onClick={handlePackingSlip}>
-                        {t("packing_slip", { n: selectedOrders.length })}
+                      <Button loading={bulkFulfilling} onClick={handleBulkFulfill}>
+                        {bulkFulfilling ? t("fulfilling") : t("fulfill_shopify", { n: selectedWithAwb.length })}
                       </Button>
-
-                      <Button variant="plain" onClick={() => setSelectedOrders([])}>
-                        {t("cancel_selection")}
-                      </Button>
-                    </div>
+                    </>
                   )}
+                  <Button onClick={handlePackingSlip}>{t("packing_slip", { n: selectedOrders.length })}</Button>
+                  <Button variant="plain" onClick={() => setSelectedOrders([])}>{t("cancel_selection")}</Button>
+                  <span style={{ marginLeft:"auto", display:"flex", alignItems:"center" }}>
+                    <Text tone="subdued">{selectedOrders.length} {t("selected")}</Text>
+                  </span>
+                </div>
+              )}
 
-                  <DataTable
-                    columnContentTypes={["text","text","text","text","text","text","text","numeric","text"]}
-                    headings={[
-                      "", t("col_order"), t("col_customer"), t("col_courier"),
-                      t("col_delivery"), t("col_awb"), t("col_status"),
-                      t("col_cod"), t("col_date"),
-                    ]}
-                    rows={rows}
-                    hasZebraStripingOnData
-                    increasedTableDensity
-                  />
+              {orders.length === 0 ? (
+                <div style={{ padding:32 }}>
+                  <EmptyState
+                    heading={t("no_orders_found")}
+                    image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                  >
+                    <p>{t("no_orders_hint")}</p>
+                  </EmptyState>
+                </div>
+              ) : (
+                <>
+                  {/* Table header */}
+                  <div style={{
+                    display:"grid",
+                    gridTemplateColumns:"36px 110px 1fr 110px 110px 140px 110px 100px 140px",
+                    gap:0,
+                    padding:"8px 16px",
+                    background:"#f6f6f7",
+                    borderBottom:"1px solid #e1e3e5",
+                    fontSize:12,
+                    fontWeight:600,
+                    color:"#6d7175",
+                    alignItems:"center",
+                  }}>
+                    <div>
+                      <Checkbox label="" labelHidden
+                        checked={selectedOrders.length === orders.length && orders.length > 0}
+                        onChange={selectAll} />
+                    </div>
+                    <div>{t("col_order")}</div>
+                    <div>{t("col_customer")}</div>
+                    <div>{t("col_courier")}</div>
+                    <div>{t("col_delivery")}</div>
+                    <div>{t("col_awb")}</div>
+                    <div>{t("col_status")}</div>
+                    <div>Plată</div>
+                    <div></div>
+                  </div>
 
-                  <InlineStack align="center">
-                    <Pagination
-                      hasPrevious={page > 1}
-                      hasNext={page < totalPages}
-                      onPrevious={() => navigate(`/app/orders?page=${page - 1}`)}
-                      onNext={() => navigate(`/app/orders?page=${page + 1}`)}
-                      label={t("page_label", { p: page, t: totalPages })}
-                    />
-                  </InlineStack>
-                </BlockStack>
+                  {/* Order rows */}
+                  {displayedOrders.length === 0 ? (
+                    <div style={{ padding:"32px 16px", textAlign:"center" }}>
+                      <Text tone="subdued">Nicio comandă în această categorie.</Text>
+                    </div>
+                  ) : displayedOrders.map((o) => {
+                    const tone       = STATUS_TONES[o.awbStatus] || "default";
+                    const courierCfg = COURIER_MAP[o.courierType] || { label: o.courierType || "—", color: "#888" };
+                    const isExpanded = expandedRows.includes(o.id);
+                    const isPickup   = o.shippingMethod === "pickup_point";
+                    const hasCod     = o.codAmount > 0;
+                    const date       = new Date(o.createdAt).toLocaleDateString("ro-RO", { day:"2-digit", month:"2-digit", year:"numeric" });
+
+                    return (
+                      <div key={o.id} style={{ borderBottom:"1px solid #e1e3e5" }}>
+                        {/* Main row */}
+                        <div
+                          style={{
+                            display:"grid",
+                            gridTemplateColumns:"36px 110px 1fr 110px 110px 140px 110px 100px 140px",
+                            gap:0,
+                            padding:"10px 16px",
+                            alignItems:"center",
+                            background: selectedOrders.includes(o.id) ? "#f0faf5" : "white",
+                            cursor:"default",
+                          }}
+                          onMouseEnter={(e) => { if (!selectedOrders.includes(o.id)) e.currentTarget.style.background = "#fafafa"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = selectedOrders.includes(o.id) ? "#f0faf5" : "white"; }}
+                        >
+                          {/* Checkbox */}
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Checkbox label="" labelHidden
+                              checked={selectedOrders.includes(o.id)}
+                              onChange={() => toggleSelect(o.id)} />
+                          </div>
+
+                          {/* Order # + date */}
+                          <div>
+                            <button
+                              onClick={() => toggleExpand(o.id)}
+                              style={{ background:"none", border:"none", padding:0, cursor:"pointer", color:"#008060", fontWeight:600, fontSize:13 }}
+                            >
+                              {o.shopifyOrderName}
+                            </button>
+                            <div style={{ fontSize:11, color:"#999", marginTop:2 }}>{date}</div>
+                          </div>
+
+                          {/* Customer name + address */}
+                          <div>
+                            <Text variant="bodySm" fontWeight="semibold">{o.customerName || "—"}</Text>
+                            <div style={{ fontSize:11, color:"#6d7175", marginTop:1 }}>
+                              {[o.shippingAddress1, o.shippingCity, o.shippingCounty].filter(Boolean).join(", ") || "—"}
+                            </div>
+                          </div>
+
+                          {/* Courier badge */}
+                          <div>
+                            <span style={{
+                              display:"inline-block", padding:"2px 7px", borderRadius:10, fontSize:11,
+                              fontWeight:600, background:`${courierCfg.color}18`, color:courierCfg.color,
+                              border:`1px solid ${courierCfg.color}44`, whiteSpace:"nowrap",
+                            }}>
+                              {courierCfg.label}
+                            </span>
+                          </div>
+
+                          {/* Delivery method */}
+                          <div style={{ fontSize:12, color:"#6d7175" }}>
+                            {isPickup
+                              ? <span title={o.pickupPointName || ""}>📦 Pct. ridic.</span>
+                              : <span>🚚 Acasă</span>
+                            }
+                          </div>
+
+                          {/* AWB */}
+                          <div>
+                            {o.awbNumber
+                              ? <code style={{ fontSize:11, background:"#f4f6f8", padding:"2px 5px", borderRadius:3, color:"#333" }}>{o.awbNumber}</code>
+                              : <Text tone="subdued" variant="bodySm">—</Text>
+                            }
+                          </div>
+
+                          {/* Status badge */}
+                          <div>
+                            <Badge tone={tone}>{t(`status_${o.awbStatus}`) || o.awbStatus}</Badge>
+                          </div>
+
+                          {/* Payment / COD */}
+                          <div>
+                            {hasCod
+                              ? <span style={{ fontSize:11, fontWeight:600, color:"#b54708", background:"#fef3c7", padding:"2px 6px", borderRadius:8 }}>
+                                  Ramburs
+                                </span>
+                              : <span style={{ fontSize:11, fontWeight:600, color:"#065f46", background:"#d1fae5", padding:"2px 6px", borderRadius:8 }}>
+                                  Plătit
+                                </span>
+                            }
+                            {hasCod && <div style={{ fontSize:11, color:"#6d7175", marginTop:2 }}>{o.codAmount.toFixed(2)} RON</div>}
+                          </div>
+
+                          {/* Actions */}
+                          <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
+                            {!o.awbNumber
+                              ? <button
+                                  onClick={(e) => { e.stopPropagation(); openSingleWizard(o); }}
+                                  style={{
+                                    background:"#008060", color:"#fff", border:"none", borderRadius:6,
+                                    padding:"5px 10px", fontSize:12, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap",
+                                  }}
+                                  onMouseEnter={(e) => { e.currentTarget.style.background = "#006e52"; }}
+                                  onMouseLeave={(e) => { e.currentTarget.style.background = "#008060"; }}
+                                >
+                                  + AWB
+                                </button>
+                              : <button
+                                  onClick={(e) => { e.stopPropagation(); openSingleWizard(o); }}
+                                  style={{
+                                    background:"#f6f6f7", color:"#444", border:"1px solid #ccc", borderRadius:6,
+                                    padding:"5px 10px", fontSize:12, cursor:"pointer", whiteSpace:"nowrap",
+                                  }}
+                                >
+                                  Regenerează
+                                </button>
+                            }
+                            <button
+                              onClick={() => toggleExpand(o.id)}
+                              style={{ background:"none", border:"1px solid #ddd", borderRadius:6, padding:"5px 8px", cursor:"pointer", fontSize:12, color:"#6d7175" }}
+                              title={isExpanded ? "Restrânge" : "Detalii"}
+                            >
+                              {isExpanded ? "▲" : "▼"}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Expanded detail row */}
+                        {isExpanded && (
+                          <div style={{ background:"#f9fafb", borderTop:"1px solid #e8e8e8", padding:"12px 16px 12px 52px" }}>
+                            <div style={{ display:"flex", gap:32, flexWrap:"wrap" }}>
+                              <div>
+                                <Text variant="bodySm" fontWeight="semibold" tone="subdued">Adresă completă</Text>
+                                <div style={{ marginTop:4, fontSize:13 }}>
+                                  {o.shippingAddress1 && <div>{o.shippingAddress1}</div>}
+                                  <div>{[o.shippingZip, o.shippingCity, o.shippingCounty].filter(Boolean).join(", ")}</div>
+                                  {o.customerPhone && <div style={{ color:"#6d7175" }}>📞 {o.customerPhone}</div>}
+                                  {o.customerEmail && <div style={{ color:"#6d7175" }}>✉ {o.customerEmail}</div>}
+                                </div>
+                              </div>
+
+                              {isPickup && o.pickupPointName && (
+                                <div>
+                                  <Text variant="bodySm" fontWeight="semibold" tone="subdued">Punct de ridicare</Text>
+                                  <div style={{ marginTop:4, fontSize:13 }}>
+                                    <div style={{ fontWeight:600 }}>{o.pickupPointName}</div>
+                                    {o.pickupPointAddress && <div style={{ color:"#6d7175" }}>{o.pickupPointAddress}</div>}
+                                  </div>
+                                </div>
+                              )}
+
+                              {o.awbNumber && (
+                                <div>
+                                  <Text variant="bodySm" fontWeight="semibold" tone="subdued">AWB</Text>
+                                  <div style={{ marginTop:4, fontSize:13 }}>
+                                    <code style={{ background:"#e8e8e8", padding:"2px 6px", borderRadius:4 }}>{o.awbNumber}</code>
+                                    <div style={{ marginTop:4 }}>
+                                      <Button size="micro" url={`/app/orders/${o.id}`}>Detalii comandă</Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              <div>
+                                <Text variant="bodySm" fontWeight="semibold" tone="subdued">Colet</Text>
+                                <div style={{ marginTop:4, fontSize:13, color:"#6d7175" }}>
+                                  {o.weight ? `${o.weight} kg` : "—"}
+                                  {o.packageCount > 1 ? ` · ${o.packageCount} colete` : ""}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  <div style={{ padding:"12px 16px", borderTop:"1px solid #e1e3e5" }}>
+                    <InlineStack align="center">
+                      <Pagination
+                        hasPrevious={page > 1}
+                        hasNext={page < totalPages}
+                        onPrevious={() => navigate(`/app/orders?page=${page - 1}`)}
+                        onNext={() => navigate(`/app/orders?page=${page + 1}`)}
+                        label={t("page_label", { p: page, t: totalPages })}
+                      />
+                    </InlineStack>
+                  </div>
+                </>
               )}
             </Card>
           </Layout.Section>
@@ -1137,6 +1345,26 @@ export default function OrdersPage() {
           return (
             <BlockStack gap="400">
               {singleError && <Banner tone="critical" title="Eroare" onDismiss={() => setSingleError(null)}><Text>{singleError}</Text></Banner>}
+
+              {/* Estimated shipping price */}
+              <div style={{ background:"#f0faf5", border:"1px solid #b7e4cc", borderRadius:8, padding:"12px 16px" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <Text variant="bodySm" fontWeight="semibold">Preț estimat transport</Text>
+                  {swEstLoading && <Spinner size="small" />}
+                </div>
+                {!swEstLoading && swEstPrice && (
+                  <div style={{ marginTop:6, display:"flex", alignItems:"baseline", gap:8 }}>
+                    <span style={{ fontSize:22, fontWeight:700, color:"#008060" }}>
+                      {swEstPrice.price} {swEstPrice.currency || "RON"}
+                    </span>
+                    <span style={{ fontSize:12, color:"#6d7175" }}>{swEstPrice.courier}</span>
+                  </div>
+                )}
+                {!swEstLoading && !swEstPrice && (
+                  <Text variant="bodySm" tone="subdued">Indisponibil pentru acest curier sau lipsesc datele de adresă.</Text>
+                )}
+              </div>
+
               <TextField label="Conținut colet / Observații" value={swNotes} onChange={setSwNotes} multiline={4}
                 placeholder="Ex: Fragil, a nu se răsturna."
                 helpText={swCourier === "fan" && swFanObs.length > 0 ? `Obs. selectate: ${swFanObs.join(", ")}` : undefined}
@@ -1185,7 +1413,10 @@ export default function OrdersPage() {
                       if (singleWizardStep === 2 && swShowPickup && !swPickupPoint) {
                         setSingleError("Selectează un punct de ridicare înainte de a continua."); return;
                       }
-                      setSingleError(null); setSingleWizardStep((s) => s + 1);
+                      setSingleError(null);
+                      const next = singleWizardStep + 1;
+                      setSingleWizardStep(next);
+                      if (next === 4) estimateShipping();
                     }}>Următor</Button>
                   : <Button variant="primary" tone="success" loading={singleGenerating} onClick={submitSingleWizard}>
                       {singleGenerating ? "Se generează..." : "Generează AWB"}
