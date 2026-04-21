@@ -748,7 +748,7 @@ export default function OrdersPage() {
                   {/* Table header */}
                   <div style={{
                     display:"grid",
-                    gridTemplateColumns:"36px 100px minmax(160px,1fr) 90px 95px 130px 105px 95px 130px",
+                    gridTemplateColumns:"36px 100px minmax(140px,1fr) 90px 95px 130px 105px 90px 148px",
                     gap:0,
                     padding:"8px 16px",
                     background:"#f6f6f7",
@@ -792,7 +792,7 @@ export default function OrdersPage() {
                         <div
                           style={{
                             display:"grid",
-                            gridTemplateColumns:"36px 100px minmax(160px,1fr) 90px 95px 130px 105px 95px 130px",
+                            gridTemplateColumns:"36px 100px minmax(140px,1fr) 90px 95px 130px 105px 90px 148px",
                             gap:0,
                             padding:"10px 16px",
                             alignItems:"center",
@@ -836,12 +836,13 @@ export default function OrdersPage() {
                             {courierCfg.logo
                               ? <span style={{
                                   display:"inline-flex", alignItems:"center", justifyContent:"center",
-                                  padding:"3px 7px", borderRadius:8,
+                                  padding:"3px 6px", borderRadius:8,
                                   background:`${courierCfg.color}15`,
                                   border:`1px solid ${courierCfg.color}33`,
+                                  width:72, height:30, boxSizing:"border-box",
                                 }}>
                                   <img src={courierCfg.logo} alt={courierCfg.label}
-                                    style={{ height:20, maxWidth:64, objectFit:"contain", display:"block" }} />
+                                    style={{ width:60, height:22, objectFit:"contain", display:"block" }} />
                                 </span>
                               : <span style={{
                                   display:"inline-block", padding:"2px 7px", borderRadius:10, fontSize:11,
@@ -888,7 +889,7 @@ export default function OrdersPage() {
                           </div>
 
                           {/* Actions */}
-                          <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
+                          <div style={{ display:"flex", gap:6, justifyContent:"flex-end", overflow:"visible" }}>
                             {!o.awbNumber
                               ? <button
                                   onClick={(e) => { e.stopPropagation(); openSingleWizard(o); }}
