@@ -150,6 +150,7 @@ export async function glsCreateAwb({
     ClientNumber:    resolvedClientNumber,
     ClientReference: clientReference,
     Count:           order.packageCount || 1,
+    Weight:          parseFloat(order.weight) || 1,
     ...(order.codAmount > 0 ? {
       CODAmount:    order.codAmount,
       CODReference: order.shopifyOrderName || "",
