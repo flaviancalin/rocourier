@@ -4,7 +4,7 @@ import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
 import { fanCreateAwb } from "../services/fan-courier.server.js";
-import { samedayCreateAwb, samedayGetClientPickupPoints, samedayGetServices } from "../services/sameday.server.js";
+import { samedayCreateAwb, samedayGetClientPickupPoints, samedayGetServices, samedayGetCounties, samedayGetCities } from "../services/sameday.server.js";
 import { cargusCreateAwb, cargusGetSenderLocations } from "../services/cargus.server.js";
 import { glsCreateAwb } from "../services/gls.server.js";
 import { packetaCreatePacket } from "../services/packeta.server.js";
@@ -106,6 +106,43 @@ export async function action({ request }) {
       const serviceCode = serviceOverride || (isLocker ? "LN" : "T");
       const service = services.find((s) => s.code === serviceCode) || services[0];
 
+      // Resolve county/city IDs — stored from cart widget, or look them up by address string
+      let samedayCountyId = order.samedayCountyId || null;
+      let samedayCityId   = order.samedayCityId   || null;
+
+      if (!samedayCountyId && orderData.shippingCounty) {
+        try {
+          const counties = await samedayGetCounties({
+            username: settings.samedayUsername,
+            password: settings.samedayPassword,
+          });
+          const countyName = (orderData.shippingCounty || "").toLowerCase().replace(/^(judet|jud\.?)\s*/i, "").trim();
+          const matched = counties.find((c) =>
+            (c.name || "").toLowerCase().includes(countyName) ||
+            countyName.includes((c.name || "").toLowerCase())
+          );
+          if (matched) {
+            samedayCountyId = matched.id;
+            if (!samedayCityId && orderData.shippingCity) {
+              const cities = await samedayGetCities({
+                username: settings.samedayUsername,
+                password: settings.samedayPassword,
+                countyId: matched.id,
+              });
+              const cityName = (orderData.shippingCity || "").toLowerCase().trim();
+              const matchedCity = cities.find((c) =>
+                (c.name || "").toLowerCase() === cityName ||
+                (c.name || "").toLowerCase().includes(cityName) ||
+                cityName.includes((c.name || "").toLowerCase())
+              );
+              if (matchedCity) samedayCityId = matchedCity.id;
+            }
+          }
+        } catch (_) {
+          // Geo lookup is best-effort — proceed without IDs if it fails
+        }
+      }
+
       awbResult = await samedayCreateAwb({
         username: settings.samedayUsername,
         password: settings.samedayPassword,
@@ -115,8 +152,8 @@ export async function action({ request }) {
         lockerDestId: isLocker ? effectivePickupId : null,
         serviceId: service.id,
         serviceCode: service.code,
-        countyId: order.samedayCountyId || null,
-        cityId: order.samedayCityId || null,
+        countyId: samedayCountyId,
+        cityId: samedayCityId,
         openPackage: !!openPackage,
         insuredValue: insuredValue ? parseFloat(insuredValue) : 0,
       });

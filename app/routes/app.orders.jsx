@@ -865,7 +865,9 @@ export default function OrdersPage() {
                           {/* AWB */}
                           <div>
                             {o.awbNumber
-                              ? <code style={{ fontSize:11, background:"#f4f6f8", padding:"2px 5px", borderRadius:3, color:"#333" }}>{o.awbNumber}</code>
+                              ? <a href={`/api/print-awb?orderId=${o.id}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration:"none" }}>
+                                  <code style={{ fontSize:11, background:"#f4f6f8", padding:"2px 5px", borderRadius:3, color:"#008060", cursor:"pointer", border:"1px solid #c9e8d9" }}>{o.awbNumber}</code>
+                                </a>
                               : <Text tone="subdued" variant="bodySm">—</Text>
                             }
                           </div>
@@ -950,9 +952,11 @@ export default function OrdersPage() {
                                 <div>
                                   <Text variant="bodySm" fontWeight="semibold" tone="subdued">AWB</Text>
                                   <div style={{ marginTop:4, fontSize:13 }}>
-                                    <code style={{ background:"#e8e8e8", padding:"2px 6px", borderRadius:4 }}>{o.awbNumber}</code>
-                                    <div style={{ marginTop:4 }}>
-                                      <Button size="micro" url={`/app/orders/${o.id}`}>Detalii comandă</Button>
+                                    <a href={`/api/print-awb?orderId=${o.id}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration:"none" }}>
+                                      <code style={{ background:"#e8e8e8", padding:"2px 6px", borderRadius:4, color:"#008060", cursor:"pointer" }}>{o.awbNumber}</code>
+                                    </a>
+                                    <div style={{ marginTop:6, display:"flex", gap:6 }}>
+                                      <Button size="micro" onClick={() => navigate(`/app/orders/${o.id}`)}>Detalii comandă</Button>
                                     </div>
                                   </div>
                                 </div>

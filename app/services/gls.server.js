@@ -152,9 +152,8 @@ export async function glsCreateAwb({
     Count:           order.packageCount || 1,
     Weight:          parseFloat(order.weight) || 1,
     ...(order.codAmount > 0 ? {
-      CODAmount:    order.codAmount,
-      CODReference: order.shopifyOrderName || "",
-      CODCurrency:  "RON",
+      CODAmount:    parseFloat(order.codAmount),
+      CODReference: (order.shopifyOrderName || "").replace(/^#/, "").replace(/[^a-zA-Z0-9_\-. ]/g, "").trim(),
     } : {}),
     PickupAddress: {
       Name:          settings.senderName    || "",
