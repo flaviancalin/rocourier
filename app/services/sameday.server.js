@@ -58,7 +58,9 @@ async function samedayRequest(base, path, { method = "GET", token, body, form } 
 // ─────────────────────────────────────────────────────────────────────────────
 // Auth
 // POST /api/authenticate
-// Headers: X-AUTH-USERNAME, X-AUTH-PASSWORD, X-AUTH-APP-ID (use 2 for WEB)
+// Headers: X-AUTH-USERNAME, X-AUTH-PASSWORD, X-AUTH-APP-ID
+// X-AUTH-APP-ID: 8 = third-party e-commerce integration (WooCommerce, custom API)
+//                2 = Sameday's own eAWB web interface
 // Returns: { token, expire_at_utc }
 // ─────────────────────────────────────────────────────────────────────────────
 export async function samedayAuthenticate({ username, password, sandbox = false }) {
@@ -66,30 +68,37 @@ export async function samedayAuthenticate({ username, password, sandbox = false 
   if (cached) return cached;
 
   const base = getBase(sandbox);
-  const res = await fetch(`${base}/api/authenticate`, {
-    method: "POST",
-    headers: {
-      "X-AUTH-USERNAME": username,
-      "X-AUTH-PASSWORD": password,
-      "X-AUTH-APP-ID": "2", // 2 = WEB platform
-      Accept: "application/json",
-    },
-  });
 
-  const data = await res.json();
+  // Try app ID 8 (third-party e-commerce) first, fall back to 2 (eAWB web)
+  for (const appId of ["8", "2"]) {
+    const res = await fetch(`${base}/api/authenticate`, {
+      method: "POST",
+      headers: {
+        "X-AUTH-USERNAME": username,
+        "X-AUTH-PASSWORD": password,
+        "X-AUTH-APP-ID": appId,
+        Accept: "application/json",
+      },
+    });
 
-  if (!data.token) {
-    throw new Error(`Sameday auth failed: ${JSON.stringify(data)}`);
+    const data = await res.json();
+
+    if (data.token) {
+      const ttl = data.expire_at_utc
+        ? data.expire_at_utc - Math.floor(Date.now() / 1000) - 300
+        : 43200;
+      setCachedToken(username, sandbox, data.token, ttl);
+      return data.token;
+    }
   }
 
-  // expire_at_utc is a Unix timestamp in seconds
-  const ttl = data.expire_at_utc
-    ? data.expire_at_utc - Math.floor(Date.now() / 1000) - 300
-    : 43200;
-
-  setCachedToken(username, sandbox, data.token, ttl);
-  return data.token;
+  throw new Error(
+    "Sameday autentificare eșuată. Asigurați-vă că folosiți username-ul și parola din " +
+    "platforma eAWB Sameday (eawb.sameday.ro), nu email-ul de cont. " +
+    "Dacă problema persistă, contactați Sameday la software@sameday.ro pentru activarea accesului API."
+  );
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Get client pickup points (YOUR warehouse/sender locations)
