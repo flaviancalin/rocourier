@@ -104,70 +104,47 @@ export async function samedayGetClientPickupPoints({ username, password, sandbox
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Get easybox LOCKERS (customer delivery destinations)
-// GET /api/locker/list  ← public endpoint for locker locations
-// or GET /api/geolocation/pickup-points (if available on your contract)
-// Type 1 = lockers, Type 2 = PUDO points
+// Get OOH locations (easybox lockers + PUDO points)
+// GET /api/client/ooh-locations
+// listingType 1 = all OOH locations (easybox + PUDO)
+// oohType 0 = easybox, 1 = PUDO
 // ─────────────────────────────────────────────────────────────────────────────
-export async function samedayGetLockers({ username, password, sandbox = false, county = null }) {
+export async function samedayGetLockers({ username, password, sandbox = false }) {
   const token = await samedayAuthenticate({ username, password, sandbox });
   const base = getBase(sandbox);
 
-  // Try /api/geolocation/pickup-points first (standard contract)
-  // Fall back to /api/locker/list (requires special contract tier)
-  let lockers = [];
-  let lastError = null;
+  let allItems = [];
+  let page = 1;
+  let totalPages = 1;
 
-  try {
-    const params = new URLSearchParams({ perPage: 500, type: 2 }); // type 2 = easybox/locker
-    if (county) params.append("county", county);
-    const data = await samedayRequest(base, `/api/geolocation/pickup-points?${params}`, { token });
-    lockers = data.data || (Array.isArray(data) ? data : []);
-  } catch (e) {
-    lastError = e;
-    try {
-      // fallback to locker list endpoint
-      const params = new URLSearchParams({ perPage: 500 });
-      if (county) params.append("county", county);
-      const data = await samedayRequest(base, `/api/locker/list?${params}`, { token });
-      lockers = data.data || [];
-      lastError = null;
-    } catch (e2) {
-      lastError = e2;
-    }
-  }
+  do {
+    const params = new URLSearchParams({
+      listingType: "1",
+      countPerPage: "500",
+      countryCode: "RO",
+      page: String(page),
+    });
+    const data = await samedayRequest(base, `/api/client/ooh-locations?${params}`, { token });
+    const items = data.data || [];
+    allItems.push(...items);
+    totalPages = data.pages || 1;
+    page++;
+  } while (page <= totalPages && page <= 20);
 
-  if (lastError) {
-    const msg = lastError.message || "";
-    if (msg.includes("[403]")) {
-      throw new Error(
-        "Contractul Sameday nu include accesul la lista de easybox-uri (403 Forbidden). " +
-        "Contactați Sameday (software@sameday.ro) pentru activarea accesului API la lockerele easybox."
-      );
-    }
-    if (msg.includes("[404]")) {
-      // Sandbox or contract without locker list — return empty silently
-      return [];
-    }
-    throw lastError;
-  }
-
-  return lockers.map((l) => ({
-    id: String(l.id),
-    externalId: String(l.id),
-    courier: "sameday",
-    type: "easybox",
-    name: l.name || l.alias || "Sameday easybox",
-    address: [l.address, l.city?.name || l.city, l.county?.name || l.county]
-      .filter(Boolean)
-      .join(", "),
-    city: l.city?.name || l.city,
-    county: l.county?.name || l.county,
-    zip: l.postalCode || null,
-    lat: parseFloat(l.lat) || null,
-    lng: parseFloat(l.long || l.lng || l.lon) || null,
-    boxSizes: l.boxes || [],
-  }));
+  return allItems
+    .filter((l) => l.clientVisible === 1)
+    .map((l) => ({
+      externalId: String(l.oohId),
+      courier: "sameday",
+      type: l.oohType === 0 ? "easybox" : "pudo",
+      name: l.name || "Sameday easybox",
+      address: l.address || "",
+      city: l.city || null,
+      county: l.county || null,
+      zip: l.postalCode || null,
+      lat: l.lat ? parseFloat(l.lat) : null,
+      lng: l.lng ? parseFloat(l.lng) : null,
+    }));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -286,8 +263,8 @@ export async function samedayCreateAwb({
       county: countyId ? { id: countyId } : undefined,
       postalCode: order.shippingZip || "",
     },
-    // If easybox delivery, set the locker
-    ...(isLocker ? { lockerId: lockerDestId } : {}),
+    // If OOH delivery (easybox/PUDO), use oohLastMile (lockerId is deprecated)
+    ...(isLocker ? { oohLastMile: String(lockerDestId) } : {}),
     ...(openPackage ? { openPackage: 1 } : {}),
   };
 

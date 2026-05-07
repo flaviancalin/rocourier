@@ -78,7 +78,7 @@ async function glsRequest(base, method, body) {
     const first = errorList[0];
     const code = first.ErrorCode ?? first.Code ?? 0;
     if (code !== 0) {
-      throw new Error(`GLS API error ${code}: ${first.Description || JSON.stringify(first)}`);
+      throw new Error(`GLS API error ${code}: ${first.ErrorDescription || first.Description || JSON.stringify(first)}`);
     }
   }
 
@@ -180,7 +180,7 @@ export async function glsCreateAwb({
 
   const result = await glsRequest(base, "PrintLabels", {
     ...auth,
-    TypeOfPrinter: "A4_2x2",
+    TypeOfPrinter: 0,
     PrintPosition: 1,
     ParcelList: [parcel],
   });
@@ -209,7 +209,7 @@ export async function glsDownloadAwbPdf({ username, password, sandbox = false, a
 
   const result = await glsRequest(base, "GetPrintedLabels", {
     ...auth,
-    TypeOfPrinter: "A4_2x2",
+    TypeOfPrinter: 0,
     ParcelList: [{ ParcelNumber: parseInt(awbNumber) || awbNumber }],
   });
 
