@@ -248,12 +248,26 @@ export async function packetaDownloadLabel({ apiKey, packetId }) {
     return Buffer.from(arrayBuffer);
   }
 
-  // Response is XML with base64 PDF
+  // Response is XML — check for fault first, then extract base64 PDF
   const xml = await res.text();
-  const b64Match = xml.match(/<labelContents>([^<]+)<\/labelContents>/i) ||
+
+  const statusMatch = xml.match(/<status>([^<]+)<\/status>/i);
+  if (statusMatch?.[1] === "fault") {
+    const msgMatch = xml.match(/<message[^>]*>([^<]+)<\/message>/i) ||
+                     xml.match(/<faultString>([^<]+)<\/faultString>/i) ||
+                     xml.match(/<string>([^<]+)<\/string>/i);
+    const codeMatch = xml.match(/<code[^>]*>\s*([^<\s]+)\s*<\/code>/i) ||
+                      xml.match(/<faultCode>([^<]+)<\/faultCode>/i);
+    throw new Error(`Packeta label fault [${codeMatch?.[1] || "?"}]: ${msgMatch?.[1] || xml.slice(0, 300)}`);
+  }
+
+  // Packeta packetLabelPdf returns base64 PDF inside <result>
+  const b64Match = xml.match(/<result>\s*([A-Za-z0-9+/=\r\n]+)\s*<\/result>/i) ||
+                   xml.match(/<labelContents>([^<]+)<\/labelContents>/i) ||
+                   xml.match(/<packetLabelContents>([^<]+)<\/packetLabelContents>/i) ||
                    xml.match(/<base64PDF>([^<]+)<\/base64PDF>/i);
   if (b64Match?.[1]) {
-    return Buffer.from(b64Match[1], "base64");
+    return Buffer.from(b64Match[1].replace(/\s/g, ""), "base64");
   }
 
   throw new Error(`Packeta label: unexpected response format: ${xml.slice(0, 300)}`);

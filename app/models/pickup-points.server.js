@@ -105,29 +105,42 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
     results.errors.push("FAN: sync credentials not configured (set FAN_SYNC_CLIENT_ID, FAN_SYNC_USERNAME, FAN_SYNC_PASSWORD)");
   }
 
-  if (couriers.includes("sameday") && creds.sameday.username && creds.sameday.password) {
-    try {
-      const points = await samedayGetLockers({
-        username: creds.sameday.username,
-        password: creds.sameday.password,
+  if (couriers.includes("sameday")) {
+    let samedayCreds = creds.sameday;
+    // Fall back to any merchant's configured Sameday credentials when env vars are absent
+    if (!samedayCreds.username || !samedayCreds.password) {
+      const shopWithCreds = await prisma.shopSettings.findFirst({
+        where: { samedayUsername: { not: null }, samedayPassword: { not: null } },
+        select: { samedayUsername: true, samedayPassword: true },
       });
-      for (const p of points) {
-        await prisma.pickupPoint.upsert({
-          where: { courier_externalId: { courier: "sameday", externalId: p.externalId } },
-          update: { ...p, country: "ro", isActive: true, updatedAt: new Date() },
-          create: { ...p, country: "ro" },
-        });
-      }
-      results.sameday = points.length;
-    } catch (e) {
-      if (e.message?.includes("[404]")) {
-        results.sameday = 0;
-      } else {
-        results.errors.push(`Sameday: ${e.message}`);
+      if (shopWithCreds) {
+        samedayCreds = { username: shopWithCreds.samedayUsername, password: shopWithCreds.samedayPassword };
       }
     }
-  } else if (couriers.includes("sameday") && !creds.sameday.username) {
-    results.errors.push("Sameday: sync credentials not configured (set SAMEDAY_SYNC_USERNAME, SAMEDAY_SYNC_PASSWORD)");
+    if (samedayCreds.username && samedayCreds.password) {
+      try {
+        const points = await samedayGetLockers({
+          username: samedayCreds.username,
+          password: samedayCreds.password,
+        });
+        for (const p of points) {
+          await prisma.pickupPoint.upsert({
+            where: { courier_externalId: { courier: "sameday", externalId: p.externalId } },
+            update: { ...p, country: "ro", isActive: true, updatedAt: new Date() },
+            create: { ...p, country: "ro" },
+          });
+        }
+        results.sameday = points.length;
+      } catch (e) {
+        if (e.message?.includes("[404]")) {
+          results.sameday = 0;
+        } else {
+          results.errors.push(`Sameday: ${e.message}`);
+        }
+      }
+    } else {
+      results.errors.push("Sameday: sync credentials not configured (set SAMEDAY_SYNC_USERNAME, SAMEDAY_SYNC_PASSWORD or configure Sameday in shop settings)");
+    }
   }
 
   if (couriers.includes("cargus") && creds.cargus.subscriptionKey && creds.cargus.username) {
