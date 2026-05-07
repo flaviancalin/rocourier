@@ -12,6 +12,10 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 
+# Cache bust — increment when you need a forced full rebuild
+ARG CACHE_BUST=2
+RUN echo "Cache bust: $CACHE_BUST"
+
 # Copy source
 COPY . .
 

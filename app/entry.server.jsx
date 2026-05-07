@@ -8,35 +8,55 @@ import { createReadableStreamFromReadable } from "@remix-run/node";
 import { isbot } from "isbot";
 import { addDocumentResponseHeaders } from "./shopify.server.js";
 
-// ─── Tracking sync cron ───────────────────────────────────────────────────────
+// ─── Cron jobs ────────────────────────────────────────────────────────────────
 // Runs only in the server process, not during client-side rendering.
-// Polls courier APIs every 60 minutes for AWB status updates.
-let cronStarted = false;
+let cronsStarted = false;
 
-async function startTrackingCron() {
-  if (cronStarted || process.env.NODE_ENV !== "production") return;
-  cronStarted = true;
+async function startCrons() {
+  if (cronsStarted || process.env.NODE_ENV !== "production") return;
+  cronsStarted = true;
 
-  // Lazy import to avoid loading DB clients during build
+  // ── Tracking sync: every 60 minutes ───────────────────────────────────────
   const { syncTrackingForAllShops } = await import("./jobs/tracking-sync.server.js");
 
-  const INTERVAL_MS = 60 * 60 * 1000; // 1 hour
-
-  // Run immediately on startup (after 30s delay to let the server warm up)
   setTimeout(async () => {
-    try { await syncTrackingForAllShops(); } catch (e) { console.error("[Cron]", e); }
+    try { await syncTrackingForAllShops(); } catch (e) { console.error("[Cron/tracking]", e); }
   }, 30_000);
 
-  // Then run every hour
   setInterval(async () => {
-    try { await syncTrackingForAllShops(); } catch (e) { console.error("[Cron]", e); }
-  }, INTERVAL_MS);
+    try { await syncTrackingForAllShops(); } catch (e) { console.error("[Cron/tracking]", e); }
+  }, 60 * 60 * 1000);
 
   console.log("[Cron] Tracking sync scheduled every 60 minutes");
+
+  // ── Pickup point sync: every 24 hours ─────────────────────────────────────
+  // Uses app-level env var credentials — no merchant settings needed.
+  // Runs once 5 minutes after startup so it doesn't block boot, then daily.
+  const { refreshPickupPointsCache } = await import("./models/pickup-points.server.js");
+
+  setTimeout(async () => {
+    try {
+      const r = await refreshPickupPointsCache();
+      const total = (r.fan || 0) + (r.sameday || 0) + (r.cargus || 0) + (r.gls || 0) + (r.packeta || 0);
+      if (r.errors?.length) console.warn("[Cron/pickups] Errors:", r.errors);
+      console.log(`[Cron/pickups] Refreshed ${total} pickup points`);
+    } catch (e) { console.error("[Cron/pickups]", e); }
+  }, 5 * 60 * 1000);
+
+  setInterval(async () => {
+    try {
+      const r = await refreshPickupPointsCache();
+      const total = (r.fan || 0) + (r.sameday || 0) + (r.cargus || 0) + (r.gls || 0) + (r.packeta || 0);
+      if (r.errors?.length) console.warn("[Cron/pickups] Errors:", r.errors);
+      console.log(`[Cron/pickups] Refreshed ${total} pickup points`);
+    } catch (e) { console.error("[Cron/pickups]", e); }
+  }, 24 * 60 * 60 * 1000);
+
+  console.log("[Cron] Pickup point sync scheduled every 24 hours");
 }
 
-// Start cron when server boots
-startTrackingCron().catch(console.error);
+// Start crons when server boots
+startCrons().catch(console.error);
 
 // ─── Remix render ─────────────────────────────────────────────────────────────
 const ABORT_DELAY = 5000;

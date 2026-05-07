@@ -64,13 +64,9 @@ export async function loader({ request }) {
 }
 
 export async function action({ request }) {
-  const { session } = await authenticate.admin(request);
-  const settings = await prisma.shopSettings.findUnique({ where: { shop: session.shop } });
-
-  if (!settings) return json({ error: "Settings not configured" }, { status: 400 });
-
+  await authenticate.admin(request);
   try {
-    const result = await refreshPickupPointsCache({ settings });
+    const result = await refreshPickupPointsCache();
     return json({ refreshed: true, result });
   } catch (e) {
     return json({ error: e.message }, { status: 500 });

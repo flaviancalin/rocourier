@@ -3,6 +3,7 @@
 // Updates our local order record if the customer details or shipping change.
 
 import { authenticate } from "../shopify.server.js";
+import { logError } from "../utils/log.server.js";
 import { prisma } from "../db.server.js";
 
 export const action = async ({ request }) => {
@@ -19,23 +20,24 @@ export const action = async ({ request }) => {
     });
 
     if (!existing) {
-      // Order doesn't exist in our DB yet — could be a pre-app order, skip
       return new Response(null, { status: 200 });
     }
 
-    // Re-read cart attributes in case they were updated
+    // Support both _rc_ (current widget) and _rocourier_ (legacy) attribute prefixes
     const attrs = (order.note_attributes || []).reduce((acc, a) => {
       acc[a.name] = a.value;
       return acc;
     }, {});
 
+    const rcMethod   = attrs["_rc_method"]        || attrs["_rocourier_method"]        || null;
+    const rcCourier  = attrs["_rc_courier"]       || attrs["_rocourier_courier"]       || null;
+    const rcPointId  = attrs["_rc_point_id"]      || attrs["_rocourier_point_id"]      || null;
+    const rcPointName= attrs["_rc_point_name"]    || attrs["_rocourier_point_name"]    || null;
+
     const updates = {
-      customerName: [
-        order.shipping_address?.first_name,
-        order.shipping_address?.last_name,
-      ].filter(Boolean).join(" ") || existing.customerName,
-      customerPhone: order.shipping_address?.phone || existing.customerPhone,
-      customerEmail: order.customer?.email || existing.customerEmail,
+      customerName:     [order.shipping_address?.first_name, order.shipping_address?.last_name].filter(Boolean).join(" ") || existing.customerName,
+      customerPhone:    order.shipping_address?.phone || existing.customerPhone,
+      customerEmail:    order.customer?.email         || existing.customerEmail,
       shippingAddress1: order.shipping_address?.address1 || existing.shippingAddress1,
       shippingCity:     order.shipping_address?.city     || existing.shippingCity,
       shippingCounty:   order.shipping_address?.province || existing.shippingCounty,
@@ -46,20 +48,17 @@ export const action = async ({ request }) => {
     };
 
     // Only update delivery choice if AWB hasn't been generated yet
-    if (existing.awbStatus === "pending" && attrs["_rocourier_method"]) {
-      updates.shippingMethod  = attrs["_rocourier_method"];
-      updates.courierType     = attrs["_rocourier_courier"]  || existing.courierType;
-      updates.pickupPointId   = attrs["_rocourier_point_id"] || null;
-      updates.pickupPointName = attrs["_rocourier_point_name"] || null;
+    if (existing.awbStatus === "pending" && rcMethod) {
+      updates.shippingMethod  = rcMethod;
+      updates.courierType     = rcCourier  || existing.courierType;
+      updates.pickupPointId   = rcPointId  || null;
+      updates.pickupPointName = rcPointName || null;
     }
 
-    await prisma.order.update({
-      where: { id: existing.id },
-      data: updates,
-    });
+    await prisma.order.update({ where: { id: existing.id }, data: updates });
 
   } catch (err) {
-    console.error("Webhook ORDERS_UPDATED error:", err);
+    logError("Webhook ORDERS_UPDATED", err);
   }
 
   return new Response(null, { status: 200 });

@@ -1,10 +1,12 @@
 // app/routes/auth.$.jsx
-// Handles ALL /auth/* routes:
-//   /auth/login?shop=xxx  → initiates OAuth
-//   /auth/callback        → completes OAuth, saves session, redirects to /app
 import { authenticate } from "../shopify.server.js";
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
+  try {
+    await authenticate.admin(request);
+  } catch (e) {
+    if (e instanceof Response) throw e; // SDK redirects — always re-throw
+    throw e;
+  }
   return null;
 };
