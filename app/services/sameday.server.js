@@ -69,8 +69,15 @@ export async function samedayAuthenticate({ username, password, sandbox = false 
 
   const base = getBase(sandbox);
 
-  // Try app ID 8 (third-party e-commerce) first, fall back to 2 (eAWB web)
-  for (const appId of ["8", "2"]) {
+  // X-AUTH-APP-ID identifies the calling application to Sameday.
+  // 2 = eAWB web, 8 = third-party e-commerce (WooCommerce etc.).
+  // xConnector and other platforms may use a different registered ID.
+  // Try all known values so merchant credentials work regardless of how
+  // their Sameday account was configured.
+  const APP_IDS = ["2", "8", "1", "3", "4", "5", "6", "7", "9"];
+  let lastResponse = null;
+
+  for (const appId of APP_IDS) {
     const res = await fetch(`${base}/api/authenticate`, {
       method: "POST",
       headers: {
@@ -82,6 +89,7 @@ export async function samedayAuthenticate({ username, password, sandbox = false 
     });
 
     const data = await res.json();
+    lastResponse = data;
 
     if (data.token) {
       const ttl = data.expire_at_utc
@@ -93,9 +101,10 @@ export async function samedayAuthenticate({ username, password, sandbox = false 
   }
 
   throw new Error(
-    "Sameday autentificare eșuată. Asigurați-vă că folosiți username-ul și parola din " +
-    "platforma eAWB Sameday (eawb.sameday.ro), nu email-ul de cont. " +
-    "Dacă problema persistă, contactați Sameday la software@sameday.ro pentru activarea accesului API."
+    "Sameday autentificare eșuată (toate app ID-urile testate au returnat 403). " +
+    "Contactați Sameday la software@sameday.ro și cereți activarea accesului API REST " +
+    "pentru contul dvs. eAWB, sau cereți un set separat de credențiale API. " +
+    `Răspuns Sameday: ${JSON.stringify(lastResponse)}`
   );
 }
 
