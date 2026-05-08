@@ -109,9 +109,10 @@ export async function action({ request }) {
       const serviceCode = serviceOverride || (isLocker ? "LN" : "T");
       const service = services.find((s) => s.code === serviceCode) || services[0];
 
-      // Resolve county/city IDs — stored from cart widget, or look them up by address string
-      let samedayCountyId = order.samedayCountyId || null;
-      let samedayCityId   = order.samedayCityId   || null;
+      // Resolve county/city IDs — stored from cart widget, or look them up by address string.
+      // On sandbox, never reuse stored IDs (they're from production and will be rejected).
+      let samedayCountyId = samedaySandbox ? null : (order.samedayCountyId || null);
+      let samedayCityId   = samedaySandbox ? null : (order.samedayCityId   || null);
 
       if (!samedayCountyId && orderData.shippingCounty) {
         try {

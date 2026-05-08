@@ -312,14 +312,21 @@ export async function samedayCreateAwb({
   const base = getBase(sandbox);
 
   const isLocker = !!lockerDestId;
+  const count = order.packageCount || 1;
+  const weightPerParcel = parseFloat(order.weight || 1) / count;
 
   const payload = {
     pickupPoint: senderPickupPointId,
-    packageType: 1,        // 1 = colet
-    packageNumber: order.packageCount || 1,
-    packageWeight: order.weight || 1,
+    packageType: 1,
+    packageNumber: count,
+    packageWeight: parseFloat(order.weight || 1),
+    // Sameday API v3.1 requires parcels array (min 1 element)
+    parcels: Array.from({ length: count }, (_, i) => ({
+      sequenceNo: i + 1,
+      weight: Math.round(weightPerParcel * 1000) / 1000,
+    })),
     service: serviceId,
-    awbPayment: 1,         // 1 = recipient pays transport
+    awbPayment: 1,
     cashOnDelivery: order.codAmount || 0,
     cashOnDeliveryReturns: order.codAmount > 0 ? 1 : 0,
     insuredValue: insuredValue || 0,
@@ -330,11 +337,22 @@ export async function samedayCreateAwb({
     awbRecipient: {
       name: order.customerName,
       phoneNumber: order.customerPhone,
+      personType: 0,        // 0 = individual, 1 = company — required
       email: order.customerEmail || "",
       address: isLocker ? "" : (order.shippingAddress1 || ""),
-      locality: cityId ? { id: cityId } : undefined,
-      county: countyId ? { id: countyId } : undefined,
       postalCode: order.shippingZip || "",
+      // County: prefer Sameday ID, fall back to plain string
+      ...(countyId
+        ? { county: { id: countyId } }
+        : order.shippingCounty
+          ? { countyString: order.shippingCounty }
+          : {}),
+      // City: prefer Sameday ID, fall back to plain string
+      ...(cityId
+        ? { locality: { id: cityId } }
+        : order.shippingCity
+          ? { cityString: order.shippingCity }
+          : {}),
     },
     // If OOH delivery (easybox/PUDO), use oohLastMile (lockerId is deprecated)
     ...(isLocker ? { oohLastMile: String(lockerDestId) } : {}),
