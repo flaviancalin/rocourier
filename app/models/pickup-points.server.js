@@ -111,10 +111,14 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
     if (!samedayCreds.username || !samedayCreds.password) {
       const shopWithCreds = await prisma.shopSettings.findFirst({
         where: { samedayUsername: { not: null }, samedayPassword: { not: null } },
-        select: { samedayUsername: true, samedayPassword: true },
+        select: { samedayUsername: true, samedayPassword: true, samedaySandbox: true },
       });
       if (shopWithCreds) {
-        samedayCreds = { username: shopWithCreds.samedayUsername, password: shopWithCreds.samedayPassword };
+        samedayCreds = {
+          username: shopWithCreds.samedayUsername,
+          password: shopWithCreds.samedayPassword,
+          sandbox:  !!shopWithCreds.samedaySandbox,
+        };
       }
     }
     if (samedayCreds.username && samedayCreds.password) {
@@ -122,6 +126,7 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
         const points = await samedayGetLockers({
           username: samedayCreds.username,
           password: samedayCreds.password,
+          sandbox:  !!samedayCreds.sandbox,
         });
         for (const p of points) {
           await prisma.pickupPoint.upsert({
