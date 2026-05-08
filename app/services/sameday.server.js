@@ -78,33 +78,37 @@ export async function samedayAuthenticate({ username, password, sandbox = false 
   let lastResponse = null;
 
   for (const appId of APP_IDS) {
-    const res = await fetch(`${base}/api/authenticate`, {
-      method: "POST",
-      headers: {
-        "X-AUTH-USERNAME": username,
-        "X-AUTH-PASSWORD": password,
-        "X-AUTH-APP-ID": appId,
-        Accept: "application/json",
-      },
-    });
+    try {
+      const res = await fetch(`${base}/api/authenticate`, {
+        method: "POST",
+        headers: {
+          "X-AUTH-USERNAME": username,
+          "X-AUTH-PASSWORD": password,
+          "X-AUTH-APP-ID": appId,
+          Accept: "application/json",
+        },
+      });
 
-    const data = await res.json();
-    lastResponse = data;
+      // Use text() first — some app IDs may return HTML error pages
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { continue; }
 
-    if (data.token) {
-      const ttl = data.expire_at_utc
-        ? data.expire_at_utc - Math.floor(Date.now() / 1000) - 300
-        : 43200;
-      setCachedToken(username, sandbox, data.token, ttl);
-      return data.token;
-    }
+      lastResponse = data;
+      if (data.token) {
+        const ttl = data.expire_at_utc
+          ? data.expire_at_utc - Math.floor(Date.now() / 1000) - 300
+          : 43200;
+        setCachedToken(username, sandbox, data.token, ttl);
+        return data.token;
+      }
+    } catch { continue; }
   }
 
   throw new Error(
-    "Sameday autentificare eșuată (toate app ID-urile testate au returnat 403). " +
-    "Contactați Sameday la software@sameday.ro și cereți activarea accesului API REST " +
-    "pentru contul dvs. eAWB, sau cereți un set separat de credențiale API. " +
-    `Răspuns Sameday: ${JSON.stringify(lastResponse)}`
+    "Sameday autentificare eșuată — credențialele nu sunt valide sau nu au acces API. " +
+    "Contactați Sameday la software@sameday.ro pentru activarea accesului API REST. " +
+    `Ultimul răspuns: ${JSON.stringify(lastResponse)}`
   );
 }
 

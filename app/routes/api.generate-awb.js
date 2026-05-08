@@ -86,14 +86,17 @@ export async function action({ request }) {
         return json({ error: "Sameday API credentials not configured" }, { status: 400 });
       }
 
+      const samedaySandbox = !!settings.samedaySandbox;
       const [senderPickupPoints, services] = await Promise.all([
         samedayGetClientPickupPoints({
           username: settings.samedayUsername,
           password: settings.samedayPassword,
+          sandbox:  samedaySandbox,
         }),
         samedayGetServices({
           username: settings.samedayUsername,
           password: settings.samedayPassword,
+          sandbox:  samedaySandbox,
         }),
       ]);
 
@@ -115,6 +118,7 @@ export async function action({ request }) {
           const counties = await samedayGetCounties({
             username: settings.samedayUsername,
             password: settings.samedayPassword,
+            sandbox:  samedaySandbox,
           });
           const countyName = (orderData.shippingCounty || "").toLowerCase().replace(/^(judet|jud\.?)\s*/i, "").trim();
           const matched = counties.find((c) =>
@@ -127,6 +131,7 @@ export async function action({ request }) {
               const cities = await samedayGetCities({
                 username: settings.samedayUsername,
                 password: settings.samedayPassword,
+                sandbox:  samedaySandbox,
                 countyId: matched.id,
               });
               const cityName = (orderData.shippingCity || "").toLowerCase().trim();
@@ -146,6 +151,7 @@ export async function action({ request }) {
       awbResult = await samedayCreateAwb({
         username: settings.samedayUsername,
         password: settings.samedayPassword,
+        sandbox:  samedaySandbox,
         order: orderData,
         settings,
         senderPickupPointId: senderPickupPoint.id,
