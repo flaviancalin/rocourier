@@ -123,47 +123,98 @@ export async function samedayGetClientPickupPoints({ username, password, sandbox
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Get OOH locations (easybox lockers + PUDO points)
-// GET /api/client/ooh-locations
-// listingType 1 = all OOH locations (easybox + PUDO)
+// Production: GET /api/client/ooh-locations (API v3.1+)
+// Sandbox / older contracts: falls back to /api/geolocation/pickup-points then /api/locker/list
 // oohType 0 = easybox, 1 = PUDO
 // ─────────────────────────────────────────────────────────────────────────────
 export async function samedayGetLockers({ username, password, sandbox = false }) {
   const token = await samedayAuthenticate({ username, password, sandbox });
   const base = getBase(sandbox);
 
-  let allItems = [];
-  let page = 1;
-  let totalPages = 1;
+  // ── Try new OOH endpoint (production API v3.1+) ─────────────────────────
+  try {
+    let allItems = [];
+    let page = 1;
+    let totalPages = 1;
 
-  do {
-    const params = new URLSearchParams({
-      listingType: "1",
-      countPerPage: "500",
-      countryCode: "RO",
-      page: String(page),
-    });
-    const data = await samedayRequest(base, `/api/client/ooh-locations?${params}`, { token });
+    do {
+      const params = new URLSearchParams({
+        listingType: "1",
+        countPerPage: "500",
+        countryCode: "RO",
+        page: String(page),
+      });
+      const data = await samedayRequest(base, `/api/client/ooh-locations?${params}`, { token });
+      const items = data.data || [];
+      allItems.push(...items);
+      totalPages = data.pages || 1;
+      page++;
+    } while (page <= totalPages && page <= 20);
+
+    return allItems
+      .filter((l) => l.clientVisible === 1)
+      .map((l) => ({
+        externalId: String(l.oohId),
+        courier: "sameday",
+        type: l.oohType === 0 ? "easybox" : "pudo",
+        name: l.name || "Sameday easybox",
+        address: l.address || "",
+        city: l.city || null,
+        county: l.county || null,
+        zip: l.postalCode || null,
+        lat: l.lat ? parseFloat(l.lat) : null,
+        lng: l.lng ? parseFloat(l.lng) : null,
+      }));
+  } catch (oohErr) {
+    // OOH endpoint not available on sandbox or older API contracts — fall back
+    if (!oohErr.message?.includes("[404]") && !oohErr.message?.includes("[400]") &&
+        !oohErr.message?.includes("[403]") && !oohErr.message?.includes("[405]")) {
+      throw oohErr; // unexpected error — propagate
+    }
+  }
+
+  // ── Fallback: older geolocation endpoint (sandbox / legacy contracts) ────
+  try {
+    const params = new URLSearchParams({ perPage: "500", type: "2" });
+    const data = await samedayRequest(base, `/api/geolocation/pickup-points?${params}`, { token });
+    const items = data.data || (Array.isArray(data) ? data : []);
+    if (items.length > 0) {
+      return items.map((l) => ({
+        externalId: String(l.id),
+        courier: "sameday",
+        type: "easybox",
+        name: l.name || l.alias || "Sameday easybox",
+        address: l.address || "",
+        city: l.city?.name || l.city || null,
+        county: l.county?.name || l.county || null,
+        zip: l.postalCode || null,
+        lat: parseFloat(l.lat) || null,
+        lng: parseFloat(l.long || l.lng || l.lon) || null,
+      }));
+    }
+  } catch (_) { /* try next fallback */ }
+
+  // ── Final fallback: locker list endpoint ────────────────────────────────
+  try {
+    const data = await samedayRequest(base, "/api/locker/list?perPage=500", { token });
     const items = data.data || [];
-    allItems.push(...items);
-    totalPages = data.pages || 1;
-    page++;
-  } while (page <= totalPages && page <= 20);
-
-  return allItems
-    .filter((l) => l.clientVisible === 1)
-    .map((l) => ({
-      externalId: String(l.oohId),
+    return items.map((l) => ({
+      externalId: String(l.id),
       courier: "sameday",
-      type: l.oohType === 0 ? "easybox" : "pudo",
-      name: l.name || "Sameday easybox",
+      type: "easybox",
+      name: l.name || l.alias || "Sameday easybox",
       address: l.address || "",
-      city: l.city || null,
-      county: l.county || null,
+      city: l.city?.name || l.city || null,
+      county: l.county?.name || l.county || null,
       zip: l.postalCode || null,
-      lat: l.lat ? parseFloat(l.lat) : null,
-      lng: l.lng ? parseFloat(l.lng) : null,
+      lat: parseFloat(l.lat) || null,
+      lng: parseFloat(l.long || l.lng || l.lon) || null,
     }));
+  } catch (_) {
+    return []; // sandbox with no locker data — return empty silently
+  }
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Get available services for your contract
