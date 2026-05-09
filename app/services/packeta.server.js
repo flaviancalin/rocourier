@@ -125,6 +125,7 @@ export async function packetaGetPickupPoints({ apiKey }) {
   const [branches, boxes] = await Promise.all([branchRes.json(), boxRes.json()]);
 
   const isActive = (b) =>
+    b.country === "ro" &&
     b.status?.statusId === "1" &&
     b.displayFrontend === "1";
 
@@ -195,22 +196,26 @@ export async function packetaCreatePacket({
 </createPacket>`;
 
   const xml = await packetaXmlRequest("createPacket", xmlBody);
+  console.error("[Packeta] createPacket response:", xml.slice(0, 600));
 
   // Extract barcode and id from response XML
-  const idMatch      = xml.match(/<id>([^<]+)<\/id>/i);
+  const idMatch      = xml.match(/<id>\s*(\d+)\s*<\/id>/i);
   const barcodeMatch = xml.match(/<barcode>([^<]+)<\/barcode>/i);
   const trackMatch   = xml.match(/<barcodeText>([^<]+)<\/barcodeText>/i);
 
   const awbNumber = barcodeMatch?.[1] || trackMatch?.[1] || idMatch?.[1];
+  const packetId  = idMatch?.[1] ? String(parseInt(idMatch[1], 10)) : null;
 
   if (!awbNumber) {
     throw new Error(`Packeta createPacket: no barcode in response: ${xml}`);
   }
 
+  console.error(`[Packeta] created: awbNumber=${awbNumber} packetId=${packetId}`);
+
   return {
     success: true,
     awbNumber,
-    packetId: idMatch?.[1] || null,
+    packetId,
     raw: xml,
   };
 }
@@ -221,10 +226,20 @@ export async function packetaCreatePacket({
 // Returns binary PDF buffer
 // ─────────────────────────────────────────────────────────────────────────────
 export async function packetaDownloadLabel({ apiKey, packetId }) {
+  // packetLabelPdf requires the numeric packet ID — barcodes (e.g. Z00012345678) are rejected.
+  // If awbPdfUrl was not stored at creation time, re-generate the AWB to get the correct ID.
+  const numericId = parseInt(String(packetId), 10);
+  if (!numericId || isNaN(numericId)) {
+    throw new Error(
+      `Packeta PDF: "${packetId}" is not a numeric packet ID (it looks like a barcode). ` +
+      `Re-generate the AWB so the numeric ID gets saved.`
+    );
+  }
+
   const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
 <packetLabelPdf>
   <apiPassword>${xmlEscape(apiKey)}</apiPassword>
-  <packetId>${xmlEscape(String(packetId))}</packetId>
+  <packetId>${numericId}</packetId>
   <offset>0</offset>
 </packetLabelPdf>`;
 
