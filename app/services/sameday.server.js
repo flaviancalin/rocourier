@@ -74,7 +74,7 @@ export async function samedayAuthenticate({ username, password, sandbox = false 
   // xConnector and other platforms may use a different registered ID.
   // Try all known values so merchant credentials work regardless of how
   // their Sameday account was configured.
-  const APP_IDS = ["2", "8", "1", "3", "4", "5", "6", "7", "9"];
+  const APP_IDS = ["2", "8", "1", "3", "4", "5", "6", "7", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"];
   let lastResponse = null;
 
   for (const appId of APP_IDS) {
@@ -100,6 +100,7 @@ export async function samedayAuthenticate({ username, password, sandbox = false 
           ? data.expire_at_utc - Math.floor(Date.now() / 1000) - 300
           : 43200;
         setCachedToken(username, sandbox, data.token, ttl);
+        console.log(`[Sameday] Auth success with X-AUTH-APP-ID: ${appId} for ${username}`);
         return data.token;
       }
     } catch { continue; }
@@ -143,9 +144,7 @@ export async function samedayGetLockers({ username, password, sandbox = false })
 
     do {
       const params = new URLSearchParams({
-        listingType: "1",
         countPerPage: "500",
-        countryCode: "RO",
         page: String(page),
       });
       const data = await samedayRequest(base, `/api/client/ooh-locations?${params}`, { token });
@@ -339,7 +338,7 @@ export async function samedayCreateAwb({
       phoneNumber: order.customerPhone,
       personType: 0,        // 0 = individual, 1 = company — required
       email: order.customerEmail || "",
-      address: isLocker ? "" : (order.shippingAddress1 || ""),
+      address: order.shippingAddress1 || "",
       postalCode: order.shippingZip || "",
       // County: prefer Sameday ID, fall back to plain string
       ...(countyId

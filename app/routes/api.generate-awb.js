@@ -61,6 +61,24 @@ export async function action({ request }) {
   // Effective pickup point: wizard override takes priority over the stored order pickup point
   const effectivePickupId = pickupPointIdOverride || (order.shippingMethod === "pickup_point" ? order.pickupPointId : null);
 
+  // For locker deliveries, look up the stored pickup point so we can use its
+  // address/county/city as recipient fields — required by Sameday and GLS even
+  // when the package goes to a locker (the APIs still need valid address data).
+  let lockerPoint = null;
+  if (effectivePickupId) {
+    lockerPoint = await prisma.pickupPoint.findFirst({
+      where: { courier, externalId: String(effectivePickupId) },
+    });
+  }
+
+  // Enrich orderData with locker location as fallback for empty address fields
+  if (lockerPoint) {
+    if (!orderData.shippingAddress1) orderData.shippingAddress1 = lockerPoint.address || "";
+    if (!orderData.shippingCity)     orderData.shippingCity     = lockerPoint.city    || "";
+    if (!orderData.shippingCounty)   orderData.shippingCounty   = lockerPoint.county  || "";
+    if (!orderData.shippingZip)      orderData.shippingZip      = lockerPoint.zip     || "";
+  }
+
   let awbResult;
 
   try {

@@ -233,7 +233,7 @@ export async function fanCreateAwb({
           name: order.customerName,
           phone: normalizePhone(order.customerPhone),
           address: finalPickupId
-            ? { id: parseInt(String(finalPickupId).replace(/\D/g, ""), 10) }
+            ? { id: parseInt(String(finalPickupId), 10) }
             : {
                 county: normalizeCounty(order.shippingCounty),
                 city: order.shippingCity || "Bucuresti",
@@ -260,15 +260,20 @@ export async function fanCreateAwb({
   const data = await fanRequest("/intern-awb", { method: "POST", token, body: payload, clientId });
   console.error("[FAN] intern-awb response:", JSON.stringify(data));
 
-  if (data.data?.[0]?.awb) {
+  // FAN sometimes returns 200 with error details nested in data[0]
+  const firstResult = data.data?.[0];
+  if (firstResult?.awb) {
     return {
       success: true,
-      awbNumber: String(data.data[0].awb),
+      awbNumber: String(firstResult.awb),
       raw: data,
     };
   }
 
-  throw new Error(`FAN AWB generation failed: ${JSON.stringify(data)}`);
+  // Extract the most useful error detail from FAN's response
+  const fanError = firstResult?.error || firstResult?.message ||
+    data.message || data.error || JSON.stringify(data);
+  throw new Error(`FAN AWB generation failed: ${fanError}`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

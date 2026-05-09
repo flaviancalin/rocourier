@@ -139,8 +139,17 @@ export async function glsCreateAwb({
 
   // Build GLS service list: AOS = ParcelShop delivery, SAT = Saturday delivery
   const glsServiceList = [];
-  // PSDParameter must be the goldId integer — string IDs like "RO011857-PARCELSH01" are rejected
-  if (pickupPointId) glsServiceList.push({ Code: "AOS", PSDParameter: parseInt(pickupPointId) || String(pickupPointId) });
+  if (pickupPointId) {
+    // PSDParameter must be the goldId as a plain integer — WCF rejects strings here.
+    const goldId = parseInt(String(pickupPointId), 10);
+    if (!goldId || isNaN(goldId)) {
+      throw new Error(
+        `GLS: ParcelShop ID "${pickupPointId}" is not a valid numeric goldId. ` +
+        `Re-sync pickup points from admin → Puncte de ridicare → Reîmprospătează.`
+      );
+    }
+    glsServiceList.push({ Code: "AOS", PSDParameter: goldId });
+  }
   if (saturdayDelivery) glsServiceList.push({ Code: "SAT" });
 
   // GLS rejects '#' and special characters in ClientReference
