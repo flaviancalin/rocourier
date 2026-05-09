@@ -127,12 +127,13 @@ export async function action({ request }) {
       const serviceCode = serviceOverride || (isLocker ? "LN" : "T");
       const service = services.find((s) => s.code === serviceCode) || services[0];
 
-      // Resolve county/city IDs — stored from cart widget, or look them up by address string.
-      // On sandbox, never reuse stored IDs (they're from production and will be rejected).
-      let samedayCountyId = samedaySandbox ? null : (order.samedayCountyId || null);
-      let samedayCityId   = samedaySandbox ? null : (order.samedayCityId   || null);
+      // Always look up county/city IDs fresh from the Sameday API.
+      // Stored IDs (order.samedayCountyId) can be stale, wrong environment, or
+      // from the locker point rather than the customer address — never reuse them.
+      let samedayCountyId = null;
+      let samedayCityId   = null;
 
-      if (!samedayCountyId && orderData.shippingCounty) {
+      if (orderData.shippingCounty) {
         try {
           const counties = await samedayGetCounties({
             username: settings.samedayUsername,
@@ -146,7 +147,7 @@ export async function action({ request }) {
           );
           if (matched) {
             samedayCountyId = matched.id;
-            if (!samedayCityId && orderData.shippingCity) {
+            if (orderData.shippingCity) {
               const cities = await samedayGetCities({
                 username: settings.samedayUsername,
                 password: settings.samedayPassword,
