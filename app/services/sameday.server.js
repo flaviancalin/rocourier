@@ -313,8 +313,6 @@ export async function samedayCreateAwb({
   lockerDestId = null,  // easybox locker id (if pickup_point delivery)
   serviceId,            // from samedayGetServices()
   serviceCode,          // e.g. "T" or "LN"
-  countyId,             // recipient county id
-  cityId,               // recipient city id
   openPackage = false,  // allow recipient to inspect before accepting
   insuredValue = 0,     // declared value for insurance
 }) {
@@ -351,24 +349,19 @@ export async function samedayCreateAwb({
       email: order.customerEmail || "",
       address: order.shippingAddress1 || "",
       postalCode: order.shippingZip || "",
-      // County: prefer Sameday ID, fall back to plain string
-      ...(countyId
-        ? { county: { id: countyId } }
-        : order.shippingCounty
-          ? { countyString: order.shippingCounty }
-          : {}),
-      // City: prefer Sameday ID, fall back to plain string
-      ...(cityId
-        ? { locality: { id: cityId } }
-        : order.shippingCity
-          ? { cityString: order.shippingCity }
-          : {}),
+      // For locker delivery oohLastMile identifies the destination — omit county/city
+      // to avoid ID validation errors (different contracts accept different IDs).
+      // For home delivery, use plain strings (countyString/cityString) which are
+      // accepted by all contract types without strict ID validation.
+      ...(!isLocker && order.shippingCounty ? { countyString: order.shippingCounty } : {}),
+      ...(!isLocker && order.shippingCity   ? { cityString:   order.shippingCity   } : {}),
     },
     // If OOH delivery (easybox/PUDO), use oohLastMile (lockerId is deprecated)
     ...(isLocker ? { oohLastMile: String(lockerDestId) } : {}),
     ...(openPackage ? { openPackage: 1 } : {}),
   };
 
+  console.error("[Sameday] /api/awb payload:", JSON.stringify(payload));
   const data = await samedayRequest(base, "/api/awb", {
     method: "POST",
     token,

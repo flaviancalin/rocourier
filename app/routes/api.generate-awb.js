@@ -4,7 +4,7 @@ import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
 import { fanCreateAwb } from "../services/fan-courier.server.js";
-import { samedayCreateAwb, samedayGetClientPickupPoints, samedayGetServices, samedayGetCounties, samedayGetCities } from "../services/sameday.server.js";
+import { samedayCreateAwb, samedayGetClientPickupPoints, samedayGetServices } from "../services/sameday.server.js";
 import { cargusCreateAwb, cargusGetSenderLocations } from "../services/cargus.server.js";
 import { glsCreateAwb } from "../services/gls.server.js";
 import { packetaCreatePacket } from "../services/packeta.server.js";
@@ -127,46 +127,9 @@ export async function action({ request }) {
       const serviceCode = serviceOverride || (isLocker ? "LN" : "T");
       const service = services.find((s) => s.code === serviceCode) || services[0];
 
-      // Always look up county/city IDs fresh from the Sameday API.
-      // Stored IDs (order.samedayCountyId) can be stale, wrong environment, or
-      // from the locker point rather than the customer address — never reuse them.
-      let samedayCountyId = null;
-      let samedayCityId   = null;
-
-      if (orderData.shippingCounty) {
-        try {
-          const counties = await samedayGetCounties({
-            username: settings.samedayUsername,
-            password: settings.samedayPassword,
-            sandbox:  samedaySandbox,
-          });
-          const countyName = (orderData.shippingCounty || "").toLowerCase().replace(/^(judet|jud\.?)\s*/i, "").trim();
-          const matched = counties.find((c) =>
-            (c.name || "").toLowerCase().includes(countyName) ||
-            countyName.includes((c.name || "").toLowerCase())
-          );
-          if (matched) {
-            samedayCountyId = matched.id;
-            if (orderData.shippingCity) {
-              const cities = await samedayGetCities({
-                username: settings.samedayUsername,
-                password: settings.samedayPassword,
-                sandbox:  samedaySandbox,
-                countyId: matched.id,
-              });
-              const cityName = (orderData.shippingCity || "").toLowerCase().trim();
-              const matchedCity = cities.find((c) =>
-                (c.name || "").toLowerCase() === cityName ||
-                (c.name || "").toLowerCase().includes(cityName) ||
-                cityName.includes((c.name || "").toLowerCase())
-              );
-              if (matchedCity) samedayCityId = matchedCity.id;
-            }
-          }
-        } catch (_) {
-          // Geo lookup is best-effort — proceed without IDs if it fails
-        }
-      }
+      // county/city ID lookup removed — samedayCreateAwb now uses countyString/cityString
+      // (plain strings accepted by all Sameday contract types without strict ID validation).
+      // For locker delivery, county/city are omitted entirely (oohLastMile identifies destination).
 
       awbResult = await samedayCreateAwb({
         username: settings.samedayUsername,
@@ -178,8 +141,6 @@ export async function action({ request }) {
         lockerDestId: isLocker ? effectivePickupId : null,
         serviceId: service.id,
         serviceCode: service.code,
-        countyId: samedayCountyId,
-        cityId: samedayCityId,
         openPackage: !!openPackage,
         insuredValue: insuredValue ? parseFloat(insuredValue) : 0,
       });
