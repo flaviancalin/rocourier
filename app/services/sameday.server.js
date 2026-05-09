@@ -92,18 +92,29 @@ export async function samedayAuthenticate({ username, password, sandbox = false 
       // Use text() first — some app IDs may return HTML error pages
       const text = await res.text();
       let data;
-      try { data = JSON.parse(text); } catch { continue; }
+      try { data = JSON.parse(text); } catch {
+        console.error(`[Sameday] Auth APP-ID ${appId}: non-JSON response [${res.status}] ${text.slice(0, 120)}`);
+        continue;
+      }
 
       lastResponse = data;
       if (data.token) {
-        const ttl = data.expire_at_utc
-          ? data.expire_at_utc - Math.floor(Date.now() / 1000) - 300
-          : 43200;
+        // expire_at_utc may be a Unix timestamp (seconds) or an ISO string — handle both
+        let ttl = 43200;
+        if (data.expire_at_utc) {
+          const expMs = typeof data.expire_at_utc === "number"
+            ? data.expire_at_utc * 1000
+            : new Date(data.expire_at_utc).getTime();
+          if (!isNaN(expMs)) ttl = Math.max(300, Math.floor((expMs - Date.now()) / 1000) - 300);
+        }
         setCachedToken(username, sandbox, data.token, ttl);
-        console.log(`[Sameday] Auth success with X-AUTH-APP-ID: ${appId} for ${username}`);
+        console.log(`[Sameday] Auth success APP-ID ${appId} for ${username} (ttl=${ttl}s)`);
         return data.token;
       }
-    } catch { continue; }
+    } catch (e) {
+      console.error(`[Sameday] Auth APP-ID ${appId} threw: ${e.message}`);
+      continue;
+    }
   }
 
   throw new Error(
