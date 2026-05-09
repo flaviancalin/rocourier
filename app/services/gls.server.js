@@ -16,11 +16,18 @@ const GLS_SANDBOX = "https://api.test.mygls.ro/ParcelService.svc/json";
 // country_code is lowercase ISO 3166-1 alpha-2 (e.g. "ro", "hu")
 const GLS_DELIVERY_POINTS_BASE = "https://map.gls-hungary.com/data/deliveryPoints";
 
-// Countries to fetch (lowercase ISO codes).
-// Override with GLS_COUNTRIES env var (comma-separated, e.g. "ro,hu,bg").
-// GLS_SHIPIT_COUNTRIES kept as fallback for existing deployments.
-const GLS_COUNTRIES = (process.env.GLS_COUNTRIES || process.env.GLS_SHIPIT_COUNTRIES || "ro")
-  .split(",").map((c) => c.trim().toLowerCase()).filter(Boolean);
+// All European countries where GLS operates parcel shops / lockers.
+// Override with GLS_COUNTRIES env var (comma-separated) to restrict.
+const GLS_ALL_EU_COUNTRIES = [
+  "al","at","be","ba","bg","hr","cy","cz","dk","ee",
+  "fi","fr","de","gr","hu","ie","it","lv","lt","lu",
+  "mt","nl","no","pl","pt","ro","rs","sk","si","es",
+  "se","ch","gb",
+];
+const GLS_COUNTRIES = (process.env.GLS_COUNTRIES || process.env.GLS_SHIPIT_COUNTRIES)
+  ? (process.env.GLS_COUNTRIES || process.env.GLS_SHIPIT_COUNTRIES)
+      .split(",").map((c) => c.trim().toLowerCase()).filter(Boolean)
+  : GLS_ALL_EU_COUNTRIES;
 
 function getBase(sandbox = false) {
   return sandbox ? GLS_SANDBOX : GLS_PROD;
@@ -280,15 +287,18 @@ export async function glsGetPickupPoints() {
 
   for (const countryCode of GLS_COUNTRIES) {
     const url = `${GLS_DELIVERY_POINTS_BASE}/${countryCode}.json`;
-    const res = await fetch(url, { headers: { Accept: "application/json" } });
-
-    if (!res.ok) {
-      throw new Error(`GLS Delivery Points API error [${res.status}] GET ${url}`);
+    try {
+      const res = await fetch(url, { headers: { Accept: "application/json" } });
+      if (!res.ok) {
+        console.error(`[GLS] Delivery Points ${countryCode.toUpperCase()} skipped [${res.status}]`);
+        continue;
+      }
+      const data = await res.json();
+      const items = data.items || (Array.isArray(data) ? data : []);
+      allPoints.push(...items.map((s) => ({ ...s, _country: countryCode })));
+    } catch (e) {
+      console.error(`[GLS] Delivery Points ${countryCode.toUpperCase()} error: ${e.message}`);
     }
-
-    const data = await res.json();
-    const items = data.items || (Array.isArray(data) ? data : []);
-    allPoints.push(...items.map((s) => ({ ...s, _country: countryCode })));
   }
 
   return allPoints.map((s) => ({
