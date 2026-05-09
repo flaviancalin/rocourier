@@ -222,6 +222,8 @@ export async function action({ request }) {
       // Store courier-specific IDs needed for deletion / label download
       ...(awbResult.parcelId  ? { awbPdfUrl: `gls_parcelid:${awbResult.parcelId}`   } : {}),
       ...(awbResult.packetId  ? { awbPdfUrl: `packeta_id:${awbResult.packetId}`     } : {}),
+      // Sameday sometimes returns the PDF inline — cache it as base64 so we don't need a separate download
+      ...(awbResult.pdfBase64 ? { awbPdfUrl: `sameday_pdf:${awbResult.pdfBase64}`  } : {}),
     });
 
     // Sync to Shopify fulfillment (makes xConnector compatible)

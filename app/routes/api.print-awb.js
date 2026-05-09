@@ -49,12 +49,17 @@ export async function loader({ request }) {
       }
 
     } else if (courier === "sameday") {
-      pdfBuffer = await samedayDownloadAwbPdf({
-        username: settings.samedayUsername,
-        password: settings.samedayPassword,
-        sandbox: !!settings.samedaySandbox,
-        awbNumber: order.awbNumber,
-      });
+      // If the PDF was returned inline at creation time, use it directly
+      if (order.awbPdfUrl?.startsWith("sameday_pdf:")) {
+        pdfBuffer = Buffer.from(order.awbPdfUrl.replace("sameday_pdf:", ""), "base64");
+      } else {
+        pdfBuffer = await samedayDownloadAwbPdf({
+          username: settings.samedayUsername,
+          password: settings.samedayPassword,
+          sandbox: !!settings.samedaySandbox,
+          awbNumber: order.awbNumber,
+        });
+      }
 
     } else if (courier === "cargus") {
       pdfBuffer = await cargusDownloadAwbPdf({

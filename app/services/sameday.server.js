@@ -368,10 +368,15 @@ export async function samedayCreateAwb({
     body: payload,
   });
 
+  console.error("[Sameday] /api/awb response keys:", Object.keys(data || {}));
+
   if (data.awbNumber) {
+    // Sameday sometimes returns the label PDF inline (base64 in data.label or data.labels)
+    const labelB64 = data.label || data.labels || data.labelPdf || null;
     return {
       success: true,
       awbNumber: String(data.awbNumber),
+      pdfBase64: labelB64 || null,
       raw: data,
     };
   }
@@ -388,14 +393,18 @@ export async function samedayDownloadAwbPdf({ username, password, sandbox = fals
   const token = await samedayAuthenticate({ username, password, sandbox });
   const base = getBase(sandbox);
 
-  const res = await fetch(`${base}/api/awb/${awbNumber}/download`, {
-    headers: { "X-AUTH-TOKEN": token, Accept: "application/pdf" },
-  });
+  // Try primary endpoint, fall back to /pdf if 404
+  for (const path of [`/api/awb/${awbNumber}/download`, `/api/awb/${awbNumber}/pdf`]) {
+    const res = await fetch(`${base}${path}`, {
+      headers: { "X-AUTH-TOKEN": token, Accept: "application/pdf" },
+    });
+    if (res.status === 404) continue;
+    if (!res.ok) throw new Error(`Sameday PDF download failed: ${res.status}`);
+    const arrayBuffer = await res.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  }
 
-  if (!res.ok) throw new Error(`Sameday PDF download failed: ${res.status}`);
-
-  const arrayBuffer = await res.arrayBuffer();
-  return Buffer.from(arrayBuffer);
+  throw new Error(`Sameday PDF download failed: AWB ${awbNumber} not found on any endpoint`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
