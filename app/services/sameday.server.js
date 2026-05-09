@@ -371,12 +371,10 @@ export async function samedayCreateAwb({
   console.error("[Sameday] /api/awb full response:", JSON.stringify(data));
 
   if (data.awbNumber) {
-    // Sameday sometimes returns the label PDF inline (base64 in data.label or data.labels)
-    const labelB64 = data.label || data.labels || data.labelPdf || null;
     return {
       success: true,
       awbNumber: String(data.awbNumber),
-      pdfBase64: labelB64 || null,
+      pdfLink: data.pdfLink || null,
       raw: data,
     };
   }
@@ -393,25 +391,14 @@ export async function samedayDownloadAwbPdf({ username, password, sandbox = fals
   const token = await samedayAuthenticate({ username, password, sandbox });
   const base = getBase(sandbox);
 
-  // Some AWB numbers have a letter prefix (e.g. "1ONB24493933508") —
-  // try with the full number and also with only digits extracted
-  const numericAwb = awbNumber.replace(/[^0-9]/g, "");
-  const candidates = [...new Set([awbNumber, numericAwb].filter(Boolean))];
+  const res = await fetch(`${base}/api/awb/download/${awbNumber}`, {
+    headers: { "X-AUTH-TOKEN": token, Accept: "application/pdf" },
+  });
 
-  for (const awb of candidates) {
-    for (const path of [`/api/awb/${awb}/download`, `/api/awb/${awb}/pdf`]) {
-      const res = await fetch(`${base}${path}`, {
-        headers: { "X-AUTH-TOKEN": token, Accept: "application/pdf" },
-      });
-      console.error(`[Sameday] PDF ${path} → ${res.status}`);
-      if (res.status === 404) continue;
-      if (!res.ok) throw new Error(`Sameday PDF download failed [${res.status}]: ${await res.text().then(t => t.slice(0,200))}`);
-      const arrayBuffer = await res.arrayBuffer();
-      return Buffer.from(arrayBuffer);
-    }
-  }
+  if (!res.ok) throw new Error(`Sameday PDF download failed [${res.status}]: ${(await res.text()).slice(0, 200)}`);
 
-  throw new Error(`Sameday PDF download failed: AWB ${awbNumber} not found on any endpoint`);
+  const arrayBuffer = await res.arrayBuffer();
+  return Buffer.from(arrayBuffer);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
