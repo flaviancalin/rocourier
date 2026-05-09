@@ -137,18 +137,18 @@ export async function glsCreateAwb({
     throw new Error("GLS AWB: Client Number not configured. Set glsClientNumber in Settings → GLS.");
   }
 
-  // Build GLS service list: AOS = ParcelShop delivery, SAT = Saturday delivery
+  // Build GLS service list: PSD = ParcelShop delivery, SAT = Saturday delivery
+  // PSDParameter MUST be an object { StringValue: "..." } — WCF rejects plain integers.
   const glsServiceList = [];
   if (pickupPointId) {
-    // PSDParameter must be the goldId as a plain integer — WCF rejects strings here.
-    const goldId = parseInt(String(pickupPointId), 10);
-    if (!goldId || isNaN(goldId)) {
+    const goldId = String(pickupPointId).trim();
+    if (!goldId) {
       throw new Error(
-        `GLS: ParcelShop ID "${pickupPointId}" is not a valid numeric goldId. ` +
+        `GLS: ParcelShop ID "${pickupPointId}" is empty. ` +
         `Re-sync pickup points from admin → Puncte de ridicare → Reîmprospătează.`
       );
     }
-    glsServiceList.push({ Code: "AOS", PSDParameter: goldId });
+    glsServiceList.push({ Code: "PSD", PSDParameter: { StringValue: goldId } });
   }
   if (saturdayDelivery) glsServiceList.push({ Code: "SAT" });
 
