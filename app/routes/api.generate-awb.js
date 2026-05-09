@@ -245,7 +245,7 @@ export async function action({ request }) {
       });
     } catch (syncError) {
       // Non-fatal — AWB was created, just sync failed
-      console.error("Shopify sync error (non-fatal):", syncError.message);
+      console.error("Shopify sync error (non-fatal):", syncError?.message || syncError);
     }
 
     return json({
