@@ -292,7 +292,9 @@ export async function glsGetPickupPoints() {
   }
 
   return allPoints.map((s) => ({
-    externalId: String(s.goldId || s.id || ""),
+    // Use the string id (e.g. "RO021196-PARCELSHOP") as externalId — this is what
+    // GLS API expects as PSDParameter.StringValue. goldId is numeric and rejected.
+    externalId: s.id || String(s.goldId || ""),
     courier: "gls",
     type: s.type === "parcel-locker" ? "locker" : "parcelshop",
     name: s.name || "GLS ParcelShop",
