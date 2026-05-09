@@ -368,7 +368,7 @@ export async function samedayCreateAwb({
     body: payload,
   });
 
-  console.error("[Sameday] /api/awb response keys:", Object.keys(data || {}));
+  console.error("[Sameday] /api/awb full response:", JSON.stringify(data));
 
   if (data.awbNumber) {
     // Sameday sometimes returns the label PDF inline (base64 in data.label or data.labels)
@@ -393,15 +393,22 @@ export async function samedayDownloadAwbPdf({ username, password, sandbox = fals
   const token = await samedayAuthenticate({ username, password, sandbox });
   const base = getBase(sandbox);
 
-  // Try primary endpoint, fall back to /pdf if 404
-  for (const path of [`/api/awb/${awbNumber}/download`, `/api/awb/${awbNumber}/pdf`]) {
-    const res = await fetch(`${base}${path}`, {
-      headers: { "X-AUTH-TOKEN": token, Accept: "application/pdf" },
-    });
-    if (res.status === 404) continue;
-    if (!res.ok) throw new Error(`Sameday PDF download failed: ${res.status}`);
-    const arrayBuffer = await res.arrayBuffer();
-    return Buffer.from(arrayBuffer);
+  // Some AWB numbers have a letter prefix (e.g. "1ONB24493933508") —
+  // try with the full number and also with only digits extracted
+  const numericAwb = awbNumber.replace(/[^0-9]/g, "");
+  const candidates = [...new Set([awbNumber, numericAwb].filter(Boolean))];
+
+  for (const awb of candidates) {
+    for (const path of [`/api/awb/${awb}/download`, `/api/awb/${awb}/pdf`]) {
+      const res = await fetch(`${base}${path}`, {
+        headers: { "X-AUTH-TOKEN": token, Accept: "application/pdf" },
+      });
+      console.error(`[Sameday] PDF ${path} → ${res.status}`);
+      if (res.status === 404) continue;
+      if (!res.ok) throw new Error(`Sameday PDF download failed [${res.status}]: ${await res.text().then(t => t.slice(0,200))}`);
+      const arrayBuffer = await res.arrayBuffer();
+      return Buffer.from(arrayBuffer);
+    }
   }
 
   throw new Error(`Sameday PDF download failed: AWB ${awbNumber} not found on any endpoint`);
