@@ -236,6 +236,7 @@ export async function packetaDownloadLabel({ apiKey, packetId }) {
     );
   }
 
+  // First attempt: XML REST packetLabelPdf endpoint
   const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
 <packetLabelPdf>
   <apiPassword>${xmlEscape(apiKey)}</apiPassword>
@@ -252,8 +253,11 @@ export async function packetaDownloadLabel({ apiKey, packetId }) {
     body: xmlBody,
   });
 
+  console.error(`[Packeta] packetLabelPdf [${res.status}] content-type: ${res.headers.get("content-type")}`);
+
   if (!res.ok) {
     const text = await res.text();
+    console.error("[Packeta] packetLabelPdf error body:", text.slice(0, 600));
     throw new Error(`Packeta label download failed [${res.status}]: ${text}`);
   }
 
@@ -263,8 +267,9 @@ export async function packetaDownloadLabel({ apiKey, packetId }) {
     return Buffer.from(arrayBuffer);
   }
 
-  // Response is XML — check for fault first, then extract base64 PDF
+  // Response is XML — log full response for debugging
   const xml = await res.text();
+  console.error("[Packeta] packetLabelPdf XML response:", xml.slice(0, 800));
 
   const statusMatch = xml.match(/<status>([^<]+)<\/status>/i);
   if (statusMatch?.[1] === "fault") {
@@ -274,14 +279,6 @@ export async function packetaDownloadLabel({ apiKey, packetId }) {
     const codeMatch = xml.match(/<code[^>]*>\s*([^<\s]+)\s*<\/code>/i) ||
                       xml.match(/<faultCode>([^<]+)<\/faultCode>/i);
     const msg = msgMatch?.[1] || xml.slice(0, 300);
-    // "Unknown error, possibly wrong arguments" with a hex error code means the
-    // packet ID no longer exists in Packeta (expired, cancelled, or wrong API key).
-    if (msg.toLowerCase().includes("unknown error") || msg.toLowerCase().includes("wrong arguments")) {
-      throw new Error(
-        `Packeta: pachetul cu ID ${numericId} nu mai există (expirat sau șters). ` +
-        `Regenerați AWB-ul pentru a obține un nou ID de pachet.`
-      );
-    }
     throw new Error(`Packeta label fault [${codeMatch?.[1] || "?"}]: ${msg}`);
   }
 
