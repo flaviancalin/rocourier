@@ -273,7 +273,16 @@ export async function packetaDownloadLabel({ apiKey, packetId }) {
                      xml.match(/<string>([^<]+)<\/string>/i);
     const codeMatch = xml.match(/<code[^>]*>\s*([^<\s]+)\s*<\/code>/i) ||
                       xml.match(/<faultCode>([^<]+)<\/faultCode>/i);
-    throw new Error(`Packeta label fault [${codeMatch?.[1] || "?"}]: ${msgMatch?.[1] || xml.slice(0, 300)}`);
+    const msg = msgMatch?.[1] || xml.slice(0, 300);
+    // "Unknown error, possibly wrong arguments" with a hex error code means the
+    // packet ID no longer exists in Packeta (expired, cancelled, or wrong API key).
+    if (msg.toLowerCase().includes("unknown error") || msg.toLowerCase().includes("wrong arguments")) {
+      throw new Error(
+        `Packeta: pachetul cu ID ${numericId} nu mai există (expirat sau șters). ` +
+        `Regenerați AWB-ul pentru a obține un nou ID de pachet.`
+      );
+    }
+    throw new Error(`Packeta label fault [${codeMatch?.[1] || "?"}]: ${msg}`);
   }
 
   // Packeta packetLabelPdf returns base64 PDF inside <result>

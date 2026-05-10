@@ -172,6 +172,7 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
 
   if (couriers.includes("gls")) {
     try {
+      const glsSyncStart = new Date();
       const points = await glsGetPickupPoints();
       for (const p of points) {
         await prisma.pickupPoint.upsert({
@@ -180,6 +181,11 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
           create: p,
         });
       }
+      // Remove records that weren't refreshed this run — covers old numeric goldId
+      // entries left over from before the externalId format change, and deleted points.
+      await prisma.pickupPoint.deleteMany({
+        where: { courier: "gls", updatedAt: { lt: glsSyncStart } },
+      });
       results.gls = points.length;
     } catch (e) {
       results.errors.push(`GLS: ${e.message}`);
