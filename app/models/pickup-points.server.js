@@ -194,6 +194,7 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
 
   if (couriers.includes("packeta") && creds.packeta.apiKey) {
     try {
+      const packetaSyncStart = new Date();
       const points = await packetaGetPickupPoints({ apiKey: creds.packeta.apiKey });
       for (const p of points) {
         await prisma.pickupPoint.upsert({
@@ -202,6 +203,10 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
           create: p,
         });
       }
+      // Remove stale records not refreshed this run (e.g. old Romania-only entries)
+      await prisma.pickupPoint.deleteMany({
+        where: { courier: "packeta", updatedAt: { lt: packetaSyncStart } },
+      });
       results.packeta = points.length;
     } catch (e) {
       results.errors.push(`Packeta: ${e.message}`);

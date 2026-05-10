@@ -125,7 +125,6 @@ export async function packetaGetPickupPoints({ apiKey }) {
   const [branches, boxes] = await Promise.all([branchRes.json(), boxRes.json()]);
 
   const isActive = (b) =>
-    b.country === "ro" &&
     b.status?.statusId === "1" &&
     b.displayFrontend === "1";
 
