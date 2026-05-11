@@ -147,8 +147,8 @@ const FULL_COURIER_SERVICES = {
   fan: [
     { label: "Standard",                       value: "Standard" },
     { label: "RedCode",                        value: "RedCode" },
+    { label: "FANbox (Locker)",                value: "FANbox" },
     { label: "Export",                         value: "Export" },
-    { label: "Cont Colector (FANbox)",         value: "Cont Colector" },
     { label: "Produse Albe",                   value: "Produse Albe" },
     { label: "Transport Marfă",                value: "Transport Marfa" },
     { label: "Transport Marfă Produse Albe",   value: "Transport Marfa Produse Albe" },
@@ -171,7 +171,7 @@ const FULL_COURIER_SERVICES = {
 };
 
 function needsPickupPoint(courier, service, glsParcelShop) {
-  if (courier === "fan")     return service === "Cont Colector";
+  if (courier === "fan")     return service === "FANbox" || service === "FANbox Cont Collector";
   if (courier === "sameday") return /^LN|locker|easybox/i.test(String(service));
   if (courier === "cargus")  return String(service) === "38";
   if (courier === "packeta") return true;
@@ -182,7 +182,7 @@ function needsPickupPoint(courier, service, glsParcelShop) {
 const COURIER_SERVICES = {
   fan: [
     { label: "Standard",                value: "Standard" },
-    { label: "Cont Colector (FANbox)",  value: "Cont Colector" },
+    { label: "FANbox (Locker)",         value: "FANbox" },
     { label: "RedCode",                 value: "RedCode" },
     { label: "Produse Albe",            value: "Produse Albe" },
     { label: "Transport Marfă",         value: "Transport Marfa" },
@@ -206,7 +206,7 @@ const COURIER_SERVICES = {
 };
 
 function defaultServiceForCourier(courierKey, hasPickup) {
-  if (courierKey === "fan")     return hasPickup ? "Cont Colector" : "Standard";
+  if (courierKey === "fan")     return hasPickup ? "FANbox" : "Standard";
   if (courierKey === "sameday") return hasPickup ? "LN" : "T";
   return COURIER_SERVICES[courierKey]?.[0]?.value || "standard";
 }

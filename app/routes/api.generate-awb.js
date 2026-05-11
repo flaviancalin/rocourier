@@ -99,6 +99,7 @@ export async function action({ request }) {
         openPackage: !!openPackage,
         shipmentPayer: shipmentPayer || "recipient",
         declaredValue: declaredValue ? parseFloat(declaredValue) : 0,
+        saturdayDelivery: !!saturdayDelivery,
       });
 
     } else if (courier === "sameday") {

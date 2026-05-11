@@ -185,12 +185,13 @@ export async function fanCreateAwb({
   clientId, username, password,
   order,      // { customerName, customerPhone, shippingAddress1, shippingCity, shippingCounty, shippingZip, codAmount, notes, weight, packageCount }
   settings,   // { senderName, senderPhone, senderCity, senderZip, senderAddress, senderCounty }
-  pickupPointId = null,      // if set → FANbox delivery
-  serviceOverride = null,    // e.g. "Standard", "FANbox", "RedCode"
-  observations = null,       // optional observations text
-  openPackage = false,       // allow recipient to inspect before accepting
+  pickupPointId = null,        // if set → FANbox delivery
+  serviceOverride = null,      // e.g. "Standard", "FANbox", "RedCode", "Export", "Produse Albe"
+  observations = null,         // optional observations text
+  openPackage = false,         // allow recipient to inspect before accepting (not supported on FANbox)
   shipmentPayer = "recipient", // "sender" or "recipient" — who pays shipping cost
-  declaredValue = 0,         // declared goods value (RON)
+  declaredValue = 0,           // declared goods value (RON)
+  saturdayDelivery = false,    // Saturday delivery — adds "S" to options
 }) {
   const token = await fanAuthenticate({ clientId, username, password });
 
@@ -211,9 +212,12 @@ export async function fanCreateAwb({
   const hasCod   = (order.codAmount || 0) > 0;
 
   // FANbox locker delivery uses "FANbox" or "FANbox Cont Collector" (with COD).
-  // "Cont Collector" (ID 4) is account-based payment on regular delivery — different service.
+  // "Cont Collector" (ID 4) is account-based payment on regular home delivery — completely different.
+  // Auto-upgrade "FANbox" → "FANbox Cont Collector" when COD is present.
   let service;
-  if (serviceOverride) {
+  if (serviceOverride === "FANbox" && hasCod) {
+    service = "FANbox Cont Collector";
+  } else if (serviceOverride) {
     service = serviceOverride;
   } else if (isLocker) {
     service = hasCod ? "FANbox Cont Collector" : "FANbox";
@@ -222,6 +226,12 @@ export async function fanCreateAwb({
   }
 
   const isLockerService = service === "FANbox" || service === "FANbox Cont Collector";
+
+  // Build options string: "V" = FANbox pickup, "S" = Saturday delivery (concatenated)
+  const optionLetters = [
+    ...(isLockerService ? ["V"] : []),
+    ...(saturdayDelivery ? ["S"] : []),
+  ].join("");
 
   const payload = {
     clientId,
@@ -237,14 +247,14 @@ export async function fanCreateAwb({
           cod:           order.codAmount || 0,
           declaredValue: declaredValue || 0,
           payment:       shipmentPayer === "sender" ? "sender" : "recipient",
-          // returnPayment required by FAN when COD > 0 — specifies how collected cash is returned to sender
           returnPayment: "sender",
           content:       "Colet",
           observation:   observations || order.notes || "",
-          openPackage:   openPackage ? 1 : 0,
+          // FANbox does not support open-upon-delivery; only apply for home delivery
+          ...(!isLockerService && openPackage ? { openPackage: 1 } : {}),
           dimensions:    { width: 20, height: 15, length: 30 },
-          // "V" = recipient picks up from FANbox locker
-          ...(isLockerService ? { options: "V" } : {}),
+          // options: "V" = FANbox locker pickup, "S" = Saturday delivery
+          ...(optionLetters ? { options: optionLetters } : {}),
         },
         // ── Recipient ──────────────────────────────────────────────────
         recipient: {
