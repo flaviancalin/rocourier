@@ -205,40 +205,55 @@ export async function fanCreateAwb({
 
   // If pickup point id is invalid/null, fall back to home delivery
   const effectivePickupId = pickupPointId && pickupPointId !== "null" ? pickupPointId : null;
-  // serviceOverride takes priority; "Cont Colector" implies locker delivery but only when ID is present
-  const service = serviceOverride === "Cont Colector" && !effectivePickupId
-    ? "Standard"
-    : (serviceOverride || (effectivePickupId ? "Cont Colector" : "Standard"));
-  // When service is "Cont Colector" we need the pickup point; for other services ignore it
-  const finalPickupId = service === "Cont Colector" ? effectivePickupId : null;
+  const isLocker = !!effectivePickupId;
+  const hasCod   = (order.codAmount || 0) > 0;
+
+  // FANbox locker delivery uses "FANbox" or "FANbox Cont Collector" (with COD).
+  // "Cont Collector" (ID 4) is account-based payment on regular delivery — different service.
+  let service;
+  if (serviceOverride) {
+    service = serviceOverride;
+  } else if (isLocker) {
+    service = hasCod ? "FANbox Cont Collector" : "FANbox";
+  } else {
+    service = "Standard";
+  }
+
+  const isLockerService = service === "FANbox" || service === "FANbox Cont Collector";
 
   const payload = {
     clientId,
     shipments: [
       {
-        // ── Shipment info (must be nested under "info" per FAN API spec) ──
         info: {
           service,
           packages: {
             parcel:   order.packageCount || 1,
             envelope: 0,
           },
-          weight:       order.weight || 1,
-          cod:          order.codAmount || 0,
+          weight:        order.weight || 1,
+          cod:           order.codAmount || 0,
           declaredValue: 0,
-          payment:      "recipient",
-          content:      "Colet",
-          observation:  observations || order.notes || "",
-          openPackage:  openPackage ? 1 : 0,
-          dimensions:   { width: 20, height: 15, length: 30 },
+          payment:       "recipient",
+          content:       "Colet",
+          observation:   observations || order.notes || "",
+          openPackage:   openPackage ? 1 : 0,
+          dimensions:    { width: 20, height: 15, length: 30 },
+          // "V" = recipient picks up from FANbox locker
+          ...(isLockerService ? { options: "V" } : {}),
         },
         // ── Recipient ──────────────────────────────────────────────────
         recipient: {
           name:  order.customerName,
           phone: normalizePhone(order.customerPhone),
           email: order.customerEmail || "",
-          address: finalPickupId
-            ? { id: parseInt(String(finalPickupId), 10) }
+          address: isLockerService
+            ? {
+                // FANbox: county+locality of the locker + pickupLocationId (string)
+                county:           normalizeCounty(order.shippingCounty || "Bucuresti"),
+                locality:         order.shippingCity || "Bucuresti",
+                pickupLocationId: String(effectivePickupId),
+              }
             : {
                 county:   normalizeCounty(order.shippingCounty),
                 locality: order.shippingCity || "Bucuresti",
@@ -290,13 +305,30 @@ export async function fanCreateAwb({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Print AWB (returns PDF URL or base64)
-// GET /awb-pdf?awb=XXXXX
+// Download AWB label PDF
+// GET /awb/label?clientId=...&awbs[]=...&pdf=1
+// Returns binary PDF buffer
 // ─────────────────────────────────────────────────────────────────────────────
 export async function fanPrintAwb({ clientId, username, password, awbNumber }) {
   const token = await fanAuthenticate({ clientId, username, password });
-  const data = await fanRequest(`/awb-pdf?awb=${awbNumber}`, { token });
-  return data; // { pdfUrl } or { pdf: "base64..." }
+
+  const url = `${FAN_BASE}/awb/label?clientId=${encodeURIComponent(clientId)}&awbs[]=${encodeURIComponent(awbNumber)}&pdf=1`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/pdf, */*",
+    },
+  });
+
+  console.error(`[FAN] awb/label [${res.status}] content-type: ${res.headers.get("content-type")}`);
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`FAN label download failed [${res.status}]: ${text}`);
+  }
+
+  const arrayBuffer = await res.arrayBuffer();
+  return Buffer.from(arrayBuffer);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

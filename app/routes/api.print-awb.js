@@ -32,21 +32,12 @@ export async function loader({ request }) {
     let pdfBuffer;
 
     if (courier === "fan") {
-      const result = await fanPrintAwb({
+      pdfBuffer = await fanPrintAwb({
         clientId: settings.fanClientId,
         username: settings.fanUsername,
         password: settings.fanPassword,
         awbNumber: order.awbNumber,
       });
-      // FAN returns { pdfUrl } or { pdf: "base64" }
-      if (result?.pdf) {
-        pdfBuffer = Buffer.from(result.pdf, "base64");
-      } else if (result?.pdfUrl) {
-        const res = await fetch(result.pdfUrl);
-        pdfBuffer = Buffer.from(await res.arrayBuffer());
-      } else {
-        return new Response("FAN: could not retrieve PDF", { status: 502 });
-      }
 
     } else if (courier === "sameday") {
       pdfBuffer = await samedayDownloadAwbPdf({
