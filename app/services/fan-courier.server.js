@@ -108,17 +108,17 @@ export async function fanAuthenticate({ clientId, username, password }) {
 export async function fanGetPickupPoints({ clientId, username, password }) {
   const token = await fanAuthenticate({ clientId, username, password });
 
-  // FAN docs: GET /pickup-points?type=fanbox returns the correct pickupLocationId field
-  // /reports/pickup-points returns internal numeric IDs only — not usable for AWB creation
+  // /reports/pickup-points returns full data including coordinates, needed for map widget.
+  // Log the first raw point so we can identify the correct pickupLocationId field name.
   const data = await fanRequest(
-    "/pickup-points?type=fanbox",
+    "/reports/pickup-points?type=fanbox&perPage=1000&currentPage=1",
     { token }
   );
 
-  const points = data.data || data || [];
+  const points = data.data || [];
 
-  // Log first raw point to confirm field names (pickupLocationId vs id vs code)
   if (points.length > 0) {
+    console.error("[FAN] pickup-points first raw point keys:", JSON.stringify(Object.keys(points[0])));
     console.error("[FAN] pickup-points first raw point:", JSON.stringify(points[0]));
   }
 
@@ -129,10 +129,9 @@ export async function fanGetPickupPoints({ clientId, username, password }) {
     const county = addr.county   || "";
     const zip    = addr.zipCode  || "";
 
-    // Use the API-level identifier (pickupLocationId or code) as externalId —
-    // this is what /intern-awb expects in recipient.address.pickupLocationId.
-    // Fall back to p.id (numeric) if no string identifier found.
-    const externalId = p.pickupLocationId || p.code || p.identifier || String(p.id || "");
+    // pickupLocationId is what /intern-awb expects. Log above will reveal the correct field.
+    // Priority: dedicated identifier fields → numeric id as fallback.
+    const externalId = p.pickupLocationId || p.locationId || p.code || p.identifier || String(p.id || "");
 
     return {
       id:         externalId,
