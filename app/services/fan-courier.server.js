@@ -236,6 +236,7 @@ export async function fanCreateAwb({
         recipient: {
           name:  order.customerName,
           phone: normalizePhone(order.customerPhone),
+          email: order.customerEmail || "",
           address: finalPickupId
             ? { id: parseInt(String(finalPickupId), 10) }
             : {
@@ -264,19 +265,27 @@ export async function fanCreateAwb({
   const data = await fanRequest("/intern-awb", { method: "POST", token, body: payload, clientId });
   console.error("[FAN] intern-awb response:", JSON.stringify(data));
 
-  // FAN sometimes returns 200 with error details nested in data[0]
-  const firstResult = data.data?.[0];
-  if (firstResult?.awb) {
+  // FAN returns { response: [{ awbNumber, success, errors }] }
+  const firstResult = data.response?.[0] || data.data?.[0];
+  const awbNumber = firstResult?.awbNumber || firstResult?.awb;
+
+  if (awbNumber) {
     return {
       success: true,
-      awbNumber: String(firstResult.awb),
+      awbNumber: String(awbNumber),
       raw: data,
     };
   }
 
-  // Extract the most useful error detail from FAN's response
-  const fanError = firstResult?.error || firstResult?.message ||
-    data.message || data.error || JSON.stringify(data);
+  // Extract structured validation errors from FAN's response
+  const errors = firstResult?.errors;
+  if (errors && typeof errors === "object") {
+    const msg = Object.entries(errors)
+      .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(", ") : msgs}`)
+      .join("; ");
+    throw new Error(`FAN AWB: ${msg}`);
+  }
+  const fanError = firstResult?.message || data.message || data.error || JSON.stringify(data);
   throw new Error(`FAN AWB generation failed: ${fanError}`);
 }
 
