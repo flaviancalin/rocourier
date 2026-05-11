@@ -6,7 +6,7 @@ import { useLoaderData, useNavigate } from "@remix-run/react";
 import { authenticate } from "../shopify.server.js";
 import { getOrders } from "../models/order.server.js";
 import { prisma } from "../db.server.js";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Page, Layout, Card, Tabs, Badge, Button, Text,
   BlockStack, InlineStack, Select, TextField,
@@ -313,6 +313,14 @@ export default function OrdersPage() {
   const [statusVal, setStatusVal]   = useState(filters.status);
   const [courierVal, setCourierVal] = useState(filters.courier);
   const [methodVal, setMethodVal]   = useState(filters.method);
+
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   function applyFilters() {
     const params = new URLSearchParams({
@@ -712,22 +720,24 @@ export default function OrdersPage() {
 
               {/* Bulk action bar */}
               {selectedOrders.length > 0 && (
-                <div style={{ display:"flex", gap:8, flexWrap:"wrap", padding:"10px 16px", background:"#f6f6f7", borderBottom:"1px solid #e1e3e5" }}>
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap", padding:"10px 16px", background:"#f6f6f7", borderBottom:"1px solid #e1e3e5", alignItems:"center" }}>
                   <Button variant="primary" tone="success" loading={generatingAwb} onClick={openAwbWizard}>
-                    {generatingAwb ? t("generating") : `${t("generate_awb")} (${selectedOrders.length})`}
+                    {generatingAwb ? t("generating") : isMobile ? `+ AWB (${selectedOrders.length})` : `${t("generate_awb")} (${selectedOrders.length})`}
                   </Button>
                   {selectedWithAwb.length > 0 && (
                     <>
                       <Button loading={bulkPrinting} onClick={handleBulkPrint}>
-                        {bulkPrinting ? t("downloading") : t("print_awbs", { n: selectedWithAwb.length })}
+                        {bulkPrinting ? t("downloading") : isMobile ? `PDF (${selectedWithAwb.length})` : t("print_awbs", { n: selectedWithAwb.length })}
                       </Button>
-                      <Button loading={bulkFulfilling} onClick={handleBulkFulfill}>
-                        {bulkFulfilling ? t("fulfilling") : t("fulfill_shopify", { n: selectedWithAwb.length })}
-                      </Button>
+                      {!isMobile && (
+                        <Button loading={bulkFulfilling} onClick={handleBulkFulfill}>
+                          {bulkFulfilling ? t("fulfilling") : t("fulfill_shopify", { n: selectedWithAwb.length })}
+                        </Button>
+                      )}
                     </>
                   )}
-                  <Button onClick={handlePackingSlip}>{t("packing_slip", { n: selectedOrders.length })}</Button>
-                  <Button variant="plain" onClick={() => setSelectedOrders([])}>{t("cancel_selection")}</Button>
+                  {!isMobile && <Button onClick={handlePackingSlip}>{t("packing_slip", { n: selectedOrders.length })}</Button>}
+                  <Button variant="plain" onClick={() => setSelectedOrders([])}>{isMobile ? "✕" : t("cancel_selection")}</Button>
                   <span style={{ marginLeft:"auto", display:"flex", alignItems:"center" }}>
                     <Text tone="subdued">{selectedOrders.length} {t("selected")}</Text>
                   </span>
@@ -745,7 +755,8 @@ export default function OrdersPage() {
                 </div>
               ) : (
                 <>
-                  {/* Table header */}
+                  {/* Table header — desktop only */}
+                  {!isMobile && (
                   <div style={{
                     display:"grid",
                     gridTemplateColumns:"36px 100px minmax(140px,1fr) 90px 95px 130px 105px 90px 148px",
@@ -772,6 +783,7 @@ export default function OrdersPage() {
                     <div>Plată</div>
                     <div></div>
                   </div>
+                  )}
 
                   {/* Order rows */}
                   {displayedOrders.length === 0 ? (
@@ -786,6 +798,173 @@ export default function OrdersPage() {
                     const hasCod     = o.codAmount > 0;
                     const date       = new Date(o.createdAt).toLocaleDateString("ro-RO", { day:"2-digit", month:"2-digit", year:"numeric" });
 
+                    // ── Mobile card ────────────────────────────────────────────
+                    if (isMobile) {
+                      return (
+                        <div key={o.id} style={{ borderBottom:"1px solid #e1e3e5" }}>
+                          <div style={{ padding:"12px 14px", background: selectedOrders.includes(o.id) ? "#f0faf5" : "white" }}>
+
+                            {/* Row 1: checkbox + order # + date + status */}
+                            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                              <div onClick={(e) => e.stopPropagation()}>
+                                <Checkbox label="" labelHidden checked={selectedOrders.includes(o.id)} onChange={() => toggleSelect(o.id)} />
+                              </div>
+                              <button
+                                onClick={() => toggleExpand(o.id)}
+                                style={{ background:"none", border:"none", padding:0, cursor:"pointer", color:"#008060", fontWeight:700, fontSize:14 }}
+                              >
+                                {o.shopifyOrderName}
+                              </button>
+                              <span style={{ fontSize:11, color:"#999" }}>{date}</span>
+                              <div style={{ marginLeft:"auto" }}>
+                                <Badge tone={tone}>{t(`status_${o.awbStatus}`) || o.awbStatus}</Badge>
+                              </div>
+                            </div>
+
+                            {/* Row 2: customer info + courier logo */}
+                            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+                              <div>
+                                <div style={{ fontWeight:600, fontSize:13 }}>{o.customerName || "—"}</div>
+                                <div style={{ fontSize:11, color:"#6d7175", marginTop:2 }}>
+                                  {[o.shippingCity, o.shippingCounty].filter(Boolean).join(", ") || "—"}
+                                </div>
+                                <div style={{ marginTop:5, display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                                  {isPickup
+                                    ? <span style={{ fontSize:11, color:"#6d7175" }}>📦 Pct. ridic.</span>
+                                    : <span style={{ fontSize:11, color:"#6d7175" }}>🚚 Acasă</span>
+                                  }
+                                  {hasCod
+                                    ? <span style={{ fontSize:11, fontWeight:600, color:"#b54708", background:"#fef3c7", padding:"1px 6px", borderRadius:6 }}>
+                                        Ramburs {o.codAmount.toFixed(2)} RON
+                                      </span>
+                                    : <span style={{ fontSize:11, fontWeight:600, color:"#065f46", background:"#d1fae5", padding:"1px 6px", borderRadius:6 }}>
+                                        Plătit
+                                      </span>
+                                  }
+                                </div>
+                              </div>
+                              <div style={{ flexShrink:0 }}>
+                                {courierCfg.logo
+                                  ? <span style={{
+                                      display:"inline-flex", alignItems:"center", justifyContent:"center",
+                                      padding:"3px 6px", borderRadius:6,
+                                      background:`${courierCfg.color}15`,
+                                      border:`1px solid ${courierCfg.color}33`,
+                                      width:64, height:26, boxSizing:"border-box",
+                                    }}>
+                                      <img src={courierCfg.logo} alt={courierCfg.label}
+                                        style={{ width:52, height:18, objectFit:"contain", display:"block" }} />
+                                    </span>
+                                  : <span style={{
+                                      display:"inline-block", padding:"2px 7px", borderRadius:10, fontSize:11,
+                                      fontWeight:600, background:`${courierCfg.color}18`, color:courierCfg.color,
+                                      border:`1px solid ${courierCfg.color}44`,
+                                    }}>{courierCfg.label}</span>
+                                }
+                              </div>
+                            </div>
+
+                            {/* AWB number */}
+                            {o.awbNumber && (
+                              <div style={{ marginBottom:10 }}>
+                                <code style={{ fontSize:12, background:"#f4f6f8", padding:"3px 7px", borderRadius:4, color:"#008060", border:"1px solid #c9e8d9" }}>
+                                  AWB: {o.awbNumber}
+                                </code>
+                              </div>
+                            )}
+
+                            {/* Action buttons */}
+                            <div style={{ display:"flex", gap:8 }}>
+                              {!o.awbNumber ? (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); openSingleWizard(o); }}
+                                  style={{
+                                    flex:1, background:"#008060", color:"#fff", border:"none", borderRadius:8,
+                                    padding:"11px 12px", fontSize:14, fontWeight:600, cursor:"pointer",
+                                  }}
+                                >
+                                  + Generează AWB
+                                </button>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={async () => {
+                                      const res = await fetch(`/api/print-awb?orderId=${o.id}`);
+                                      if (!res.ok) { setToastMsg(`Eroare: ${(await res.text()).slice(0,120)}`); return; }
+                                      const blob = await res.blob();
+                                      const url = URL.createObjectURL(blob);
+                                      const a = document.createElement("a");
+                                      a.href = url; a.download = `AWB_${o.awbNumber}.pdf`;
+                                      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                                      URL.revokeObjectURL(url);
+                                    }}
+                                    style={{
+                                      flex:1, background:"#f0faf5", color:"#008060", border:"1px solid #c9e8d9",
+                                      borderRadius:8, padding:"11px 12px", fontSize:13, fontWeight:600, cursor:"pointer",
+                                    }}
+                                  >
+                                    Descarcă AWB
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); openSingleWizard(o); }}
+                                    style={{
+                                      background:"#f6f6f7", color:"#444", border:"1px solid #ccc",
+                                      borderRadius:8, padding:"11px 10px", fontSize:12, cursor:"pointer",
+                                    }}
+                                  >
+                                    Regenerează
+                                  </button>
+                                </>
+                              )}
+                              <button
+                                onClick={() => toggleExpand(o.id)}
+                                style={{ background:"none", border:"1px solid #ddd", borderRadius:8, padding:"11px 10px", cursor:"pointer", fontSize:12, color:"#6d7175" }}
+                              >
+                                {isExpanded ? "▲" : "▼"}
+                              </button>
+                            </div>
+
+                            {/* Expanded detail */}
+                            {isExpanded && (
+                              <div style={{ marginTop:12, paddingTop:12, borderTop:"1px solid #e8e8e8" }}>
+                                <div style={{ display:"flex", gap:16, flexWrap:"wrap" }}>
+                                  <div>
+                                    <Text variant="bodySm" fontWeight="semibold" tone="subdued">Adresă completă</Text>
+                                    <div style={{ marginTop:4, fontSize:13 }}>
+                                      {o.shippingAddress1 && <div>{o.shippingAddress1}</div>}
+                                      <div>{[o.shippingZip, o.shippingCity, o.shippingCounty].filter(Boolean).join(", ")}</div>
+                                      {o.customerPhone && <div style={{ color:"#6d7175" }}>📞 {o.customerPhone}</div>}
+                                      {o.customerEmail && <div style={{ color:"#6d7175" }}>✉ {o.customerEmail}</div>}
+                                    </div>
+                                  </div>
+                                  {isPickup && o.pickupPointName && (
+                                    <div>
+                                      <Text variant="bodySm" fontWeight="semibold" tone="subdued">Punct de ridicare</Text>
+                                      <div style={{ marginTop:4, fontSize:13 }}>
+                                        <div style={{ fontWeight:600 }}>{o.pickupPointName}</div>
+                                        {o.pickupPointAddress && <div style={{ color:"#6d7175" }}>{o.pickupPointAddress}</div>}
+                                      </div>
+                                    </div>
+                                  )}
+                                  <div>
+                                    <Text variant="bodySm" fontWeight="semibold" tone="subdued">Colet</Text>
+                                    <div style={{ marginTop:4, fontSize:13, color:"#6d7175" }}>
+                                      {o.weight ? `${o.weight} kg` : "—"}
+                                      {o.packageCount > 1 ? ` · ${o.packageCount} colete` : ""}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div style={{ marginTop:10 }}>
+                                  <Button size="micro" onClick={() => navigate(`/app/orders/${o.id}`)}>Detalii comandă</Button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // ── Desktop row ────────────────────────────────────────────
                     return (
                       <div key={o.id} style={{ borderBottom:"1px solid #e1e3e5" }}>
                         {/* Main row */}
@@ -1154,6 +1333,32 @@ export default function OrdersPage() {
         const swSteps = ["Curier", "Destinatar", "Conținut", "Observații"];
 
         function SwStepIndicator() {
+          if (isMobile) {
+            return (
+              <div style={{ marginBottom:16 }}>
+                <div style={{ display:"flex", gap:4, marginBottom:8 }}>
+                  {swSteps.map((_, i) => {
+                    const n = i + 1, active = n === singleWizardStep, done = n < singleWizardStep;
+                    return (
+                      <div key={n} onClick={() => done && setSingleWizardStep(n)} style={{
+                        flex:1, height:4, borderRadius:2,
+                        background: active ? "#008060" : done ? "#00a374" : "#e0e0e0",
+                        cursor: done ? "pointer" : "default",
+                      }} />
+                    );
+                  })}
+                </div>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <span style={{ fontSize:13, fontWeight:600, color:"#008060" }}>
+                    Pasul {singleWizardStep} din {swSteps.length}: {swSteps[singleWizardStep - 1]}
+                  </span>
+                  <span style={{ fontSize:11, color:"#6d7175" }}>
+                    {swSteps.filter((_, i) => i < singleWizardStep - 1).map((s) => s).join(" › ")}
+                  </span>
+                </div>
+              </div>
+            );
+          }
           return (
             <div style={{ display:"flex", borderRadius:6, overflow:"hidden", marginBottom:20, border:"1px solid #ddd" }}>
               {swSteps.map((label, i) => {
