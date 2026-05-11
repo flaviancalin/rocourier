@@ -225,11 +225,15 @@ export async function fanCreateAwb({
     service = "Standard";
   }
 
-  const isLockerService = service === "FANbox" || service === "FANbox Cont Collector";
+  const isLockerService    = service === "FANbox" || service === "FANbox Cont Collector";
+  const isLockerWithCod    = service === "FANbox Cont Collector";
 
-  // Build options string: "V" = FANbox pickup, "S" = Saturday delivery (concatenated)
+  // Options per FAN API docs:
+  //   "V" = simple FANbox locker pickup (no COD)
+  //   "Y" = mPOS card payment at FANbox locker (COD via card — required for FANbox Cont Collector)
+  //   "S" = Saturday delivery
   const optionLetters = [
-    ...(isLockerService ? ["V"] : []),
+    ...(isLockerWithCod  ? ["Y"] : isLockerService ? ["V"] : []),
     ...(saturdayDelivery ? ["S"] : []),
   ].join("");
 
@@ -246,7 +250,8 @@ export async function fanCreateAwb({
           weight:        order.weight || 1,
           cod:           order.codAmount || 0,
           declaredValue: declaredValue || 0,
-          payment:       shipmentPayer === "sender" ? "sender" : "recipient",
+          // FANbox Cont Collector requires payment: "sender" (COD collected via mPOS, shipping pre-paid)
+          payment:       isLockerWithCod ? "sender" : (shipmentPayer === "sender" ? "sender" : "recipient"),
           returnPayment: "sender",
           content:       "Colet",
           observation:   observations || order.notes || "",
