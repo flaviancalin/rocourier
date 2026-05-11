@@ -129,9 +129,9 @@ export async function fanGetPickupPoints({ clientId, username, password }) {
     const county = addr.county   || "";
     const zip    = addr.zipCode  || "";
 
-    // pickupLocationId is what /intern-awb expects. Log above will reveal the correct field.
-    // Priority: dedicated identifier fields → numeric id as fallback.
-    const externalId = p.pickupLocationId || p.locationId || p.code || p.identifier || String(p.id || "");
+    // p.code (e.g. "FAN0039") is what /intern-awb expects as pickupLocationId.
+    // p.id (e.g. "F1000005") is FAN's internal identifier — NOT accepted by the AWB API.
+    const externalId = p.code || String(p.id || "");
 
     return {
       id:         externalId,

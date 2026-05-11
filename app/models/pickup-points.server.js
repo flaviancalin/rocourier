@@ -85,6 +85,7 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
 
   if (couriers.includes("fan") && creds.fan.clientId && creds.fan.username && creds.fan.password) {
     try {
+      const fanSyncStart = new Date();
       const points = await fanGetPickupPoints({
         clientId: creds.fan.clientId,
         username: creds.fan.username,
@@ -97,6 +98,10 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
           create: { ...p, country: "ro" },
         });
       }
+      // Remove stale records not refreshed this run (old "F1000005" format IDs replaced by "FAN0039")
+      await prisma.pickupPoint.deleteMany({
+        where: { courier: "fan", updatedAt: { lt: fanSyncStart } },
+      });
       results.fan = points.length;
     } catch (e) {
       results.errors.push(`FAN: ${e.message}`);
