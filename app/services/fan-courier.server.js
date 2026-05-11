@@ -185,10 +185,12 @@ export async function fanCreateAwb({
   clientId, username, password,
   order,      // { customerName, customerPhone, shippingAddress1, shippingCity, shippingCounty, shippingZip, codAmount, notes, weight, packageCount }
   settings,   // { senderName, senderPhone, senderCity, senderZip, senderAddress, senderCounty }
-  pickupPointId = null, // if set → FANbox delivery
-  serviceOverride = null, // e.g. "Standard", "Cont Colector", "RedCode", "Produse Albe"
-  observations = null,    // optional observations text
-  openPackage = false,    // allow recipient to inspect before accepting
+  pickupPointId = null,      // if set → FANbox delivery
+  serviceOverride = null,    // e.g. "Standard", "FANbox", "RedCode"
+  observations = null,       // optional observations text
+  openPackage = false,       // allow recipient to inspect before accepting
+  shipmentPayer = "recipient", // "sender" or "recipient" — who pays shipping cost
+  declaredValue = 0,         // declared goods value (RON)
 }) {
   const token = await fanAuthenticate({ clientId, username, password });
 
@@ -233,8 +235,10 @@ export async function fanCreateAwb({
           },
           weight:        order.weight || 1,
           cod:           order.codAmount || 0,
-          declaredValue: 0,
-          payment:       "recipient",
+          declaredValue: declaredValue || 0,
+          payment:       shipmentPayer === "sender" ? "sender" : "recipient",
+          // returnPayment required by FAN when COD > 0 — specifies how collected cash is returned to sender
+          returnPayment: "sender",
           content:       "Colet",
           observation:   observations || order.notes || "",
           openPackage:   openPackage ? 1 : 0,

@@ -97,6 +97,8 @@ export async function action({ request }) {
         serviceOverride: serviceOverride || null,
         observations: observationsOverride || null,
         openPackage: !!openPackage,
+        shipmentPayer: shipmentPayer || "recipient",
+        declaredValue: declaredValue ? parseFloat(declaredValue) : 0,
       });
 
     } else if (courier === "sameday") {
