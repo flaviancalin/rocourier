@@ -108,33 +108,44 @@ export async function fanAuthenticate({ clientId, username, password }) {
 export async function fanGetPickupPoints({ clientId, username, password }) {
   const token = await fanAuthenticate({ clientId, username, password });
 
-  // Fetch all FANbox lockers (paginated, up to 1000 per page)
+  // FAN docs: GET /pickup-points?type=fanbox returns the correct pickupLocationId field
+  // /reports/pickup-points returns internal numeric IDs only — not usable for AWB creation
   const data = await fanRequest(
-    "/reports/pickup-points?type=fanbox&perPage=1000&currentPage=1",
+    "/pickup-points?type=fanbox",
     { token }
   );
 
-  const points = data.data || [];
+  const points = data.data || data || [];
+
+  // Log first raw point to confirm field names (pickupLocationId vs id vs code)
+  if (points.length > 0) {
+    console.error("[FAN] pickup-points first raw point:", JSON.stringify(points[0]));
+  }
 
   return points.map((p) => {
     const addr = p.address || {};
     const street = [addr.street, addr.streetNo].filter(Boolean).join(" ");
-    const city   = addr.locality || "";
+    const city   = addr.locality || addr.city || "";
     const county = addr.county   || "";
     const zip    = addr.zipCode  || "";
 
+    // Use the API-level identifier (pickupLocationId or code) as externalId —
+    // this is what /intern-awb expects in recipient.address.pickupLocationId.
+    // Fall back to p.id (numeric) if no string identifier found.
+    const externalId = p.pickupLocationId || p.code || p.identifier || String(p.id || "");
+
     return {
-      id: String(p.id),
-      externalId: String(p.id),
-      courier: "fan",
-      type: "fanbox",
-      name: p.name || "FANbox",
-      address: [street, city, county].filter(Boolean).join(", "),
+      id:         externalId,
+      externalId,
+      courier:    "fan",
+      type:       "fanbox",
+      name:       p.name || "FANbox",
+      address:    [street, city, county].filter(Boolean).join(", "),
       city,
       county,
-      zip: zip || null,
-      lat: parseFloat(p.latitude)  || null,
-      lng: parseFloat(p.longitude) || null,
+      zip:        zip || null,
+      lat:        parseFloat(p.latitude)  || null,
+      lng:        parseFloat(p.longitude) || null,
     };
   });
 }
@@ -250,9 +261,10 @@ export async function fanCreateAwb({
           weight:        order.weight || 1,
           cod:           order.codAmount || 0,
           declaredValue: declaredValue || 0,
-          // FANbox Cont Collector requires payment: "sender" (COD collected via mPOS, shipping pre-paid)
+          // FANbox Cont Collector: payment must be "sender" (shipping pre-paid; COD via mPOS)
           payment:       isLockerWithCod ? "sender" : (shipmentPayer === "sender" ? "sender" : "recipient"),
-          returnPayment: "sender",
+          // returnPayment only for home delivery with COD — locker services don't use it
+          ...(!isLockerService ? { returnPayment: "sender" } : {}),
           content:       "Colet",
           observation:   observations || order.notes || "",
           // FANbox does not support open-upon-delivery; only apply for home delivery
