@@ -205,8 +205,10 @@ export async function fanCreateAwb({
 
   // If pickup point id is invalid/null, fall back to home delivery
   const effectivePickupId = pickupPointId && pickupPointId !== "null" ? pickupPointId : null;
-  // serviceOverride takes priority; "Cont Colector" also implies locker delivery
-  const service = serviceOverride || (effectivePickupId ? "Cont Colector" : "Standard");
+  // serviceOverride takes priority; "Cont Colector" implies locker delivery but only when ID is present
+  const service = serviceOverride === "Cont Colector" && !effectivePickupId
+    ? "Standard"
+    : (serviceOverride || (effectivePickupId ? "Cont Colector" : "Standard"));
   // When service is "Cont Colector" we need the pickup point; for other services ignore it
   const finalPickupId = service === "Cont Colector" ? effectivePickupId : null;
 
@@ -214,42 +216,44 @@ export async function fanCreateAwb({
     clientId,
     shipments: [
       {
-        service,
-        bank: "",
-        bankAccount: "",
-        returnPayment: "sender",
-        parcel: order.packageCount || 1,
-        envelope: 0,
-        weight: order.weight || 1,
-        cod: order.codAmount || 0,
-        declaredValue: 0,
-        payment: "destinatar",
-        content: "Colet",
-        observation: observations || order.notes || "",
-        openPackage: openPackage ? 1 : 0,
-        dimensions: { width: 20, height: 15, length: 30 },
+        // ── Shipment info (must be nested under "info" per FAN API spec) ──
+        info: {
+          service,
+          packages: {
+            parcel:   order.packageCount || 1,
+            envelope: 0,
+          },
+          weight:       order.weight || 1,
+          cod:          order.codAmount || 0,
+          declaredValue: 0,
+          payment:      "recipient",
+          content:      "Colet",
+          observation:  observations || order.notes || "",
+          openPackage:  openPackage ? 1 : 0,
+          dimensions:   { width: 20, height: 15, length: 30 },
+        },
         // ── Recipient ──────────────────────────────────────────────────
         recipient: {
-          name: order.customerName,
+          name:  order.customerName,
           phone: normalizePhone(order.customerPhone),
           address: finalPickupId
             ? { id: parseInt(String(finalPickupId), 10) }
             : {
-                county: normalizeCounty(order.shippingCounty),
-                city: order.shippingCity || "Bucuresti",
-                street: order.shippingAddress1 || "",
-                zipCode: order.shippingZip || "",
+                county:   normalizeCounty(order.shippingCounty),
+                locality: order.shippingCity || "Bucuresti",
+                street:   order.shippingAddress1 || "",
+                zipCode:  order.shippingZip || "",
               },
         },
         // ── Sender ─────────────────────────────────────────────────────
         sender: {
-          name: settings.senderName,
+          name:  settings.senderName,
           phone: normalizePhone(settings.senderPhone),
           address: {
-            county: normalizeCounty(settings.senderCounty),
-            city: settings.senderCity,
-            zipCode: settings.senderZip || "",
-            street: settings.senderAddress,
+            county:   normalizeCounty(settings.senderCounty),
+            locality: settings.senderCity,
+            zipCode:  settings.senderZip || "",
+            street:   settings.senderAddress,
           },
         },
       },

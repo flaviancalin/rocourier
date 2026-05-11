@@ -301,19 +301,23 @@ export async function glsGetPickupPoints() {
     }
   }
 
-  return allPoints.map((s) => ({
-    // Use the string id (e.g. "RO021196-PARCELSHOP") as externalId — this is what
-    // GLS API expects as PSDParameter.StringValue. goldId is numeric and rejected.
-    externalId: s.id || String(s.goldId || ""),
-    courier: "gls",
-    type: s.type === "parcel-locker" ? "locker" : "parcelshop",
-    name: s.name || "GLS ParcelShop",
-    address: s.contact?.address || "",
-    city: s.contact?.city || null,
-    county: null,
-    country: s._country || "ro",
-    zip: s.contact?.postalCode || null,
-    lat: Array.isArray(s.location) ? (parseFloat(s.location[0]) || null) : null,
-    lng: Array.isArray(s.location) ? (parseFloat(s.location[1]) || null) : null,
-  }));
+  return allPoints
+    .map((s) => ({
+      // Use the string id (e.g. "RO021196-PARCELSHOP") as externalId — this is what
+      // GLS API expects as PSDParameter.StringValue. goldId is numeric and rejected.
+      externalId: s.id || String(s.goldId || ""),
+      courier: "gls",
+      type: s.type === "parcel-locker" ? "locker" : "parcelshop",
+      name: s.name || "GLS ParcelShop",
+      address: s.contact?.address || "",
+      city: s.contact?.city || null,
+      county: null,
+      country: s._country || "ro",
+      zip: s.contact?.postalCode || null,
+      lat: Array.isArray(s.location) ? (parseFloat(s.location[0]) || null) : null,
+      lng: Array.isArray(s.location) ? (parseFloat(s.location[1]) || null) : null,
+    }))
+    // Drop points with missing or out-of-Europe coordinates (bad data in GLS's own DB).
+    // Bounds cover all GLS markets incl. Canary Islands (lat ~28, lng ~-16) and Cyprus (lat ~35, lng ~34).
+    .filter((p) => p.lat && p.lng && p.lat >= 27 && p.lat <= 72 && p.lng >= -30 && p.lng <= 45);
 }
