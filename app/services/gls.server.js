@@ -24,11 +24,11 @@ const GLS_ALL_EU_COUNTRIES = [
   "mt","nl","no","pl","pt","ro","rs","sk","si","es",
   "se","ch","gb",
 ];
-// Default: Romania only. Set GLS_COUNTRIES env var (e.g. "ro,hu,bg") for multi-country.
+// All EU countries by default. Override with GLS_COUNTRIES env var (e.g. "ro,hu,bg") to restrict.
 const GLS_COUNTRIES = (process.env.GLS_COUNTRIES || process.env.GLS_SHIPIT_COUNTRIES)
   ? (process.env.GLS_COUNTRIES || process.env.GLS_SHIPIT_COUNTRIES)
       .split(",").map((c) => c.trim().toLowerCase()).filter(Boolean)
-  : ["ro"];
+  : GLS_ALL_EU_COUNTRIES;
 
 function getBase(sandbox = false) {
   return sandbox ? GLS_SANDBOX : GLS_PROD;
