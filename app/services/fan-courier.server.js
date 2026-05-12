@@ -108,19 +108,26 @@ export async function fanAuthenticate({ clientId, username, password }) {
 export async function fanGetPickupPoints({ clientId, username, password }) {
   const token = await fanAuthenticate({ clientId, username, password });
 
-  // /reports/pickup-points returns full data including coordinates, needed for map widget.
-  // Log the first raw point so we can identify the correct pickupLocationId field name.
-  const data = await fanRequest(
-    "/reports/pickup-points?type=fanbox&perPage=1000&currentPage=1",
-    { token }
-  );
-
-  const points = data.data || [];
-
-  if (points.length > 0) {
-    console.error("[FAN] pickup-points first raw point keys:", JSON.stringify(Object.keys(points[0])));
-    console.error("[FAN] pickup-points first raw point:", JSON.stringify(points[0]));
+  // Paginate — there are >2976 FANbox locations; perPage=500 avoids large responses
+  let allPoints = [];
+  let page = 1;
+  while (page <= 20) {
+    const data = await fanRequest(
+      `/reports/pickup-points?type=fanbox&perPage=500&currentPage=${page}`,
+      { token }
+    );
+    const batch = data.data || [];
+    if (page === 1 && batch.length > 0) {
+      console.error("[FAN] pickup-points first raw point keys:", JSON.stringify(Object.keys(batch[0])));
+      console.error("[FAN] pickup-points first raw point:", JSON.stringify(batch[0]));
+    }
+    allPoints = [...allPoints, ...batch];
+    if (batch.length < 500) break; // last page
+    page++;
   }
+  console.error(`[FAN] pickup-points total fetched: ${allPoints.length} across ${page} page(s)`);
+
+  const points = allPoints;
 
   return points.map((p) => {
     const addr = p.address || {};
@@ -307,6 +314,9 @@ export async function fanCreateAwb({
     ],
   };
 
+  if (isLockerService) {
+    console.error(`[FAN] FANbox pickupLocationId="${effectivePickupId}" service="${service}" payment="${payload.shipments[0].info.payment}" options="${payload.shipments[0].info.options || ""}"`);
+  }
   console.error("[FAN] intern-awb payload:", JSON.stringify(payload));
   const data = await fanRequest("/intern-awb", { method: "POST", token, body: payload, clientId });
   console.error("[FAN] intern-awb response:", JSON.stringify(data));
@@ -332,7 +342,9 @@ export async function fanCreateAwb({
     throw new Error(`FAN AWB: ${msg}`);
   }
   const fanError = firstResult?.message || data.message || data.error || JSON.stringify(data);
-  throw new Error(`FAN AWB generation failed: ${fanError}`);
+  // Include pickupLocationId in error so we can verify the ID format being sent
+  const lockerCtx = isLockerService ? ` [locker: "${effectivePickupId}", service: "${service}"]` : "";
+  throw new Error(`FAN AWB generation failed${lockerCtx}: ${fanError}`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
