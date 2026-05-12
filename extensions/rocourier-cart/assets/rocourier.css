@@ -124,6 +124,8 @@
 .rc-method-icon {
   width: 48px;
   height: 48px;
+  min-width: 48px;
+  min-height: 48px;
   border-radius: 10px;
   background: #f0f4ff;
   display: flex;
@@ -131,13 +133,19 @@
   justify-content: center;
   flex-shrink: 0;
   border: 1px solid #d8e2ff;
+  overflow: hidden;
 }
 
-.rc-method-icon svg {
-  width: 24px;
-  height: 24px;
+#rocourier-widget .rc-method-icon svg {
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px;
+  min-height: 24px;
+  max-width: 24px;
+  max-height: 24px;
   color: #3d5afe;
   stroke: #3d5afe;
+  flex-shrink: 0;
 }
 
 /* Home delivery icon */
@@ -145,14 +153,14 @@
   background: #f0f4ff;
   border-color: #d8e2ff;
 }
-.rc-method-icon.rc-icon-home svg { color: #3d5afe; stroke: #3d5afe; }
+#rocourier-widget .rc-method-icon.rc-icon-home svg { color: #3d5afe; stroke: #3d5afe; }
 
 /* Pickup/locker icon */
 .rc-method-icon.rc-icon-box {
   background: #f3e5f5;
   border-color: #e1bee7;
 }
-.rc-method-icon.rc-icon-box svg { color: #7b1fa2; stroke: #7b1fa2; }
+#rocourier-widget .rc-method-icon.rc-icon-box svg { color: #7b1fa2; stroke: #7b1fa2; }
 
 /* Text */
 .rc-method-text {

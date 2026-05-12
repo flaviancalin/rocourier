@@ -539,6 +539,24 @@
         const data = await res.json();
         allPoints    = data.points || [];
         pointsLoaded = true;
+
+        // Hide courier filter tabs that have no points in this country.
+        // Couriers like FAN/Sameday/Cargus only operate in RO — German customers
+        // shouldn't see empty tabs for them.
+        const couriersWithPoints = new Set(allPoints.map((p) => p.courier));
+        document.querySelectorAll(".rc-filter-btn[data-courier]").forEach((btn) => {
+          const c = btn.dataset.courier;
+          if (c && c !== "all") {
+            btn.style.display = (ENABLED[c] && couriersWithPoints.has(c)) ? "" : "none";
+          }
+        });
+        // If the currently active filter courier has no points here, reset to "all"
+        if (currentFilter !== "all" && !couriersWithPoints.has(currentFilter)) {
+          currentFilter = "all";
+          filterBtns.forEach((b) => b.classList.remove("rc-filter-active"));
+          document.querySelector(".rc-filter-btn[data-courier='all']")?.classList.add("rc-filter-active");
+        }
+
         applyFilters();
         if (mapInst) { mapInst.invalidateSize(); renderMarkers(filtered); }
       } catch (err) {
