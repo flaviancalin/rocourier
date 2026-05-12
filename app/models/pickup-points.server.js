@@ -79,29 +79,26 @@ export async function getPickupPoints({ couriers = ["fan", "sameday", "cargus", 
 // Refresh cache from courier APIs using app-level env var credentials
 // No merchant settings needed — pickup points are global data
 // ─────────────────────────────────────────────────────────────────────────────
+// Bulk replace helper — delete all for a courier then insert all at once.
+// This is orders of magnitude faster than N individual upserts.
+async function bulkReplace(courier, rows) {
+  if (rows.length === 0) return;
+  await prisma.pickupPoint.deleteMany({ where: { courier } });
+  await prisma.pickupPoint.createMany({ data: rows, skipDuplicates: true });
+}
+
 export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "cargus", "gls", "packeta"] } = {}) {
   const creds = getSyncCredentials();
   const results = { fan: 0, sameday: 0, cargus: 0, gls: 0, packeta: 0, errors: [] };
 
   if (couriers.includes("fan") && creds.fan.clientId && creds.fan.username && creds.fan.password) {
     try {
-      const fanSyncStart = new Date();
       const points = await fanGetPickupPoints({
         clientId: creds.fan.clientId,
         username: creds.fan.username,
         password: creds.fan.password,
       });
-      for (const p of points) {
-        await prisma.pickupPoint.upsert({
-          where: { courier_externalId: { courier: "fan", externalId: p.externalId } },
-          update: { ...p, country: "ro", isActive: true, updatedAt: new Date() },
-          create: { ...p, country: "ro" },
-        });
-      }
-      // Remove stale records not refreshed this run (old "F1000005" format IDs replaced by "FAN0039")
-      await prisma.pickupPoint.deleteMany({
-        where: { courier: "fan", updatedAt: { lt: fanSyncStart } },
-      });
+      await bulkReplace("fan", points.map((p) => ({ ...p, country: "ro", isActive: true })));
       results.fan = points.length;
     } catch (e) {
       results.errors.push(`FAN: ${e.message}`);
@@ -112,7 +109,6 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
 
   if (couriers.includes("sameday")) {
     let samedayCreds = creds.sameday;
-    // Fall back to any merchant's configured Sameday credentials when env vars are absent
     if (!samedayCreds.username || !samedayCreds.password) {
       const shopWithCreds = await prisma.shopSettings.findFirst({
         where: { samedayUsername: { not: null }, samedayPassword: { not: null } },
@@ -133,13 +129,7 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
           password: samedayCreds.password,
           sandbox:  !!samedayCreds.sandbox,
         });
-        for (const p of points) {
-          await prisma.pickupPoint.upsert({
-            where: { courier_externalId: { courier: "sameday", externalId: p.externalId } },
-            update: { ...p, country: "ro", isActive: true, updatedAt: new Date() },
-            create: { ...p, country: "ro" },
-          });
-        }
+        await bulkReplace("sameday", points.map((p) => ({ ...p, country: "ro", isActive: true })));
         results.sameday = points.length;
       } catch (e) {
         if (e.message?.includes("[404]")) {
@@ -160,13 +150,7 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
         username:        creds.cargus.username,
         password:        creds.cargus.password,
       });
-      for (const p of points) {
-        await prisma.pickupPoint.upsert({
-          where: { courier_externalId: { courier: "cargus", externalId: p.externalId } },
-          update: { ...p, country: "ro", isActive: true, updatedAt: new Date() },
-          create: { ...p, country: "ro" },
-        });
-      }
+      await bulkReplace("cargus", points.map((p) => ({ ...p, country: "ro", isActive: true })));
       results.cargus = points.length;
     } catch (e) {
       results.errors.push(`Cargus: ${e.message}`);
@@ -177,20 +161,8 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
 
   if (couriers.includes("gls")) {
     try {
-      const glsSyncStart = new Date();
       const points = await glsGetPickupPoints();
-      for (const p of points) {
-        await prisma.pickupPoint.upsert({
-          where: { courier_externalId: { courier: "gls", externalId: p.externalId } },
-          update: { ...p, isActive: true, updatedAt: new Date() },
-          create: p,
-        });
-      }
-      // Remove records that weren't refreshed this run — covers old numeric goldId
-      // entries left over from before the externalId format change, and deleted points.
-      await prisma.pickupPoint.deleteMany({
-        where: { courier: "gls", updatedAt: { lt: glsSyncStart } },
-      });
+      await bulkReplace("gls", points);
       results.gls = points.length;
     } catch (e) {
       results.errors.push(`GLS: ${e.message}`);
@@ -199,19 +171,8 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
 
   if (couriers.includes("packeta") && creds.packeta.apiKey) {
     try {
-      const packetaSyncStart = new Date();
       const points = await packetaGetPickupPoints({ apiKey: creds.packeta.apiKey });
-      for (const p of points) {
-        await prisma.pickupPoint.upsert({
-          where: { courier_externalId: { courier: "packeta", externalId: p.externalId } },
-          update: { ...p, isActive: true, updatedAt: new Date() },
-          create: p,
-        });
-      }
-      // Remove stale records not refreshed this run (e.g. old Romania-only entries)
-      await prisma.pickupPoint.deleteMany({
-        where: { courier: "packeta", updatedAt: { lt: packetaSyncStart } },
-      });
+      await bulkReplace("packeta", points);
       results.packeta = points.length;
     } catch (e) {
       results.errors.push(`Packeta: ${e.message}`);
