@@ -30,6 +30,8 @@ export async function loader({ request }) {
   const courierParam = url.searchParams.get("courier") || "all"; // "fan" | "sameday" | "all"
   const county = url.searchParams.get("county") || null;
   const country = url.searchParams.get("country") || null; // ISO 3166-1 alpha-2 lowercase, e.g. "ro", "cz"
+  const lat = url.searchParams.get("lat") ? parseFloat(url.searchParams.get("lat")) : null;
+  const lng = url.searchParams.get("lng") ? parseFloat(url.searchParams.get("lng")) : null;
 
   if (!shop) {
     return json({ error: "Missing shop parameter" }, { status: 400 });
@@ -60,7 +62,7 @@ export async function loader({ request }) {
   });
 
   try {
-    const points = await getPickupPoints({ couriers: enabledCouriers, country });
+    const points = await getPickupPoints({ couriers: enabledCouriers, country, lat, lng });
     const filtered = county
       ? points.filter((p) => p.county?.toLowerCase().includes(county.toLowerCase()))
       : points;

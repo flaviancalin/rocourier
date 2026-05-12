@@ -263,6 +263,7 @@
     let _userLat         = null;   // customer's latitude (geolocation or IP)
     let _userLng         = null;   // customer's longitude
     let _locationFetched = false;  // don't re-fetch on every modal open
+    let _pointsFetchedWithCoords = false; // whether current allPoints were fetched with lat/lng
 
     // Default courier: first enabled courier (used for home delivery)
     const enabledCouriers  = Object.keys(COURIERS).filter((c) => ENABLED[c]);
@@ -395,8 +396,16 @@
         _userLng = lng;
         // Pan map if already open
         if (mapInst) mapInst.setView([lat, lng], 12);
-        // Re-render list with distances + sorted
-        if (pointsLoaded) applyFilters();
+        if (pointsLoaded) {
+          if (!_pointsFetchedWithCoords) {
+            // We loaded points without coords (all-country fetch) — re-fetch with
+            // the bounding box now that we know where the customer is.
+            pointsLoaded = false;
+            fetchPoints();
+          } else {
+            applyFilters();
+          }
+        }
       }
 
       if (navigator.geolocation) {
@@ -417,11 +426,20 @@
             _userLat = latitude;
             _userLng = longitude;
             if (mapInst) mapInst.setView([latitude, longitude], 12);
-            if (pointsLoaded) applyFilters();
+            if (pointsLoaded && !_pointsFetchedWithCoords) {
+              pointsLoaded = false;
+              fetchPoints();
+            } else if (pointsLoaded) {
+              applyFilters();
+            }
           }
         })
         .catch(() => {});
     }
+
+    // Start geolocation / IP lookup eagerly — before the modal even opens —
+    // so coordinates are ready by the time fetchPoints() is called.
+    fetchUserLocation();
 
     function openModal() {
       if (!modal) return;
@@ -431,7 +449,6 @@
       if (!pointsLoaded) fetchPoints();
       else applyFilters();
       tryInitMap();
-      fetchUserLocation();
     }
 
     function tryInitMap(attempts) {
@@ -533,7 +550,11 @@
       try {
         const enabledWithPickup = Object.keys(COURIERS).filter((c) => ENABLED[c]);
         const couriersParam = enabledWithPickup.join(",") || "all";
-        const url = `${APP_URL}/api/pickup-points?shop=${encodeURIComponent(SHOP)}&courier=${couriersParam}&country=${COUNTRY}`;
+        const coordsParam = (_userLat != null && _userLng != null)
+          ? `&lat=${_userLat.toFixed(4)}&lng=${_userLng.toFixed(4)}`
+          : "";
+        _pointsFetchedWithCoords = coordsParam !== "";
+        const url = `${APP_URL}/api/pickup-points?shop=${encodeURIComponent(SHOP)}&courier=${couriersParam}&country=${COUNTRY}${coordsParam}`;
         const res = await fetch(url, { headers: { Accept: "application/json" } });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();

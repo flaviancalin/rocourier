@@ -46,9 +46,25 @@ function getSyncCredentials() {
 // Get pickup points from DB cache (auto-refresh if stale)
 // couriers: which carriers to return — caller filters by merchant's enabled list
 // ─────────────────────────────────────────────────────────────────────────────
-export async function getPickupPoints({ couriers = ["fan", "sameday", "cargus", "gls", "packeta"], country = null } = {}) {
+export async function getPickupPoints({
+  couriers = ["fan", "sameday", "cargus", "gls", "packeta"],
+  country = null,
+  lat = null,
+  lng = null,
+} = {}) {
   const staleThreshold = new Date(Date.now() - CACHE_TTL_HOURS * 3600 * 1000);
   const countryFilter = country ? { country } : {};
+
+  // When the customer's coordinates are known, restrict to a ~200km bounding box
+  // so we don't return thousands of points for large countries (DE, FR, PL…).
+  // ±2° lat ≈ 220 km; ±3° lng ≈ 210 km at 46° N (mid-Europe).
+  const geoFilter = (lat != null && lng != null) ? {
+    lat: { gte: lat - 2, lte: lat + 2 },
+    lng: { gte: lng - 3, lte: lng + 3 },
+  } : {};
+
+  // Hard cap — never return more than 600 points to the widget in one call.
+  const LIMIT = 600;
 
   const cachedCount = await prisma.pickupPoint.count({
     where: {
@@ -61,8 +77,9 @@ export async function getPickupPoints({ couriers = ["fan", "sameday", "cargus", 
 
   if (cachedCount > 0) {
     return prisma.pickupPoint.findMany({
-      where: { courier: { in: couriers }, isActive: true, ...countryFilter },
+      where: { courier: { in: couriers }, isActive: true, ...countryFilter, ...geoFilter },
       orderBy: { county: "asc" },
+      take: LIMIT,
     });
   }
 
@@ -70,8 +87,9 @@ export async function getPickupPoints({ couriers = ["fan", "sameday", "cargus", 
   await refreshPickupPointsCache({ couriers });
 
   return prisma.pickupPoint.findMany({
-    where: { courier: { in: couriers }, isActive: true, ...countryFilter },
+    where: { courier: { in: couriers }, isActive: true, ...countryFilter, ...geoFilter },
     orderBy: { county: "asc" },
+    take: LIMIT,
   });
 }
 
