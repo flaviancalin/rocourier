@@ -108,26 +108,20 @@ export async function fanAuthenticate({ clientId, username, password }) {
 export async function fanGetPickupPoints({ clientId, username, password }) {
   const token = await fanAuthenticate({ clientId, username, password });
 
-  // Paginate — there are >2976 FANbox locations; perPage=500 avoids large responses
-  let allPoints = [];
-  let page = 1;
-  while (page <= 20) {
-    const data = await fanRequest(
-      `/reports/pickup-points?type=fanbox&perPage=500&currentPage=${page}`,
-      { token }
-    );
-    const batch = data.data || [];
-    if (page === 1 && batch.length > 0) {
-      console.error("[FAN] pickup-points first raw point keys:", JSON.stringify(Object.keys(batch[0])));
-      console.error("[FAN] pickup-points first raw point:", JSON.stringify(batch[0]));
-    }
-    allPoints = [...allPoints, ...batch];
-    if (batch.length < 500) break; // last page
-    page++;
-  }
-  console.error(`[FAN] pickup-points total fetched: ${allPoints.length} across ${page} page(s)`);
+  // FAN's API ignores currentPage and returns all records in a single response.
+  // Paginating causes the same data to be fetched multiple times.
+  // Single call with a high perPage is sufficient.
+  const data = await fanRequest(
+    "/reports/pickup-points?type=fanbox&perPage=5000&currentPage=1",
+    { token }
+  );
 
-  const points = allPoints;
+  const points = data.data || [];
+  if (points.length > 0) {
+    console.error("[FAN] pickup-points first raw point keys:", JSON.stringify(Object.keys(points[0])));
+    console.error("[FAN] pickup-points first raw point:", JSON.stringify(points[0]));
+  }
+  console.error(`[FAN] pickup-points fetched: ${points.length}`);
 
   return points.map((p) => {
     const addr = p.address || {};
