@@ -71,11 +71,12 @@ export async function action({ request }) {
     });
   }
 
-  // Enrich orderData with locker location as fallback for empty address fields
+  // For locker deliveries, always use the locker's own city/county — FAN validates that
+  // county+locality in the recipient address match the locker's registered location.
   if (lockerPoint) {
+    if (lockerPoint.city)    orderData.shippingCity    = lockerPoint.city;
+    if (lockerPoint.county)  orderData.shippingCounty  = lockerPoint.county;
     if (!orderData.shippingAddress1) orderData.shippingAddress1 = lockerPoint.address || "";
-    if (!orderData.shippingCity)     orderData.shippingCity     = lockerPoint.city    || "";
-    if (!orderData.shippingCounty)   orderData.shippingCounty   = lockerPoint.county  || "";
     if (!orderData.shippingZip)      orderData.shippingZip      = lockerPoint.zip     || "";
   }
 

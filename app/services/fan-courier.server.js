@@ -260,8 +260,9 @@ export async function fanCreateAwb({
           weight:        order.weight || 1,
           cod:           order.codAmount || 0,
           declaredValue: declaredValue || 0,
-          // FANbox Cont Collector: payment must be "sender" (shipping pre-paid; COD via mPOS)
-          payment:       isLockerWithCod ? "sender" : (shipmentPayer === "sender" ? "sender" : "recipient"),
+          // Locker services (FANbox / FANbox Cont Collector): sender always pre-pays shipping.
+          // "recipient" payment is invalid for lockers — recipient can only pay goods via mPOS (option Y).
+          payment:       isLockerService ? "sender" : (shipmentPayer === "sender" ? "sender" : "recipient"),
           // returnPayment only for home delivery with COD — locker services don't use it
           ...(!isLockerService ? { returnPayment: "sender" } : {}),
           content:       "Colet",
