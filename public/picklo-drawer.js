@@ -261,6 +261,7 @@
     let _userLng         = null;
     let _locationFetched = false;
     let _pointsFetchedWithCoords = false;
+    let _userMarker      = null;
 
     const enabledCouriers  = Object.keys(COURIERS).filter((c) => ENABLED[c]);
     const defaultCourier   = enabledCouriers[0] || null;
@@ -379,7 +380,7 @@
       function onCoords(lat, lng) {
         _userLat = lat;
         _userLng = lng;
-        if (mapInst) mapInst.setView([lat, lng], 14);
+        if (mapInst) { mapInst.setView([lat, lng], 14); placeUserMarker(lat, lng); }
         if (pointsLoaded) {
           if (!_pointsFetchedWithCoords) {
             pointsLoaded = false;
@@ -407,7 +408,7 @@
           if (latitude && longitude) {
             _userLat = latitude;
             _userLng = longitude;
-            if (mapInst) mapInst.setView([latitude, longitude], 14);
+            if (mapInst) { mapInst.setView([latitude, longitude], 14); placeUserMarker(latitude, longitude); }
             if (pointsLoaded && !_pointsFetchedWithCoords) {
               pointsLoaded = false;
               fetchPoints();
@@ -787,7 +788,20 @@
         mapPanel.appendChild(locBtn);
       }
 
+      if (_userLat !== null) placeUserMarker(_userLat, _userLng);
       if (pointsLoaded) renderMarkers(filtered);
+    }
+
+    function placeUserMarker(lat, lng) {
+      if (!mapInst) return;
+      if (_userMarker) { _userMarker.remove(); _userMarker = null; }
+      const icon = L.divIcon({
+        className: "",
+        html: `<div style="width:16px;height:16px;border-radius:50%;background:#4285F4;border:3px solid #fff;box-shadow:0 0 0 5px rgba(66,133,244,0.25)"></div>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+      });
+      _userMarker = L.marker([lat, lng], { icon, zIndexOffset: 2000, interactive: false }).addTo(mapInst);
     }
 
     function renderMarkers(points) {
