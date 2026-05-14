@@ -22,6 +22,7 @@ export const T = {
     nav_orders: "Comenzi",
     nav_pickup_points: "Puncte de ridicare",
     nav_settings: "Setări",
+    nav_widget: "Widget sertar",
 
     // ── Statuses ─────────────────────────────────────────────────────────────
     status_pending:          "În așteptare",
@@ -309,6 +310,7 @@ export const T = {
     nav_orders: "Orders",
     nav_pickup_points: "Pickup Points",
     nav_settings: "Settings",
+    nav_widget: "Drawer Widget",
 
     status_pending:          "Pending",
     status_generated:        "AWB generated",
@@ -581,6 +583,7 @@ export const T = {
     nav_orders: "Bestellungen",
     nav_pickup_points: "Abholpunkte",
     nav_settings: "Einstellungen",
+    nav_widget: "Schublade-Widget",
 
     status_pending:          "Ausstehend",
     status_generated:        "AWB erstellt",
@@ -853,6 +856,7 @@ export const T = {
     nav_orders: "Rendelések",
     nav_pickup_points: "Átvételi pontok",
     nav_settings: "Beállítások",
+    nav_widget: "Fiók widget",
 
     status_pending:          "Függőben",
     status_generated:        "AWB létrehozva",
@@ -1125,6 +1129,7 @@ export const T = {
     nav_orders: "Objednávky",
     nav_pickup_points: "Výdejní místa",
     nav_settings: "Nastavení",
+    nav_widget: "Widget zásuvky",
 
     status_pending:          "Čekající",
     status_generated:        "AWB vytvořen",

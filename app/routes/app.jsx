@@ -30,6 +30,7 @@ function AppLayout() {
         <Link to="/app/orders">{t("nav_orders")}</Link>
         <Link to="/app/settings">{t("nav_settings")}</Link>
         <Link to="/app/pickup-points">{t("nav_pickup_points")}</Link>
+        <Link to="/app/widget">{t("nav_widget")}</Link>
       </NavMenu>
 
       <Outlet />
