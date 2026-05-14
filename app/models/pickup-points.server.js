@@ -21,24 +21,28 @@ const WIDGET_LIMIT    = 3000; // per-country cap sent to widget
 // PACKETA_SYNC_API_KEY
 // GLS needs no credentials — uses public JSON API
 // ─────────────────────────────────────────────────────────────────────────────
-function getSyncCredentials() {
+// Env vars take priority; fall back to the credentials stored in shopSettings
+// so merchants don't need to duplicate credentials in Railway variables.
+async function getSyncCredentials() {
+  const shop = await prisma.shopSettings.findFirst();
   return {
     fan: {
-      clientId: process.env.FAN_SYNC_CLIENT_ID,
-      username: process.env.FAN_SYNC_USERNAME,
-      password: process.env.FAN_SYNC_PASSWORD,
+      clientId: process.env.FAN_SYNC_CLIENT_ID  || shop?.fanClientId  || null,
+      username: process.env.FAN_SYNC_USERNAME   || shop?.fanUsername  || null,
+      password: process.env.FAN_SYNC_PASSWORD   || shop?.fanPassword  || null,
     },
     sameday: {
-      username: process.env.SAMEDAY_SYNC_USERNAME,
-      password: process.env.SAMEDAY_SYNC_PASSWORD,
+      username: process.env.SAMEDAY_SYNC_USERNAME || shop?.samedayUsername || null,
+      password: process.env.SAMEDAY_SYNC_PASSWORD || shop?.samedayPassword || null,
+      sandbox:  shop?.samedaySandbox || false,
     },
     cargus: {
-      subscriptionKey: process.env.CARGUS_SYNC_SUBSCRIPTION_KEY,
-      username:        process.env.CARGUS_SYNC_USERNAME,
-      password:        process.env.CARGUS_SYNC_PASSWORD,
+      subscriptionKey: process.env.CARGUS_SYNC_SUBSCRIPTION_KEY || shop?.cargusSubscriptionKey || null,
+      username:        process.env.CARGUS_SYNC_USERNAME          || shop?.cargusUsername         || null,
+      password:        process.env.CARGUS_SYNC_PASSWORD          || shop?.cargusPassword         || null,
     },
     packeta: {
-      apiKey: process.env.PACKETA_SYNC_API_KEY,
+      apiKey: process.env.PACKETA_SYNC_API_KEY || shop?.packetaApiKey || null,
     },
   };
 }
@@ -120,24 +124,9 @@ async function bulkReplace(courier, rows) {
 }
 
 export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "cargus", "gls", "packeta"] } = {}) {
-  const creds = getSyncCredentials();
+  const creds = await getSyncCredentials();
   const results = { fan: 0, sameday: 0, cargus: 0, gls: 0, packeta: 0, errors: [] };
-
-  // Resolve Sameday creds upfront — may need a DB lookup when env vars aren't set
-  let samedayCreds = creds.sameday;
-  if (couriers.includes("sameday") && (!samedayCreds.username || !samedayCreds.password)) {
-    const shopWithCreds = await prisma.shopSettings.findFirst({
-      where: { samedayUsername: { not: null }, samedayPassword: { not: null } },
-      select: { samedayUsername: true, samedayPassword: true, samedaySandbox: true },
-    });
-    if (shopWithCreds) {
-      samedayCreds = {
-        username: shopWithCreds.samedayUsername,
-        password: shopWithCreds.samedayPassword,
-        sandbox:  !!shopWithCreds.samedaySandbox,
-      };
-    }
-  }
+  const samedayCreds = creds.sameday;
 
   // All carriers in parallel — total time = slowest single carrier, not sum of all
   await Promise.allSettled([
