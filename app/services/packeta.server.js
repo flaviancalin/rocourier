@@ -114,21 +114,50 @@ export async function packetaTestConnection({ apiKey }) {
 // ─────────────────────────────────────────────────────────────────────────────
 export async function packetaGetPickupPoints({ apiKey }) {
   const key = encodeURIComponent(apiKey);
+  // lang=en returns all countries (lang only affects label language, not which points are returned)
   const [branchRes, boxRes] = await Promise.all([
-    fetch(`${PACKETA_PICKUP_BASE}/${key}/branch/json?lang=RO`, { headers: { Accept: "application/json" } }),
-    fetch(`${PACKETA_PICKUP_BASE}/${key}/box/json?lang=RO`,    { headers: { Accept: "application/json" } }),
+    fetch(`${PACKETA_PICKUP_BASE}/${key}/branch/json?lang=en`, { headers: { Accept: "application/json" } }),
+    fetch(`${PACKETA_PICKUP_BASE}/${key}/box/json?lang=en`,    { headers: { Accept: "application/json" } }),
   ]);
 
-  if (!branchRes.ok) throw new Error(`Packeta branch/json error [${branchRes.status}] — check PACKETA_SYNC_API_KEY`);
-  if (!boxRes.ok)    throw new Error(`Packeta box/json error [${boxRes.status}] — check PACKETA_SYNC_API_KEY`);
+  if (!branchRes.ok) throw new Error(`Packeta branch/json [${branchRes.status}] — check PACKETA_SYNC_API_KEY`);
+  if (!boxRes.ok)    throw new Error(`Packeta box/json [${boxRes.status}] — check PACKETA_SYNC_API_KEY`);
 
-  const [branches, boxes] = await Promise.all([branchRes.json(), boxRes.json()]);
+  // API may return a plain array OR an object with a data/items/branches key
+  const toArray = (raw) => {
+    if (Array.isArray(raw)) return raw;
+    if (raw && typeof raw === "object") {
+      for (const key of ["data", "items", "branches", "boxes", "results"]) {
+        if (Array.isArray(raw[key])) return raw[key];
+      }
+    }
+    return [];
+  };
 
-  // displayFrontend and status.statusId come as integers (1/0) or strings ("1"/"0")
-  // depending on Packeta API version — use loose equality to handle both.
-  const isActive = (b) =>
-    (b.status?.statusId == 1 || b.status == 1) &&
-    b.displayFrontend != 0 && b.displayFrontend !== false && b.displayFrontend != "0";
+  const [rawBranches, rawBoxes] = await Promise.all([branchRes.json(), boxRes.json()]);
+  const branches = toArray(rawBranches);
+  const boxes    = toArray(rawBoxes);
+
+  // Log raw counts so Railway logs show what the API actually returned
+  console.error(`[Packeta] API returned: ${branches.length} branches, ${boxes.length} boxes`);
+  if (branches.length > 0) {
+    const s = branches[0];
+    console.error(`[Packeta] First branch sample: status=${JSON.stringify(s.status)} displayFrontend=${s.displayFrontend} country=${s.country || s.countryCode || s.country_code}`);
+  }
+
+  // Accept point if it is active — be permissive when fields are missing/vary by API version
+  const isActive = (b) => {
+    const status = b.status;
+    if (status !== undefined && status !== null) {
+      const sid = status?.statusId ?? status;
+      if (sid != 1) return false;       // 0, "0", 2, etc. = inactive
+    }
+    const df = b.displayFrontend;
+    if (df !== undefined && df !== null) {
+      if (df == 0 || df === false || df === "0") return false;
+    }
+    return true;
+  };
 
   const mapPoint = (b, type) => ({
     externalId: String(b.id || ""),
@@ -138,16 +167,19 @@ export async function packetaGetPickupPoints({ apiKey }) {
     address: [b.street, b.city, b.zip].filter(Boolean).join(", "),
     city: b.city || null,
     county: null,
-    country: b.country?.toLowerCase() || null,
+    // country field may be named differently across API versions
+    country: (b.country || b.countryCode || b.country_code || "")?.toLowerCase() || null,
     zip: b.zip || null,
     lat: parseFloat(b.latitude)  || null,
     lng: parseFloat(b.longitude) || null,
   });
 
-  return [
-    ...(Array.isArray(branches) ? branches : []).filter(isActive).map((b) => mapPoint(b, "packeta_point")),
-    ...(Array.isArray(boxes)    ? boxes    : []).filter(isActive).map((b) => mapPoint(b, "zbox")),
+  const result = [
+    ...branches.filter(isActive).map((b) => mapPoint(b, "packeta_point")),
+    ...boxes.filter(isActive).map((b) => mapPoint(b, "zbox")),
   ];
+  console.error(`[Packeta] After isActive filter: ${result.length} points (branches: ${branches.filter(isActive).length}, boxes: ${boxes.filter(isActive).length})`);
+  return result;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -284,6 +284,7 @@ export async function glsDeleteAwb({ username, password, sandbox = false, parcel
 // id field = use this in MyGLS API calls (PSDParameter)
 // ─────────────────────────────────────────────────────────────────────────────
 export async function glsGetPickupPoints() {
+  console.error(`[GLS] Fetching delivery points for ${GLS_COUNTRIES.length} countries in parallel`);
   const settled = await Promise.allSettled(
     GLS_COUNTRIES.map(async (countryCode) => {
       const url = `${GLS_DELIVERY_POINTS_BASE}/${countryCode}.json`;
@@ -294,6 +295,7 @@ export async function glsGetPickupPoints() {
       }
       const data = await res.json();
       const items = data.items || (Array.isArray(data) ? data : []);
+      if (items.length > 0) console.error(`[GLS] ${countryCode.toUpperCase()}: ${items.length} points`);
       return items.map((s) => ({ ...s, _country: countryCode }));
     })
   );
