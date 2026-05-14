@@ -749,13 +749,26 @@
       const el = $("rc-map");
       if (!el) return;
 
+      const COUNTRY_CENTERS = {
+        ro:[45.94,24.97], cz:[49.82,15.47], sk:[48.67,19.70], hu:[47.16,19.50],
+        pl:[51.92,19.14], de:[51.16,10.45], at:[47.52,14.55], bg:[42.73,25.49],
+        hr:[45.10,15.20], si:[46.12,14.80], rs:[44.02,21.01], ba:[44.16,17.68],
+        me:[42.71,19.37], mk:[41.61,21.74], al:[41.15,20.17], gr:[39.07,21.82],
+        it:[41.87,12.57], fr:[46.23,2.21],  es:[40.46,-3.75], pt:[39.40,-8.22],
+        nl:[52.13,5.29],  be:[50.50,4.47],  lu:[49.82,6.13],  ch:[46.82,8.23],
+        dk:[56.26,9.50],  se:[60.13,18.64], no:[60.47,8.47],  fi:[61.92,25.75],
+        ee:[58.60,25.01], lv:[56.88,24.60], lt:[55.17,23.88], gb:[55.38,-3.44],
+        ie:[53.41,-8.24], cy:[35.13,33.43], mt:[35.94,14.38],
+      };
+      const defaultCenter = COUNTRY_CENTERS[COUNTRY] || [48.0, 16.0];
+
       mapInst = L.map("rc-map", {
         zoomControl: true,
         preferCanvas: true,       // canvas renderer — much faster on mobile
         zoomSnap: 0.5,
         wheelPxPerZoomLevel: 80,  // smoother mouse-wheel zoom
       }).setView(
-        _userLat !== null ? [_userLat, _userLng] : [45.94, 24.97],
+        _userLat !== null ? [_userLat, _userLng] : defaultCenter,
         _userLat !== null ? 12 : 7
       );
 
