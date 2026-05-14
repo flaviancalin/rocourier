@@ -59,7 +59,7 @@
 }
 
 .pkd-section-title {
-  font-size: 1.1rem;
+  font-size: 1.4rem;
   font-weight: 700;
   color: inherit;
   margin: 0 0 12px;
@@ -165,7 +165,7 @@
 }
 
 .pkd-method-text strong {
-  font-size: 1rem;
+  font-size: 1.3rem;
   font-weight: 700;
   color: inherit;
   white-space: nowrap;
@@ -174,7 +174,7 @@
 }
 
 .pkd-method-text small {
-  font-size: 0.85rem;
+  font-size: 1.1rem;
   color: #666;
   white-space: nowrap;
   overflow: hidden;
@@ -182,7 +182,7 @@
 }
 
 .pkd-method-fee {
-  font-size: 0.9rem;
+  font-size: 1.15rem;
   font-weight: 600;
   color: #222;
   flex-shrink: 0;
@@ -649,13 +649,13 @@
 @container (max-width: 420px) {
   .picklo-drawer-widget .pkd-method-row { padding: 11px 12px; gap: 10px; }
   .picklo-drawer-widget .pkd-method-icon { width: 36px; height: 36px; min-width: 36px; min-height: 36px; }
-  .picklo-drawer-widget .pkd-method-text strong { font-size: 0.92rem; }
-  .picklo-drawer-widget .pkd-method-text small  { font-size: 0.8rem; }
+  .picklo-drawer-widget .pkd-method-text strong { font-size: 1.2rem; }
+  .picklo-drawer-widget .pkd-method-text small  { font-size: 1.05rem; }
 }
 
 @media (max-width: 420px) {
   .picklo-drawer-widget .pkd-method-row { padding: 11px 12px; gap: 10px; }
   .picklo-drawer-widget .pkd-method-icon { width: 36px; height: 36px; min-width: 36px; min-height: 36px; }
-  .picklo-drawer-widget .pkd-method-text strong { font-size: 0.92rem; }
-  .picklo-drawer-widget .pkd-method-text small  { font-size: 0.8rem; }
+  .picklo-drawer-widget .pkd-method-text strong { font-size: 1.2rem; }
+  .picklo-drawer-widget .pkd-method-text small  { font-size: 1.05rem; }
 }
