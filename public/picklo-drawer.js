@@ -781,7 +781,7 @@
         locBtn.addEventListener("click", () => {
           if (!navigator.geolocation) return;
           navigator.geolocation.getCurrentPosition(
-            (pos) => mapInst.setView([pos.coords.latitude, pos.coords.longitude], 14),
+            (pos) => { mapInst.setView([pos.coords.latitude, pos.coords.longitude], 16); placeUserMarker(pos.coords.latitude, pos.coords.longitude); },
             () => {}
           );
         });
@@ -795,13 +795,16 @@
     function placeUserMarker(lat, lng) {
       if (!mapInst) return;
       if (_userMarker) { _userMarker.remove(); _userMarker = null; }
-      const icon = L.divIcon({
-        className: "",
-        html: `<div style="width:16px;height:16px;border-radius:50%;background:#4285F4;border:3px solid #fff;box-shadow:0 0 0 5px rgba(66,133,244,0.25)"></div>`,
-        iconSize: [16, 16],
-        iconAnchor: [8, 8],
-      });
-      _userMarker = L.marker([lat, lng], { icon, zIndexOffset: 2000, interactive: false }).addTo(mapInst);
+      _userMarker = L.circleMarker([lat, lng], {
+        radius: 9,
+        fillColor: "#4285F4",
+        color: "#fff",
+        weight: 3,
+        opacity: 1,
+        fillOpacity: 1,
+        interactive: false,
+        pane: "markerPane",
+      }).addTo(mapInst);
     }
 
     function renderMarkers(points) {
