@@ -550,11 +550,8 @@
       try {
         const enabledWithPickup = Object.keys(COURIERS).filter((c) => ENABLED[c]);
         const couriersParam = enabledWithPickup.join(",") || "all";
-        const coordsParam = (_userLat != null && _userLng != null)
-          ? `&lat=${_userLat.toFixed(4)}&lng=${_userLng.toFixed(4)}`
-          : "";
-        _pointsFetchedWithCoords = coordsParam !== "";
-        const url = `${APP_URL}/api/pickup-points?shop=${encodeURIComponent(SHOP)}&courier=${couriersParam}&country=${COUNTRY}${coordsParam}`;
+        _pointsFetchedWithCoords = false;
+        const url = `${APP_URL}/api/pickup-points?shop=${encodeURIComponent(SHOP)}&courier=${couriersParam}&country=${COUNTRY}`;
         const res = await fetch(url, { headers: { Accept: "application/json" } });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();

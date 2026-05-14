@@ -43,11 +43,6 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY prisma ./prisma
 COPY shopify.app.toml ./
 
-# Create non-root user and fix permissions
-RUN addgroup -S rocourier && adduser -S rocourier -G rocourier \
-    && chown -R rocourier:rocourier /app
-USER rocourier
-
 EXPOSE 3000
 
 # Run migrations then start server
