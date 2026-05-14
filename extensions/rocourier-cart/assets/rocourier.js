@@ -894,7 +894,7 @@
         coords.push([p.lat, p.lng]);
       });
 
-      if (coords.length > 0) {
+      if (coords.length > 0 && _userLat === null) {
         try { mapInst.fitBounds(coords, { padding: [40, 40], maxZoom: 13 }); } catch (_) {}
       }
     }
