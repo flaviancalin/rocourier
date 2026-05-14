@@ -12,9 +12,21 @@ const GLS_PROD    = "https://api.mygls.ro/ParcelService.svc/json";
 const GLS_SANDBOX = "https://api.test.mygls.ro/ParcelService.svc/json";
 
 // GLS Delivery Points JSON API — public, no auth required.
-// Pattern: https://map.gls-hungary.com/data/deliveryPoints/{country_code}.json
-// country_code is lowercase ISO 3166-1 alpha-2 (e.g. "ro", "hu")
-const GLS_DELIVERY_POINTS_BASE = "https://map.gls-hungary.com/data/deliveryPoints";
+// Central: https://map.gls-hungary.com/data/deliveryPoints/{country_code}.json
+// Regional: some GLS subsidiaries host their own data on country-specific domains.
+//   e.g. Romania → map.gls-romania.com, Bulgaria → map.gls-bulgaria.com
+// We try the regional URL first (primary), then fall back to the central Hungary URL.
+const GLS_DELIVERY_POINTS_CENTRAL = "https://map.gls-hungary.com/data/deliveryPoints";
+
+// Countries known to use their own regional delivery-points domain.
+// Format: countryCode → base URL of their regional map (same JSON format as central).
+const GLS_REGIONAL_BASES = {
+  ro: "https://map.gls-romania.com/data/deliveryPoints",
+  bg: "https://map.gls-bulgaria.com/data/deliveryPoints",
+  hr: "https://map.gls-croatia.com/data/deliveryPoints",
+  rs: "https://map.gls-serbia.com/data/deliveryPoints",
+  ba: "https://map.gls-bih.com/data/deliveryPoints",
+};
 
 // All European countries where GLS operates parcel shops / lockers.
 // Override with GLS_COUNTRIES env var (comma-separated) to restrict.
@@ -276,29 +288,54 @@ export async function glsDeleteAwb({ username, password, sandbox = false, parcel
   });
 }
 
+// Helper: fetch from one URL, return items array
+async function fetchGlsUrl(url, countryCode) {
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!res.ok) return null; // null = not available
+  const data = await res.json();
+  return data.items || (Array.isArray(data) ? data : []);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Get parcel shops via GLS public Delivery Points JSON API
 // No credentials required — public endpoint, no auth.
-// Pattern: https://map.gls-hungary.com/data/deliveryPoints/{country_code}.json
-// Response: { items: [ { id, name, contact, location: [lat, lng], type, ... } ] }
-// id field = use this in MyGLS API calls (PSDParameter)
+// For countries with a regional GLS domain (e.g. Romania → map.gls-romania.com),
+// the central Hungary API returns 0 — try regional first, fall back to central.
+// Response format: { items: [ { id, name, contact, location: [lat, lng], type, ... } ] }
 // ─────────────────────────────────────────────────────────────────────────────
 export async function glsGetPickupPoints() {
   console.error(`[GLS] Fetching delivery points for ${GLS_COUNTRIES.length} countries in parallel`);
   const settled = await Promise.allSettled(
     GLS_COUNTRIES.map(async (countryCode) => {
-      const url = `${GLS_DELIVERY_POINTS_BASE}/${countryCode}.json`;
-      const res = await fetch(url, { headers: { Accept: "application/json" } });
-      if (!res.ok) {
-        console.error(`[GLS] Delivery Points ${countryCode.toUpperCase()} skipped [${res.status}]`);
+      const regionalBase = GLS_REGIONAL_BASES[countryCode];
+      let items = null;
+
+      // Try regional domain first for countries that host their own data
+      if (regionalBase) {
+        const regionalUrl = `${regionalBase}/${countryCode}.json`;
+        items = await fetchGlsUrl(regionalUrl, countryCode).catch(() => null);
+        if (items !== null) {
+          console.error(`[GLS] ${countryCode.toUpperCase()}: ${items.length} points (regional)`);
+        }
+      }
+
+      // Fall back to the central Hungary domain
+      if (items === null || items.length === 0) {
+        const centralUrl = `${GLS_DELIVERY_POINTS_CENTRAL}/${countryCode}.json`;
+        const centralItems = await fetchGlsUrl(centralUrl, countryCode).catch(() => null);
+        if (centralItems !== null && centralItems.length > (items?.length ?? 0)) {
+          items = centralItems;
+          if (items.length > 0 || countryCode === "ro") {
+            console.error(`[GLS] ${countryCode.toUpperCase()}: ${items.length} points (central)`);
+          }
+        }
+      }
+
+      if (!items || items.length === 0) {
+        if (countryCode === "ro") console.error(`[GLS] RO: 0 points from both regional and central`);
         return [];
       }
-      const data = await res.json();
-      const items = data.items || (Array.isArray(data) ? data : []);
-      // Always log Romania (to confirm whether RO parcel shops exist); log others only if non-zero
-      if (items.length > 0 || countryCode === "ro") {
-        console.error(`[GLS] ${countryCode.toUpperCase()}: ${items.length} points`);
-      }
+
       return items.map((s) => ({ ...s, _country: countryCode }));
     })
   );
