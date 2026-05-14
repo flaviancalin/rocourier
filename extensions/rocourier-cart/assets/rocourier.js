@@ -550,8 +550,15 @@
       try {
         const enabledWithPickup = Object.keys(COURIERS).filter((c) => ENABLED[c]);
         const couriersParam = enabledWithPickup.join(",") || "all";
-        _pointsFetchedWithCoords = false;
-        const url = `${APP_URL}/api/pickup-points?shop=${encodeURIComponent(SHOP)}&courier=${couriersParam}&country=${COUNTRY}`;
+        // Send coordinates when available so the server applies a ~200km bounding box,
+        // keeping the payload small for large countries (DE, PL) while still complete.
+        // Without coords, all points for the country are returned.
+        const hasCoords = _userLat !== null && _userLng !== null;
+        _pointsFetchedWithCoords = hasCoords;
+        const geoSuffix = hasCoords
+          ? `&lat=${_userLat.toFixed(6)}&lng=${_userLng.toFixed(6)}`
+          : "";
+        const url = `${APP_URL}/api/pickup-points?shop=${encodeURIComponent(SHOP)}&courier=${couriersParam}&country=${COUNTRY}${geoSuffix}`;
         const res = await fetch(url, { headers: { Accept: "application/json" } });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();

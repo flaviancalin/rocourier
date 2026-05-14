@@ -11,7 +11,6 @@ import { glsGetPickupPoints    } from "../services/gls.server.js";
 import { packetaGetPickupPoints } from "../services/packeta.server.js";
 
 const CACHE_TTL_HOURS = 24;
-const WIDGET_LIMIT    = 3000; // per-country cap sent to widget
 
 // ─────────────────────────────────────────────────────────────────────────────
 // App-level sync credentials from environment variables
@@ -68,9 +67,6 @@ export async function getPickupPoints({
     lng: { gte: lng - 3, lte: lng + 3 },
   } : {};
 
-  // Hard cap — never return more than 600 points to the widget in one call.
-  const LIMIT = WIDGET_LIMIT;
-
   const cachedCount = await prisma.pickupPoint.count({
     where: {
       courier: { in: couriers },
@@ -84,7 +80,6 @@ export async function getPickupPoints({
     return prisma.pickupPoint.findMany({
       where: { courier: { in: couriers }, isActive: true, ...countryFilter, ...geoFilter },
       orderBy: { county: "asc" },
-      take: LIMIT,
     });
   }
 
@@ -104,7 +99,6 @@ export async function getPickupPoints({
     return prisma.pickupPoint.findMany({
       where: { courier: { in: couriers }, isActive: true, ...countryFilter, ...geoFilter },
       orderBy: { county: "asc" },
-      take: LIMIT,
     });
   }
 
