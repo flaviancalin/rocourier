@@ -1,6 +1,6 @@
-// RoCourier Cart Drawer Widget — Unified: Home Delivery + Pickup Point
+// Picklo Cart Drawer Widget — Unified: Home Delivery + Pickup Point
 // Completely separate from the cart-page widget (rocourier.js).
-// Uses "rcd-" element ID prefix and "rcd_" storage keys to avoid conflicts.
+// Uses "pkd-" element ID prefix and "pkd_" storage keys to avoid all conflicts.
 (function () {
   "use strict";
 
@@ -132,7 +132,7 @@
 
   // ── Init ──────────────────────────────────────────────────────────────────────
   function init() {
-    const widget = $("rocourier-drawer-widget");
+    const widget = $("picklo-drawer-widget");
     if (!widget) return;
 
     const SHOP     = widget.dataset.shop    || "";
@@ -151,14 +151,14 @@
 
     function translateUI() {
       const el = (id) => document.getElementById(id);
-      if (el("rcd-section-title")) el("rcd-section-title").textContent = t("section_title");
-      if (el("rcd-home-label"))    el("rcd-home-label").textContent    = t("home_delivery");
-      if (el("rcd-home-sub"))      el("rcd-home-sub").textContent      = t("home_sub");
-      if (el("rcd-pickup-label"))  el("rcd-pickup-label").textContent  = t("pickup_title");
-      if (el("rcd-change-point"))  el("rcd-change-point").textContent  = t("change");
-      if (el("rcd-filter-all"))    el("rcd-filter-all").textContent    = t("all");
-      if (el("rcd-loading-text"))  el("rcd-loading-text").textContent  = t("loading");
-      if (el("rcd-list-empty"))    el("rcd-list-empty").textContent    = t("no_points");
+      if (el("pkd-section-title")) el("pkd-section-title").textContent = t("section_title");
+      if (el("pkd-home-label"))    el("pkd-home-label").textContent    = t("home_delivery");
+      if (el("pkd-home-sub"))      el("pkd-home-sub").textContent      = t("home_sub");
+      if (el("pkd-pickup-label"))  el("pkd-pickup-label").textContent  = t("pickup_title");
+      if (el("pkd-change-point"))  el("pkd-change-point").textContent  = t("change");
+      if (el("pkd-filter-all"))    el("pkd-filter-all").textContent    = t("all");
+      if (el("pkd-loading-text"))  el("pkd-loading-text").textContent  = t("loading");
+      if (el("pkd-list-empty"))    el("pkd-list-empty").textContent    = t("no_points");
     }
     translateUI();
 
@@ -179,7 +179,7 @@
       ENABLED[c] = widget.dataset[c + "Enabled"] !== "false";
     });
 
-    document.querySelectorAll(".rcd-filter-btn[data-courier]").forEach((btn) => {
+    document.querySelectorAll(".pkd-filter-btn[data-courier]").forEach((btn) => {
       const c = btn.dataset.courier;
       if (c && c !== "all" && !ENABLED[c]) btn.style.display = "none";
     });
@@ -207,7 +207,7 @@
       return amount.toLocaleString("ro-RO", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + " " + CURRENCY;
     }
 
-    const pickupSubEl = $("rcd-pickup-sub");
+    const pickupSubEl = $("pkd-pickup-sub");
     if (pickupSubEl) {
       const pickupNames = Object.entries(COURIERS)
         .filter(([c]) => ENABLED[c])
@@ -218,30 +218,30 @@
     }
 
     // ── DOM refs ───────────────────────────────────────────────────────────────
-    const homeRow        = $("rcd-home-row");
-    const pickupRow      = $("rcd-pickup-row");
-    const methodRows     = document.querySelectorAll(".rcd-method-row[data-rc-value]");
-    const homeFeeEl      = $("rcd-home-fee");
-    const pickupFeeEl    = $("rcd-pickup-fee");
-    const pointSelected  = $("rcd-point-selected");
-    const pointLogo      = $("rcd-point-logo");
-    const pointName      = $("rcd-point-name");
-    const pointAddr      = $("rcd-point-addr");
-    const changeBtn      = $("rcd-change-point");
-    const errorBox       = $("rcd-error");
-    const modal          = $("rcd-modal");
-    const backdrop       = $("rcd-modal-backdrop");
-    const modalClose     = $("rcd-modal-close");
-    const searchInput    = $("rcd-search");
-    const pointsList     = $("rcd-points-list");
-    const listLoading    = $("rcd-list-loading");
-    const listEmpty      = $("rcd-list-empty");
-    const listCount      = $("rcd-list-count");
-    const filterBtns     = document.querySelectorAll(".rcd-filter-btn");
-    const filterToggle   = $("rcd-filter-toggle");
-    const filtersPanel   = $("rcd-type-filters");
-    const bottomSheet    = $("rcd-bottom-sheet");
-    const sheetHandle    = $("rcd-sheet-handle");
+    const homeRow        = $("pkd-home-row");
+    const pickupRow      = $("pkd-pickup-row");
+    const methodRows     = document.querySelectorAll(".pkd-method-row[data-rc-value]");
+    const homeFeeEl      = $("pkd-home-fee");
+    const pickupFeeEl    = $("pkd-pickup-fee");
+    const pointSelected  = $("pkd-point-selected");
+    const pointLogo      = $("pkd-point-logo");
+    const pointName      = $("pkd-point-name");
+    const pointAddr      = $("pkd-point-addr");
+    const changeBtn      = $("pkd-change-point");
+    const errorBox       = $("pkd-error");
+    const modal          = $("pkd-modal");
+    const backdrop       = $("pkd-modal-backdrop");
+    const modalClose     = $("pkd-modal-close");
+    const searchInput    = $("pkd-search");
+    const pointsList     = $("pkd-points-list");
+    const listLoading    = $("pkd-list-loading");
+    const listEmpty      = $("pkd-list-empty");
+    const listCount      = $("pkd-list-count");
+    const filterBtns     = document.querySelectorAll(".pkd-filter-btn");
+    const filterToggle   = $("pkd-filter-toggle");
+    const filtersPanel   = $("pkd-type-filters");
+    const bottomSheet    = $("pkd-bottom-sheet");
+    const sheetHandle    = $("pkd-sheet-handle");
 
     // ── State ──────────────────────────────────────────────────────────────────
     let allPoints        = [];
@@ -270,7 +270,7 @@
     function selectRow(value) {
       methodRows.forEach((r) => {
         const active = r.dataset.rcValue === value;
-        r.classList.toggle("rc-selected", active);
+        r.classList.toggle("pkd-selected", active);
         r.setAttribute("aria-checked", active ? "true" : "false");
       });
     }
@@ -317,13 +317,6 @@
         }
       });
     });
-
-    function setHiddenHome(courier) {
-      _method  = "home_delivery";
-      _courier = courier;
-      _pid = _pname = _paddr = "";
-      saveSession();
-    }
 
     function updatePickupFee(courier) {
       if (pickupFeeEl) pickupFeeEl.textContent = feeLabel(FEES[courier]?.pickup || 0);
@@ -437,12 +430,12 @@
       attempts = attempts || 0;
       if (typeof L !== "undefined") {
         requestAnimationFrame(() => requestAnimationFrame(() => {
-          const mapEl = $("rcd-map");
+          const mapEl = $("pkd-map");
           if (mapInst && mapEl && !mapEl.contains(mapInst.getContainer())) {
             mapInst = null;
             clusterGroup = null;
             mapReady = false;
-            window.__rcdMarkers = [];
+            window.__pkdMarkers = [];
           }
           initMap();
           if (mapInst) {
@@ -476,8 +469,8 @@
     // ── Filter toggle ──────────────────────────────────────────────────────────
     if (filterToggle && filtersPanel) {
       filterToggle.addEventListener("click", () => {
-        const open = filtersPanel.classList.toggle("rc-filters-open");
-        filterToggle.classList.toggle("rc-filter-toggle-active", open);
+        const open = filtersPanel.classList.toggle("pkd-filters-open");
+        filterToggle.classList.toggle("pkd-filter-toggle-active", open);
       });
     }
 
@@ -542,7 +535,7 @@
         pointsLoaded = true;
 
         const couriersWithPoints = new Set(allPoints.map((p) => p.courier));
-        document.querySelectorAll(".rcd-filter-btn[data-courier]").forEach((btn) => {
+        document.querySelectorAll(".pkd-filter-btn[data-courier]").forEach((btn) => {
           const c = btn.dataset.courier;
           if (c && c !== "all") {
             btn.style.display = (ENABLED[c] && couriersWithPoints.has(c)) ? "" : "none";
@@ -550,15 +543,15 @@
         });
         if (currentFilter !== "all" && !couriersWithPoints.has(currentFilter)) {
           currentFilter = "all";
-          filterBtns.forEach((b) => b.classList.remove("rc-filter-active"));
-          document.querySelector(".rcd-filter-btn[data-courier='all']")?.classList.add("rc-filter-active");
+          filterBtns.forEach((b) => b.classList.remove("pkd-filter-active"));
+          document.querySelector(".pkd-filter-btn[data-courier='all']")?.classList.add("pkd-filter-active");
         }
 
         applyFilters();
         if (mapInst) { mapInst.invalidateSize(); renderMarkers(filtered); }
       } catch (err) {
         if (listEmpty) { listEmpty.textContent = t("load_error"); listEmpty.style.display = "block"; }
-        console.error("RoCourier Drawer:", err);
+        console.error("Picklo Drawer:", err);
       } finally {
         if (listLoading) listLoading.style.display = "none";
       }
@@ -615,8 +608,8 @@
     searchInput && searchInput.addEventListener("input", applyFilters);
     filterBtns.forEach((btn) => {
       btn.addEventListener("click", () => {
-        filterBtns.forEach((b) => b.classList.remove("rc-filter-active"));
-        btn.classList.add("rc-filter-active");
+        filterBtns.forEach((b) => b.classList.remove("pkd-filter-active"));
+        btn.classList.add("pkd-filter-active");
         currentFilter = btn.dataset.courier;
         applyFilters();
       });
@@ -646,50 +639,50 @@
         const cfg   = COURIERS[p.courier] || { pickupLabel: p.courier, color: "#888", badgeClass: "" };
         const isSel = selectedPoint?.id === p.id;
         const li    = document.createElement("li");
-        li.className  = "rc-item" + (isSel ? " rc-item-selected" : "");
+        li.className  = "pkd-item" + (isSel ? " pkd-item-selected" : "");
         li.dataset.id = p.id;
 
-        const logoUrl = LOGOS[p.courier] || "";
+        const logoUrl   = LOGOS[p.courier] || "";
         const hasCoords = !!(p.lat && p.lng);
         const targetBtn = hasCoords
-          ? `<button type="button" class="rc-item-go-btn" title="Show on map">
+          ? `<button type="button" class="pkd-item-go-btn" title="Show on map">
                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><path d="M12 2v2.5M12 19.5v2.5M2 12h2.5M19.5 12h2.5"/></svg>
              </button>`
           : "";
         const isFav = favPoint && p.id === favPoint.id;
         const km    = distTo(p);
         const distBadge = km !== null
-          ? `<span class="rc-dist-badge">${formatDist(km)}</span>`
+          ? `<span class="pkd-dist-badge">${formatDist(km)}</span>`
           : "";
         li.innerHTML = `
-          <div class="rc-item-top">
+          <div class="pkd-item-top">
             ${logoUrl
-              ? `<img src="${logoUrl}" alt="${esc(cfg.label)}" class="rc-item-logo">`
-              : `<span class="rc-item-badge ${cfg.badgeClass}" style="background:${cfg.color}22;color:${cfg.color};border:1px solid ${cfg.color}44">${esc(cfg.pickupLabel)}</span>`
+              ? `<img src="${logoUrl}" alt="${esc(cfg.label)}" class="pkd-item-logo">`
+              : `<span class="pkd-item-badge ${cfg.badgeClass}" style="background:${cfg.color}22;color:${cfg.color};border:1px solid ${cfg.color}44">${esc(cfg.pickupLabel)}</span>`
             }
-            ${isFav ? `<span class="rc-last-used-badge">&#11088; ${t("last_used")}</span>` : ""}
+            ${isFav ? `<span class="pkd-last-used-badge">&#11088; ${t("last_used")}</span>` : ""}
             ${distBadge}
             ${targetBtn}
           </div>
-          <strong class="rc-item-name">${esc(p.name)}</strong>
-          <span class="rc-item-addr">${esc(p.address)}</span>
-          <button type="button" class="rc-item-btn ${isSel ? "rc-item-btn-sel" : ""}" style="${isSel ? "" : `background:${cfg.color}`}">
+          <strong class="pkd-item-name">${esc(p.name)}</strong>
+          <span class="pkd-item-addr">${esc(p.address)}</span>
+          <button type="button" class="pkd-item-btn ${isSel ? "pkd-item-btn-sel" : ""}" style="${isSel ? "" : `background:${cfg.color}`}">
             ${isSel ? t("selected") : t("choose")}
           </button>
         `;
 
-        li.querySelector(".rc-item-btn").addEventListener("click", (e) => {
+        li.querySelector(".pkd-item-btn").addEventListener("click", (e) => {
           e.stopPropagation();
           selectPoint(p);
         });
 
-        const goBtn = li.querySelector(".rc-item-go-btn");
+        const goBtn = li.querySelector(".pkd-item-go-btn");
         if (goBtn) {
           goBtn.addEventListener("click", (e) => {
             e.stopPropagation();
             if (mapInst && p.lat && p.lng) {
               mapInst.setView([p.lat, p.lng], 16);
-              const marker = window.__rcdMarkers?.find((m) => m._rcdId === p.id);
+              const marker = window.__pkdMarkers?.find((m) => m._pkdId === p.id);
               if (marker) marker.openPopup();
             }
           });
@@ -698,7 +691,7 @@
         li.addEventListener("click", () => {
           if (mapInst && p.lat && p.lng) {
             mapInst.setView([p.lat, p.lng], 16);
-            const marker = window.__rcdMarkers?.find((m) => m._rcdId === p.id);
+            const marker = window.__pkdMarkers?.find((m) => m._pkdId === p.id);
             if (marker) marker.openPopup();
           }
         });
@@ -708,7 +701,7 @@
 
       if (hasMore) {
         const hint = document.createElement("li");
-        hint.className = "rc-item rc-list-hint";
+        hint.className = "pkd-item pkd-list-hint";
         hint.style.cssText = "text-align:center;padding:10px;color:#666;font-size:12px;cursor:default";
         hint.textContent = `+ ${orderedPoints.length - LIST_LIMIT} mai multe — caută pentru a filtra`;
         pointsList.appendChild(hint);
@@ -718,7 +711,7 @@
     // ── Leaflet map ────────────────────────────────────────────────────────────
     function initMap() {
       if (mapReady || typeof L === "undefined") return;
-      const el = $("rcd-map");
+      const el = $("pkd-map");
       if (!el) return;
 
       const COUNTRY_CENTERS = {
@@ -734,7 +727,7 @@
       };
       const defaultCenter = COUNTRY_CENTERS[COUNTRY] || [48.0, 16.0];
 
-      mapInst = L.map("rcd-map", {
+      mapInst = L.map("pkd-map", {
         zoomControl: true,
         preferCanvas: true,
         zoomSnap: 0.5,
@@ -753,7 +746,7 @@
       }).addTo(mapInst);
 
       mapReady = true;
-      window.__rcdMarkers = [];
+      window.__pkdMarkers = [];
 
       clusterGroup = L.markerClusterGroup({
         maxClusterRadius: 60,
@@ -764,7 +757,7 @@
           const count = cluster.getChildCount();
           const size  = count < 10 ? 34 : count < 100 ? 40 : 46;
           return L.divIcon({
-            html: `<div class="rc-cluster-icon" style="width:${size}px;height:${size}px;line-height:${size}px">${count}</div>`,
+            html: `<div class="pkd-cluster-icon" style="width:${size}px;height:${size}px;line-height:${size}px">${count}</div>`,
             className: "",
             iconSize: [size, size],
           });
@@ -772,11 +765,11 @@
       });
       clusterGroup.addTo(mapInst);
 
-      const mapPanel = $("rcd-map-panel");
+      const mapPanel = $("pkd-map-panel");
       if (mapPanel) {
         const locBtn = document.createElement("button");
         locBtn.type      = "button";
-        locBtn.className = "rc-map-locate-btn";
+        locBtn.className = "pkd-map-locate-btn";
         locBtn.title     = "My location";
         locBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>`;
         locBtn.addEventListener("click", () => {
@@ -795,7 +788,7 @@
     function renderMarkers(points) {
       if (!mapInst || !clusterGroup) return;
       clusterGroup.clearLayers();
-      window.__rcdMarkers = [];
+      window.__pkdMarkers = [];
 
       const coords = [];
       points.forEach((p) => {
@@ -805,8 +798,7 @@
         const pinColor = isSel ? "#108043" : cfg.markerColor;
         const letterColor = isSel ? "#fff" : (p.courier === "gls" ? "#003591" : "#fff");
         const logoUrl  = LOGOS[p.courier] || "";
-
-        const pinUrl = isSel ? "" : (PINS[p.courier] || "");
+        const pinUrl   = isSel ? "" : (PINS[p.courier] || "");
 
         let icon;
         if (pinUrl) {
@@ -842,15 +834,15 @@
               ${logoHtml}
               <div style="font-weight:600;margin-bottom:3px">${esc(p.name)}</div>
               <div style="font-size:12px;color:#666;margin-bottom:9px">${esc(p.address)}</div>
-              <button onclick="window.__rcdPick('${p.id}')" style="width:100%;padding:7px 0;background:${cfg.markerColor};color:${p.courier === "gls" ? "#003591" : "#fff"};border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">
+              <button onclick="window.__pkdPick('${p.id}')" style="width:100%;padding:7px 0;background:${cfg.markerColor};color:${p.courier === "gls" ? "#003591" : "#fff"};border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">
                 ${isSel ? t("selected") : t("select_map")}
               </button>
             </div>`
           );
 
-        marker._rcdId = p.id;
+        marker._pkdId = p.id;
         clusterGroup.addLayer(marker);
-        window.__rcdMarkers.push(marker);
+        window.__pkdMarkers.push(marker);
         coords.push([p.lat, p.lng]);
       });
 
@@ -859,7 +851,7 @@
       }
     }
 
-    window.__rcdPick = (id) => {
+    window.__pkdPick = (id) => {
       const p = allPoints.find((x) => x.id === id);
       if (p) selectPoint(p);
     };
@@ -905,7 +897,7 @@
     }
 
     // ── Session storage ────────────────────────────────────────────────────────
-    const SS_KEY = "rcd_" + SHOP.replace(/\./g, "_");
+    const SS_KEY = "pkd_" + SHOP.replace(/\./g, "_");
     function saveSession() {
       try {
         sessionStorage.setItem(SS_KEY, JSON.stringify({
@@ -917,7 +909,7 @@
       try { return JSON.parse(sessionStorage.getItem(SS_KEY) || "null"); } catch (_) { return null; }
     }
 
-    const LS_KEY = "rcd_fav_" + SHOP.replace(/\./g, "_");
+    const LS_KEY = "pkd_fav_" + SHOP.replace(/\./g, "_");
     function saveFavourite(p) {
       try {
         localStorage.setItem(LS_KEY, JSON.stringify({
@@ -971,16 +963,16 @@
 
     function attachCheckoutGuard() {
       const intercept = (el) => {
-        if (el._rcdGuarded) return;
-        el._rcdGuarded = true;
+        if (el._pkdGuarded) return;
+        el._pkdGuarded = true;
         el.addEventListener("click", blockCheckout, true);
       };
       document.querySelectorAll(
         'button[name="checkout"], input[name="checkout"], a[href="/checkout"], [href*="/checkout"]'
       ).forEach(intercept);
       document.querySelectorAll('form[action="/cart"], form[action*="/cart"]').forEach((form) => {
-        if (form._rcdGuarded) return;
-        form._rcdGuarded = true;
+        if (form._pkdGuarded) return;
+        form._pkdGuarded = true;
         form.addEventListener("submit", (e) => {
           if (e.submitter?.name === "checkout" || e.submitter?.value === "checkout") blockCheckout(e);
         }, true);
