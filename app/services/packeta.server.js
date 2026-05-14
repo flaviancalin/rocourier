@@ -124,9 +124,11 @@ export async function packetaGetPickupPoints({ apiKey }) {
 
   const [branches, boxes] = await Promise.all([branchRes.json(), boxRes.json()]);
 
+  // displayFrontend and status.statusId come as integers (1/0) or strings ("1"/"0")
+  // depending on Packeta API version — use loose equality to handle both.
   const isActive = (b) =>
-    b.status?.statusId === "1" &&
-    b.displayFrontend === "1";
+    (b.status?.statusId == 1 || b.status == 1) &&
+    b.displayFrontend != 0 && b.displayFrontend !== false && b.displayFrontend != "0";
 
   const mapPoint = (b, type) => ({
     externalId: String(b.id || ""),

@@ -284,23 +284,25 @@ export async function glsDeleteAwb({ username, password, sandbox = false, parcel
 // id field = use this in MyGLS API calls (PSDParameter)
 // ─────────────────────────────────────────────────────────────────────────────
 export async function glsGetPickupPoints() {
-  const allPoints = [];
-
-  for (const countryCode of GLS_COUNTRIES) {
-    const url = `${GLS_DELIVERY_POINTS_BASE}/${countryCode}.json`;
-    try {
+  const settled = await Promise.allSettled(
+    GLS_COUNTRIES.map(async (countryCode) => {
+      const url = `${GLS_DELIVERY_POINTS_BASE}/${countryCode}.json`;
       const res = await fetch(url, { headers: { Accept: "application/json" } });
       if (!res.ok) {
         console.error(`[GLS] Delivery Points ${countryCode.toUpperCase()} skipped [${res.status}]`);
-        continue;
+        return [];
       }
       const data = await res.json();
       const items = data.items || (Array.isArray(data) ? data : []);
-      allPoints.push(...items.map((s) => ({ ...s, _country: countryCode })));
-    } catch (e) {
-      console.error(`[GLS] Delivery Points ${countryCode.toUpperCase()} error: ${e.message}`);
-    }
-  }
+      return items.map((s) => ({ ...s, _country: countryCode }));
+    })
+  );
+
+  const allPoints = settled.flatMap((r) => {
+    if (r.status === "fulfilled") return r.value;
+    console.error("[GLS] Country fetch error:", r.reason?.message);
+    return [];
+  });
 
   return allPoints
     .map((s) => ({
