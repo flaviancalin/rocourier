@@ -379,7 +379,7 @@
       function onCoords(lat, lng) {
         _userLat = lat;
         _userLng = lng;
-        if (mapInst) mapInst.setView([lat, lng], 12);
+        if (mapInst) mapInst.setView([lat, lng], 14);
         if (pointsLoaded) {
           if (!_pointsFetchedWithCoords) {
             pointsLoaded = false;
@@ -407,7 +407,7 @@
           if (latitude && longitude) {
             _userLat = latitude;
             _userLng = longitude;
-            if (mapInst) mapInst.setView([latitude, longitude], 12);
+            if (mapInst) mapInst.setView([latitude, longitude], 14);
             if (pointsLoaded && !_pointsFetchedWithCoords) {
               pointsLoaded = false;
               fetchPoints();
@@ -739,7 +739,7 @@
         wheelPxPerZoomLevel: 80,
       }).setView(
         _userLat !== null ? [_userLat, _userLng] : defaultCenter,
-        _userLat !== null ? 12 : 7
+        _userLat !== null ? 14 : 7
       );
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {

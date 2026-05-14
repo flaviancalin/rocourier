@@ -395,7 +395,7 @@
         _userLat = lat;
         _userLng = lng;
         // Pan map if already open
-        if (mapInst) mapInst.setView([lat, lng], 12);
+        if (mapInst) mapInst.setView([lat, lng], 14);
         if (pointsLoaded) {
           if (!_pointsFetchedWithCoords) {
             // We loaded points without coords (all-country fetch) — re-fetch with
@@ -425,7 +425,7 @@
           if (latitude && longitude) {
             _userLat = latitude;
             _userLng = longitude;
-            if (mapInst) mapInst.setView([latitude, longitude], 12);
+            if (mapInst) mapInst.setView([latitude, longitude], 14);
             if (pointsLoaded && !_pointsFetchedWithCoords) {
               pointsLoaded = false;
               fetchPoints();
@@ -776,7 +776,7 @@
         wheelPxPerZoomLevel: 80,  // smoother mouse-wheel zoom
       }).setView(
         _userLat !== null ? [_userLat, _userLng] : defaultCenter,
-        _userLat !== null ? 12 : 7
+        _userLat !== null ? 14 : 7
       );
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
