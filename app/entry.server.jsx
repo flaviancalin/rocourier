@@ -30,26 +30,23 @@ async function startCrons() {
   console.log("[Cron] Tracking sync scheduled every 60 minutes");
 
   // ── Pickup point sync: every 24 hours ─────────────────────────────────────
-  // Uses app-level env var credentials — no merchant settings needed.
-  // Runs once 5 minutes after startup so it doesn't block boot, then daily.
+  // Runs once 1 minute after startup (fast first sync), then daily.
   const { refreshPickupPointsCache } = await import("./models/pickup-points.server.js");
 
+  const logPickupResult = (r) => {
+    const total = (r.fan||0)+(r.sameday||0)+(r.cargus||0)+(r.gls||0)+(r.packeta||0);
+    console.log(`[Cron/pickups] FAN:${r.fan||0} Sameday:${r.sameday||0} Cargus:${r.cargus||0} GLS:${r.gls||0} Packeta:${r.packeta||0} TOTAL:${total}`);
+    if (r.errors?.length) console.warn("[Cron/pickups] Errors:", r.errors.join(" | "));
+  };
+
   setTimeout(async () => {
-    try {
-      const r = await refreshPickupPointsCache();
-      const total = (r.fan || 0) + (r.sameday || 0) + (r.cargus || 0) + (r.gls || 0) + (r.packeta || 0);
-      if (r.errors?.length) console.warn("[Cron/pickups] Errors:", r.errors);
-      console.log(`[Cron/pickups] Refreshed ${total} pickup points`);
-    } catch (e) { console.error("[Cron/pickups]", e); }
-  }, 5 * 60 * 1000);
+    try { logPickupResult(await refreshPickupPointsCache()); }
+    catch (e) { console.error("[Cron/pickups]", e.message); }
+  }, 60_000);
 
   setInterval(async () => {
-    try {
-      const r = await refreshPickupPointsCache();
-      const total = (r.fan || 0) + (r.sameday || 0) + (r.cargus || 0) + (r.gls || 0) + (r.packeta || 0);
-      if (r.errors?.length) console.warn("[Cron/pickups] Errors:", r.errors);
-      console.log(`[Cron/pickups] Refreshed ${total} pickup points`);
-    } catch (e) { console.error("[Cron/pickups]", e); }
+    try { logPickupResult(await refreshPickupPointsCache()); }
+    catch (e) { console.error("[Cron/pickups]", e.message); }
   }, 24 * 60 * 60 * 1000);
 
   console.log("[Cron] Pickup point sync scheduled every 24 hours");
