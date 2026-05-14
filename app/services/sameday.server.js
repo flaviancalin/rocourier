@@ -166,7 +166,9 @@ export async function samedayGetLockers({ username, password, sandbox = false })
     } while (page <= totalPages && page <= 20);
 
     return allItems
-      .filter((l) => l.clientVisible === 1)
+      // Accept if clientVisible is absent, null, or any truthy/non-zero value.
+      // The strict === 1 check excluded boolean true (returned by some API versions).
+      .filter((l) => l.clientVisible == null || l.clientVisible != 0)
       .map((l) => ({
         externalId: String(l.oohId),
         courier: "sameday",

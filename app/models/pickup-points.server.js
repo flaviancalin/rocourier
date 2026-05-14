@@ -203,7 +203,7 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
       if (!couriers.includes("gls")) return;
       try {
         const points = await glsGetPickupPoints();
-        await bulkReplace("gls", points);
+        await bulkReplace("gls", points.map((p) => ({ ...p, isActive: true })));
         results.gls = points.length;
         console.error(`[SYNC] GLS: ${points.length} puncte stocate`);
       } catch (e) {
@@ -221,7 +221,7 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
       }
       try {
         const points = await packetaGetPickupPoints({ apiKey: creds.packeta.apiKey });
-        await bulkReplace("packeta", points);
+        await bulkReplace("packeta", points.map((p) => ({ ...p, isActive: true })));
         results.packeta = points.length;
         console.error(`[SYNC] Packeta: ${points.length} puncte stocate`);
       } catch (e) {

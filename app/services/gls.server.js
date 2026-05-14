@@ -295,7 +295,10 @@ export async function glsGetPickupPoints() {
       }
       const data = await res.json();
       const items = data.items || (Array.isArray(data) ? data : []);
-      if (items.length > 0) console.error(`[GLS] ${countryCode.toUpperCase()}: ${items.length} points`);
+      // Always log Romania (to confirm whether RO parcel shops exist); log others only if non-zero
+      if (items.length > 0 || countryCode === "ro") {
+        console.error(`[GLS] ${countryCode.toUpperCase()}: ${items.length} points`);
+      }
       return items.map((s) => ({ ...s, _country: countryCode }));
     })
   );
