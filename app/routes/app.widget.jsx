@@ -73,6 +73,11 @@ function buildSnippet({ appUrl, cfg }) {
   data-packeta-enabled="${b(cfg.packetaEnabled)}"
   data-packeta-home-fee="${n(cfg.packetaHomeDeliveryFee)}"
   data-packeta-pickup-fee="${n(cfg.packetaPickupFee)}"
+  data-fan-logo="${appUrl}/logo-fan.svg"
+  data-sameday-logo="${appUrl}/logo-sameday.svg"
+  data-cargus-logo="${appUrl}/logo-cargus.svg"
+  data-gls-logo="${appUrl}/logo-gls.svg"
+  data-packeta-logo="${appUrl}/logo-packeta.svg"
 >
   <p class="pkd-section-title" id="pkd-section-title">Metoda de livrare:</p>
 
@@ -144,7 +149,7 @@ function buildSnippet({ appUrl, cfg }) {
         </button>
       </div>
       <div class="pkd-modal-filters" id="pkd-type-filters">
-        <button type="button" class="pkd-filter-btn pkd-filter-active" id="pkd-filter-all" data-courier="all">Toate</button>${cfg.fanEnabled ? '\n        <button type="button" class="pkd-filter-btn" data-courier="fan">FAN</button>' : ""}${cfg.samedayEnabled ? '\n        <button type="button" class="pkd-filter-btn" data-courier="sameday">Sameday</button>' : ""}${cfg.cargusEnabled ? '\n        <button type="button" class="pkd-filter-btn" data-courier="cargus">Cargus</button>' : ""}${cfg.glsEnabled ? '\n        <button type="button" class="pkd-filter-btn" data-courier="gls">GLS</button>' : ""}${cfg.packetaEnabled ? '\n        <button type="button" class="pkd-filter-btn" data-courier="packeta">Packeta</button>' : ""}
+        <button type="button" class="pkd-filter-btn pkd-filter-active" id="pkd-filter-all" data-courier="all">Toate</button>${cfg.fanEnabled ? `\n        <button type="button" class="pkd-filter-btn" data-courier="fan"><img src="${appUrl}/logo-fan.svg" alt="FAN" class="pkd-filter-logo" width="48" height="16"></button>` : ""}${cfg.samedayEnabled ? `\n        <button type="button" class="pkd-filter-btn" data-courier="sameday"><img src="${appUrl}/logo-sameday.svg" alt="Sameday" class="pkd-filter-logo" width="48" height="16"></button>` : ""}${cfg.cargusEnabled ? `\n        <button type="button" class="pkd-filter-btn" data-courier="cargus"><img src="${appUrl}/logo-cargus.svg" alt="Cargus" class="pkd-filter-logo" width="48" height="16"></button>` : ""}${cfg.glsEnabled ? `\n        <button type="button" class="pkd-filter-btn" data-courier="gls"><img src="${appUrl}/logo-gls.svg" alt="GLS" class="pkd-filter-logo" width="48" height="16"></button>` : ""}${cfg.packetaEnabled ? `\n        <button type="button" class="pkd-filter-btn" data-courier="packeta"><img src="${appUrl}/logo-packeta.svg" alt="Packeta" class="pkd-filter-logo" width="48" height="16"></button>` : ""}
       </div>
       <div class="pkd-sheet-body">
         <div id="pkd-list-loading" class="pkd-list-loading">
