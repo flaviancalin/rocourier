@@ -83,14 +83,27 @@ export async function getPickupPoints({
     });
   }
 
-  // Cache stale — refresh from carrier APIs using app-level credentials
-  await refreshPickupPointsCache({ couriers });
-
-  return prisma.pickupPoint.findMany({
-    where: { courier: { in: couriers }, isActive: true, ...countryFilter, ...geoFilter },
-    orderBy: { county: "asc" },
-    take: LIMIT,
+  // Cache empty/stale — check if we have ANY points at all (ignoring TTL).
+  // If yes, return them now (stale-while-revalidate) and kick off a background refresh.
+  // If the table is truly empty, kick off a background sync and return [] immediately
+  // so the widget stays responsive instead of hanging for 30-60s.
+  const anyCount = await prisma.pickupPoint.count({
+    where: { courier: { in: couriers }, isActive: true, ...countryFilter },
   });
+
+  refreshPickupPointsCache({ couriers }).catch((e) =>
+    console.error("BG pickup sync error:", e)
+  );
+
+  if (anyCount > 0) {
+    return prisma.pickupPoint.findMany({
+      where: { courier: { in: couriers }, isActive: true, ...countryFilter, ...geoFilter },
+      orderBy: { county: "asc" },
+      take: LIMIT,
+    });
+  }
+
+  return [];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
