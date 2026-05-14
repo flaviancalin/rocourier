@@ -243,6 +243,11 @@
     const bottomSheet    = $("pkd-bottom-sheet");
     const sheetHandle    = $("pkd-sheet-handle");
 
+    // Move modal to <body> so position:fixed escapes the cart drawer's transform context
+    if (modal && modal.parentNode !== document.body) {
+      document.body.appendChild(modal);
+    }
+
     // ── State ──────────────────────────────────────────────────────────────────
     let allPoints        = [];
     let filtered         = [];
