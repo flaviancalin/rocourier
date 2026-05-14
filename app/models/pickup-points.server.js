@@ -11,6 +11,7 @@ import { glsGetPickupPoints    } from "../services/gls.server.js";
 import { packetaGetPickupPoints } from "../services/packeta.server.js";
 
 const CACHE_TTL_HOURS = 24;
+const WIDGET_LIMIT    = 3000; // per-country cap sent to widget
 
 // ─────────────────────────────────────────────────────────────────────────────
 // App-level sync credentials from environment variables
@@ -64,7 +65,7 @@ export async function getPickupPoints({
   } : {};
 
   // Hard cap — never return more than 600 points to the widget in one call.
-  const LIMIT = 600;
+  const LIMIT = WIDGET_LIMIT;
 
   const cachedCount = await prisma.pickupPoint.count({
     where: {
@@ -122,38 +123,54 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
   const creds = getSyncCredentials();
   const results = { fan: 0, sameday: 0, cargus: 0, gls: 0, packeta: 0, errors: [] };
 
-  if (couriers.includes("fan") && creds.fan.clientId && creds.fan.username && creds.fan.password) {
-    try {
-      const points = await fanGetPickupPoints({
-        clientId: creds.fan.clientId,
-        username: creds.fan.username,
-        password: creds.fan.password,
-      });
-      await bulkReplace("fan", points.map((p) => ({ ...p, country: "ro", isActive: true })));
-      results.fan = points.length;
-    } catch (e) {
-      results.errors.push(`FAN: ${e.message}`);
+  // Resolve Sameday creds upfront — may need a DB lookup when env vars aren't set
+  let samedayCreds = creds.sameday;
+  if (couriers.includes("sameday") && (!samedayCreds.username || !samedayCreds.password)) {
+    const shopWithCreds = await prisma.shopSettings.findFirst({
+      where: { samedayUsername: { not: null }, samedayPassword: { not: null } },
+      select: { samedayUsername: true, samedayPassword: true, samedaySandbox: true },
+    });
+    if (shopWithCreds) {
+      samedayCreds = {
+        username: shopWithCreds.samedayUsername,
+        password: shopWithCreds.samedayPassword,
+        sandbox:  !!shopWithCreds.samedaySandbox,
+      };
     }
-  } else if (couriers.includes("fan") && !creds.fan.clientId) {
-    results.errors.push("FAN: sync credentials not configured (set FAN_SYNC_CLIENT_ID, FAN_SYNC_USERNAME, FAN_SYNC_PASSWORD)");
   }
 
-  if (couriers.includes("sameday")) {
-    let samedayCreds = creds.sameday;
-    if (!samedayCreds.username || !samedayCreds.password) {
-      const shopWithCreds = await prisma.shopSettings.findFirst({
-        where: { samedayUsername: { not: null }, samedayPassword: { not: null } },
-        select: { samedayUsername: true, samedayPassword: true, samedaySandbox: true },
-      });
-      if (shopWithCreds) {
-        samedayCreds = {
-          username: shopWithCreds.samedayUsername,
-          password: shopWithCreds.samedayPassword,
-          sandbox:  !!shopWithCreds.samedaySandbox,
-        };
+  // All carriers in parallel — total time = slowest single carrier, not sum of all
+  await Promise.allSettled([
+
+    // ── FAN ────────────────────────────────────────────────────────────────────
+    (async () => {
+      if (!couriers.includes("fan")) return;
+      if (!creds.fan.clientId || !creds.fan.username || !creds.fan.password) {
+        results.errors.push("FAN: credențiale lipsă (setează FAN_SYNC_CLIENT_ID, FAN_SYNC_USERNAME, FAN_SYNC_PASSWORD)");
+        return;
       }
-    }
-    if (samedayCreds.username && samedayCreds.password) {
+      try {
+        const points = await fanGetPickupPoints({
+          clientId: creds.fan.clientId,
+          username: creds.fan.username,
+          password: creds.fan.password,
+        });
+        await bulkReplace("fan", points.map((p) => ({ ...p, country: "ro", isActive: true })));
+        results.fan = points.length;
+        console.error(`[SYNC] FAN: ${points.length} puncte stocate`);
+      } catch (e) {
+        results.errors.push(`FAN: ${e.message}`);
+        console.error("[SYNC] FAN error:", e.message);
+      }
+    })(),
+
+    // ── Sameday ────────────────────────────────────────────────────────────────
+    (async () => {
+      if (!couriers.includes("sameday")) return;
+      if (!samedayCreds.username || !samedayCreds.password) {
+        results.errors.push("Sameday: credențiale lipsă (setează SAMEDAY_SYNC_USERNAME, SAMEDAY_SYNC_PASSWORD)");
+        return;
+      }
       try {
         const points = await samedayGetLockers({
           username: samedayCreds.username,
@@ -162,56 +179,71 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
         });
         await bulkReplace("sameday", points.map((p) => ({ ...p, country: "ro", isActive: true })));
         results.sameday = points.length;
+        console.error(`[SYNC] Sameday: ${points.length} puncte stocate`);
       } catch (e) {
-        if (e.message?.includes("[404]")) {
-          results.sameday = 0;
-        } else {
-          results.errors.push(`Sameday: ${e.message}`);
-        }
+        if (e.message?.includes("[404]")) { results.sameday = 0; return; }
+        results.errors.push(`Sameday: ${e.message}`);
+        console.error("[SYNC] Sameday error:", e.message);
       }
-    } else {
-      results.errors.push("Sameday: sync credentials not configured (set SAMEDAY_SYNC_USERNAME, SAMEDAY_SYNC_PASSWORD or configure Sameday in shop settings)");
-    }
-  }
+    })(),
 
-  if (couriers.includes("cargus") && creds.cargus.subscriptionKey && creds.cargus.username) {
-    try {
-      const points = await cargusGetPickupPoints({
-        subscriptionKey: creds.cargus.subscriptionKey,
-        username:        creds.cargus.username,
-        password:        creds.cargus.password,
-      });
-      await bulkReplace("cargus", points.map((p) => ({ ...p, country: "ro", isActive: true })));
-      results.cargus = points.length;
-    } catch (e) {
-      results.errors.push(`Cargus: ${e.message}`);
-    }
-  } else if (couriers.includes("cargus") && !creds.cargus.subscriptionKey) {
-    results.errors.push("Cargus: sync credentials not configured (set CARGUS_SYNC_SUBSCRIPTION_KEY, CARGUS_SYNC_USERNAME, CARGUS_SYNC_PASSWORD)");
-  }
+    // ── Cargus ─────────────────────────────────────────────────────────────────
+    (async () => {
+      if (!couriers.includes("cargus")) return;
+      if (!creds.cargus.subscriptionKey || !creds.cargus.username) {
+        results.errors.push("Cargus: credențiale lipsă (setează CARGUS_SYNC_SUBSCRIPTION_KEY, CARGUS_SYNC_USERNAME, CARGUS_SYNC_PASSWORD)");
+        return;
+      }
+      try {
+        const points = await cargusGetPickupPoints({
+          subscriptionKey: creds.cargus.subscriptionKey,
+          username:        creds.cargus.username,
+          password:        creds.cargus.password,
+        });
+        await bulkReplace("cargus", points.map((p) => ({ ...p, country: "ro", isActive: true })));
+        results.cargus = points.length;
+        console.error(`[SYNC] Cargus: ${points.length} puncte stocate`);
+      } catch (e) {
+        results.errors.push(`Cargus: ${e.message}`);
+        console.error("[SYNC] Cargus error:", e.message);
+      }
+    })(),
 
-  if (couriers.includes("gls")) {
-    try {
-      const points = await glsGetPickupPoints();
-      await bulkReplace("gls", points);
-      results.gls = points.length;
-    } catch (e) {
-      results.errors.push(`GLS: ${e.message}`);
-    }
-  }
+    // ── GLS ────────────────────────────────────────────────────────────────────
+    (async () => {
+      if (!couriers.includes("gls")) return;
+      try {
+        const points = await glsGetPickupPoints();
+        await bulkReplace("gls", points);
+        results.gls = points.length;
+        console.error(`[SYNC] GLS: ${points.length} puncte stocate`);
+      } catch (e) {
+        results.errors.push(`GLS: ${e.message}`);
+        console.error("[SYNC] GLS error:", e.message);
+      }
+    })(),
 
-  if (couriers.includes("packeta") && creds.packeta.apiKey) {
-    try {
-      const points = await packetaGetPickupPoints({ apiKey: creds.packeta.apiKey });
-      await bulkReplace("packeta", points);
-      results.packeta = points.length;
-    } catch (e) {
-      results.errors.push(`Packeta: ${e.message}`);
-    }
-  } else if (couriers.includes("packeta") && !creds.packeta.apiKey) {
-    results.errors.push("Packeta: sync credentials not configured (set PACKETA_SYNC_API_KEY)");
-  }
+    // ── Packeta ────────────────────────────────────────────────────────────────
+    (async () => {
+      if (!couriers.includes("packeta")) return;
+      if (!creds.packeta.apiKey) {
+        results.errors.push("Packeta: credențiale lipsă (setează PACKETA_SYNC_API_KEY)");
+        return;
+      }
+      try {
+        const points = await packetaGetPickupPoints({ apiKey: creds.packeta.apiKey });
+        await bulkReplace("packeta", points);
+        results.packeta = points.length;
+        console.error(`[SYNC] Packeta: ${points.length} puncte stocate`);
+      } catch (e) {
+        results.errors.push(`Packeta: ${e.message}`);
+        console.error("[SYNC] Packeta error:", e.message);
+      }
+    })(),
 
+  ]);
+
+  console.error("[SYNC] Finalizat:", JSON.stringify({ ...results, errors: results.errors }));
   return results;
 }
 

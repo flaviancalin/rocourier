@@ -84,10 +84,8 @@ export async function loader({ request }) {
 
 export async function action({ request }) {
   await authenticate.admin(request);
-  // Run sync in background — don't await so the request never times out on Railway.
-  // The page will show stale counts until the user refreshes after sync completes (~30s).
-  refreshPickupPointsCache().catch((e) => console.error("Pickup sync error:", e));
-  return json({ refreshed: true, result: { message: "Sync started — refresh the page in ~30 seconds to see updated counts." } });
+  const result = await refreshPickupPointsCache();
+  return json({ refreshed: true, result });
 }
 
 export default function PickupPointsPage() {
