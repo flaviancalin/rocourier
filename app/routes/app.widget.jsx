@@ -78,6 +78,11 @@ function buildSnippet({ appUrl, cfg }) {
   data-cargus-logo="${appUrl}/logo-cargus.svg"
   data-gls-logo="${appUrl}/logo-gls.svg"
   data-packeta-logo="${appUrl}/logo-packeta.svg"
+  data-fan-pin="${appUrl}/pin-fan.png"
+  data-sameday-pin="${appUrl}/pin-sameday.png"
+  data-cargus-pin="${appUrl}/pin-cargus.png"
+  data-gls-pin="${appUrl}/pin-gls.png"
+  data-packeta-pin="${appUrl}/pin-packeta.png"
 >
   <p class="pkd-section-title" id="pkd-section-title">Metoda de livrare:</p>
 
