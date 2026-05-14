@@ -1062,9 +1062,20 @@
     restore();
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
+  function tryInit() {
+    const widget = document.getElementById("picklo-drawer-widget");
+    if (widget && !widget._pkdInitialized) {
+      widget._pkdInitialized = true;
+      init();
+    }
   }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", tryInit);
+  } else {
+    tryInit();
+  }
+
+  // Re-init when cart drawer re-injects widget HTML via innerHTML (AJAX cart refresh)
+  new MutationObserver(tryInit).observe(document.documentElement, { childList: true, subtree: true });
 })();

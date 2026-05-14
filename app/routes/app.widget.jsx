@@ -43,11 +43,22 @@ export async function loader({ request }) {
   });
 }
 
-function buildSnippet({ appUrl, cfg }) {
+function buildHeadSnippet({ appUrl }) {
+  return `{% comment %}Picklo — Step 1: paste into theme.liquid inside <head>{% endcomment %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" crossorigin="">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" crossorigin="">
+<link rel="stylesheet" href="${appUrl}/picklo-drawer.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
+<script src="${appUrl}/picklo-drawer.js"></script>`;
+}
+
+function buildBodySnippet({ appUrl, cfg }) {
   const b = (v) => v ? "true" : "false";
   const n = (v) => Number(v) || 0;
 
-  return `{% comment %}Picklo Cart Drawer Widget — paste into snippets/picklo-drawer.liquid{% endcomment %}
+  return `{% comment %}Picklo — Step 2: paste into snippets/picklo-drawer.liquid{% endcomment %}
 {% comment %}Then add {%- render 'picklo-drawer' -%} inside your cart drawer template{% endcomment %}
 
 <div
@@ -179,13 +190,7 @@ function buildSnippet({ appUrl, cfg }) {
   }
 </style>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" crossorigin="">
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" crossorigin="">
-<link rel="stylesheet" href="${appUrl}/picklo-drawer.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer crossorigin=""></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" defer crossorigin=""></script>
-<script src="${appUrl}/picklo-drawer.js" defer></script>`;
+`;
 }
 
 export default function WidgetPage() {
@@ -211,16 +216,25 @@ export default function WidgetPage() {
   };
 
   const [cfg, setCfg] = useState(defaultCfg);
-  const [copied, setCopied] = useState(false);
+  const [copiedHead, setCopiedHead] = useState(false);
+  const [copiedBody, setCopiedBody] = useState(false);
 
-  const snippet = buildSnippet({ appUrl, cfg });
+  const headSnippet = buildHeadSnippet({ appUrl });
+  const bodySnippet = buildBodySnippet({ appUrl, cfg });
 
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(snippet).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
+  const handleCopyHead = useCallback(() => {
+    navigator.clipboard.writeText(headSnippet).then(() => {
+      setCopiedHead(true);
+      setTimeout(() => setCopiedHead(false), 2500);
     });
-  }, [snippet]);
+  }, [headSnippet]);
+
+  const handleCopyBody = useCallback(() => {
+    navigator.clipboard.writeText(bodySnippet).then(() => {
+      setCopiedBody(true);
+      setTimeout(() => setCopiedBody(false), 2500);
+    });
+  }, [bodySnippet]);
 
   const toggle  = (key) => setCfg((prev) => ({ ...prev, [key]: !prev[key] }));
   const setFee  = (key, val) => setCfg((prev) => ({ ...prev, [key]: parseFloat(val) || 0 }));
@@ -301,32 +315,59 @@ export default function WidgetPage() {
 
         <Layout.Section>
           <BlockStack gap="400">
+            <Banner tone="warning">
+              <p>
+                <strong>Instalare în 2 pași</strong> — necesar pentru compatibilitate cu cart drawer pe mobil.
+                Temele Shopify reîncarcă conținutul cart drawer via AJAX (innerHTML), ceea ce blochează
+                execuția scripturilor inline. Soluția: JS/CSS se încarcă din <code>theme.liquid</code>,
+                HTML-ul widgetului rămâne în cart drawer.
+              </p>
+            </Banner>
+
             <Card>
               <BlockStack gap="300">
                 <InlineStack align="space-between" blockAlign="center">
-                  <Text variant="headingMd" as="h2">Snippet generat</Text>
-                  <Button variant="primary" onClick={handleCopy}>
-                    {copied ? "Copiat!" : "Copiază snippet"}
+                  <BlockStack gap="100">
+                    <Text variant="headingMd" as="h2">Pasul 1 — Assets (theme.liquid)</Text>
+                    <Text variant="bodyMd" tone="subdued">
+                      Adaugă în <code>layout/theme.liquid</code> înainte de <code>&lt;/head&gt;</code>
+                    </Text>
+                  </BlockStack>
+                  <Button variant="primary" onClick={handleCopyHead}>
+                    {copiedHead ? "Copiat!" : "Copiază"}
                   </Button>
                 </InlineStack>
-                <Text variant="bodyMd" tone="subdued">
-                  Se actualizează live la modificarea configurației. Copiază și lipește în{" "}
-                  <code>snippets/picklo-drawer.liquid</code>.
-                </Text>
                 <div style={{
-                  background: "#1e1e1e",
-                  borderRadius: "8px",
-                  padding: "16px",
-                  maxHeight: "420px",
-                  overflowY: "auto",
-                  fontFamily: "monospace",
-                  fontSize: "11px",
-                  lineHeight: "1.5",
-                  color: "#d4d4d4",
-                  whiteSpace: "pre",
-                  overflowX: "auto",
+                  background: "#1e1e1e", borderRadius: "8px", padding: "16px",
+                  maxHeight: "200px", overflowY: "auto", fontFamily: "monospace",
+                  fontSize: "11px", lineHeight: "1.5", color: "#d4d4d4",
+                  whiteSpace: "pre", overflowX: "auto",
                 }}>
-                  {snippet}
+                  {headSnippet}
+                </div>
+              </BlockStack>
+            </Card>
+
+            <Card>
+              <BlockStack gap="300">
+                <InlineStack align="space-between" blockAlign="center">
+                  <BlockStack gap="100">
+                    <Text variant="headingMd" as="h2">Pasul 2 — Widget HTML (snippets/picklo-drawer.liquid)</Text>
+                    <Text variant="bodyMd" tone="subdued">
+                      Se actualizează live. Copiază în <code>snippets/picklo-drawer.liquid</code>.
+                    </Text>
+                  </BlockStack>
+                  <Button variant="primary" onClick={handleCopyBody}>
+                    {copiedBody ? "Copiat!" : "Copiază"}
+                  </Button>
+                </InlineStack>
+                <div style={{
+                  background: "#1e1e1e", borderRadius: "8px", padding: "16px",
+                  maxHeight: "420px", overflowY: "auto", fontFamily: "monospace",
+                  fontSize: "11px", lineHeight: "1.5", color: "#d4d4d4",
+                  whiteSpace: "pre", overflowX: "auto",
+                }}>
+                  {bodySnippet}
                 </div>
               </BlockStack>
             </Card>
@@ -335,57 +376,43 @@ export default function WidgetPage() {
               <BlockStack gap="300">
                 <Text variant="headingMd" as="h2">Instrucțiuni de instalare</Text>
                 <BlockStack gap="200">
-                  <Text variant="bodyMd" fontWeight="semibold">Pasul 1 — Creează fișierul snippet</Text>
+                  <Text variant="bodyMd" fontWeight="semibold">Pasul 1 — Assets în theme.liquid</Text>
                   <Text variant="bodyMd" tone="subdued">
-                    În Shopify admin: <strong>Online Store → Themes → Edit code</strong>.
-                    Navighează la <code>snippets/</code>, creează fișier nou:{" "}
-                    <strong>picklo-drawer.liquid</strong>. Lipește snippet-ul copiat.
+                    <strong>Online Store → Themes → Edit code → layout/theme.liquid</strong>.
+                    Lipește snippet-ul de assets înainte de <code>&lt;/head&gt;</code>.
+                    Acest pas asigură că JS-ul se încarcă o singură dată și supraviețuiește
+                    refresh-urilor AJAX ale cart drawer-ului.
                   </Text>
                 </BlockStack>
                 <Divider />
                 <BlockStack gap="200">
-                  <Text variant="bodyMd" fontWeight="semibold">Pasul 2 — Inserează în cart drawer</Text>
+                  <Text variant="bodyMd" fontWeight="semibold">Pasul 2 — Creează fișierul snippet</Text>
                   <Text variant="bodyMd" tone="subdued">
-                    Deschide fișierul Liquid al cart drawer-ului (ex.{" "}
-                    <code>sections/cart-drawer.liquid</code>). Găsește butonul de checkout și adaugă
-                    înainte:
+                    Navighează la <code>snippets/</code>, creează <strong>picklo-drawer.liquid</strong>.
+                    Lipește snippet-ul HTML (Pasul 2 de mai sus).
+                  </Text>
+                </BlockStack>
+                <Divider />
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" fontWeight="semibold">Pasul 3 — Inserează render tag în cart drawer</Text>
+                  <Text variant="bodyMd" tone="subdued">
+                    Deschide secțiunea cart drawer și adaugă înainte de butonul checkout:
                   </Text>
                   <div style={{
-                    background: "#1e1e1e",
-                    borderRadius: "6px",
-                    padding: "12px 16px",
-                    fontFamily: "monospace",
-                    fontSize: "12px",
-                    color: "#d4d4d4",
+                    background: "#1e1e1e", borderRadius: "6px", padding: "12px 16px",
+                    fontFamily: "monospace", fontSize: "12px", color: "#d4d4d4",
                   }}>
                     {`{%- render 'picklo-drawer' -%}`}
                   </div>
                 </BlockStack>
                 <Divider />
                 <BlockStack gap="200">
-                  <Text variant="bodyMd" fontWeight="semibold">Teme populare</Text>
+                  <Text variant="bodyMd" fontWeight="semibold">Teme populare — cart drawer section</Text>
                   <BlockStack gap="100">
-                    <Text variant="bodyMd" tone="subdued">
-                      <strong>Dawn:</strong> <code>sections/cart-drawer.liquid</code> → caută{" "}
-                      <code>name=&quot;checkout&quot;</code>
-                    </Text>
-                    <Text variant="bodyMd" tone="subdued">
-                      <strong>Debut:</strong> <code>sections/cart-template.liquid</code>
-                    </Text>
-                    <Text variant="bodyMd" tone="subdued">
-                      <strong>Impulse / Prestige:</strong> <code>sections/cart.liquid</code>
-                    </Text>
+                    <Text variant="bodyMd" tone="subdued"><strong>Dawn:</strong> <code>sections/cart-drawer.liquid</code></Text>
+                    <Text variant="bodyMd" tone="subdued"><strong>Debut:</strong> <code>sections/cart-template.liquid</code></Text>
+                    <Text variant="bodyMd" tone="subdued"><strong>Impulse / Prestige:</strong> <code>sections/cart.liquid</code></Text>
                   </BlockStack>
-                </BlockStack>
-                <Divider />
-                <BlockStack gap="200">
-                  <Text variant="bodyMd" fontWeight="semibold">Atribute coș salvate</Text>
-                  <Text variant="bodyMd" tone="subdued">
-                    Datele de livrare sunt salvate automat în atributele coșului:{" "}
-                    <code>_rc_method</code>, <code>_rc_courier</code>,{" "}
-                    <code>_rc_point_id</code>, <code>_rc_point_name</code>,{" "}
-                    <code>_rc_point_address</code> — compatibil cu widgetul de pe pagina de coș.
-                  </Text>
                 </BlockStack>
               </BlockStack>
             </Card>
