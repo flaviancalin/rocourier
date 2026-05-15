@@ -300,16 +300,14 @@
     function onPickupSelected() {
       selectRow("pickup");
       if (homeFeeEl) homeFeeEl.textContent = "";
-      if (!selectedPoint) {
-        _method = _courier = _pid = _pname = _paddr = "";
-        openModal();
-      } else {
+      if (selectedPoint) {
         updatePickupFee(selectedPoint.courier);
         _method  = "pickup_point";
         _courier = selectedPoint.courier;
-        if (pointSelected) pointSelected.style.display = "flex";
-        saveSession();
+      } else {
+        _method = _courier = _pid = _pname = _paddr = "";
       }
+      openModal();
       hideError();
     }
 
@@ -485,9 +483,13 @@
       _modalOpen = false;
       modal.style.display = "none";
       unlockScroll();
-      if (!selectedPoint) {
+      if (selectedPoint) {
+        selectRow("pickup");
+        if (pointSelected) pointSelected.style.display = "flex";
+      } else {
         selectRow(null);
         clearHiddenPoint();
+        if (pointSelected) pointSelected.style.display = "none";
       }
     }
 

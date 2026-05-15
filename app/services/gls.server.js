@@ -209,7 +209,7 @@ export async function glsCreateAwb({
 
   const result = await glsRequest(base, "PrintLabels", {
     ...auth,
-    TypeOfPrinter: 0,
+    TypeOfPrinter: 1,
     PrintPosition: 1,
     ParcelList: [parcel],
   });
@@ -238,7 +238,7 @@ export async function glsDownloadAwbPdf({ username, password, sandbox = false, a
 
   const result = await glsRequest(base, "GetPrintedLabels", {
     ...auth,
-    TypeOfPrinter: 0,
+    TypeOfPrinter: 1,
     ParcelList: [{ ParcelNumber: parseInt(awbNumber) || awbNumber }],
   });
 

@@ -103,7 +103,10 @@
 
 .pkd-point-logo {
   height: 20px;
+  max-height: 20px;
+  max-width: 70px;
   width: auto;
+  object-fit: contain;
   flex-shrink: 0;
 }
 
