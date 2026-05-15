@@ -312,6 +312,7 @@
         updatePickupFee(selectedPoint.courier);
         _method  = "pickup_point";
         _courier = selectedPoint.courier;
+        if (pointSelected) pointSelected.style.display = "flex";
         saveSession();
       }
       hideError();
@@ -387,19 +388,39 @@
       return haversine(_userLat, _userLng, p.lat, p.lng);
     }
 
+    // ── Location cache (localStorage, 24h TTL) ────────────────────────────────
+    const LOC_KEY = "rc_loc_" + SHOP.replace(/\./g, "_");
+    function saveLocCache(lat, lng) {
+      try { localStorage.setItem(LOC_KEY, JSON.stringify({ lat, lng, t: Date.now() })); } catch(_) {}
+    }
+    function loadLocCache() {
+      try {
+        const c = JSON.parse(localStorage.getItem(LOC_KEY) || "null");
+        if (c && c.lat && c.lng && (Date.now() - c.t) < 86400000) return c;
+      } catch(_) {}
+      return null;
+    }
+
     // ── User location — geolocation → IP fallback ──────────────────────────────
     function fetchUserLocation() {
       if (_locationFetched) return;
       _locationFetched = true;
 
+      // Apply cached location immediately so the map doesn't start at country zoom
+      const cached = loadLocCache();
+      if (cached && _userLat === null) {
+        _userLat = cached.lat;
+        _userLng = cached.lng;
+        if (mapInst) { mapInst.setView([cached.lat, cached.lng], 14); placeUserMarker(cached.lat, cached.lng); }
+      }
+
       function onCoords(lat, lng) {
         _userLat = lat;
         _userLng = lng;
+        saveLocCache(lat, lng);
         if (mapInst) { mapInst.setView([lat, lng], 14); placeUserMarker(lat, lng); }
         if (pointsLoaded) {
           if (!_pointsFetchedWithCoords) {
-            // We loaded points without coords (all-country fetch) — re-fetch with
-            // the bounding box now that we know where the customer is.
             pointsLoaded = false;
             fetchPoints();
           } else {
@@ -411,7 +432,7 @@
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => onCoords(pos.coords.latitude, pos.coords.longitude),
-          () => tryIPLocation(), // denied or unavailable → fall back
+          () => tryIPLocation(),
           { timeout: 6000, maximumAge: 300000 }
         );
       } else {
@@ -425,6 +446,7 @@
           if (latitude && longitude) {
             _userLat = latitude;
             _userLng = longitude;
+            saveLocCache(latitude, longitude);
             if (mapInst) { mapInst.setView([latitude, longitude], 14); placeUserMarker(latitude, longitude); }
             if (pointsLoaded && !_pointsFetchedWithCoords) {
               pointsLoaded = false;
@@ -466,7 +488,9 @@
           initMap();
           if (mapInst) {
             mapInst.invalidateSize();
-            setTimeout(() => { if (mapInst) mapInst.invalidateSize(); }, 300);
+            setTimeout(() => { if (mapInst) mapInst.invalidateSize(); }, 200);
+            setTimeout(() => { if (mapInst) mapInst.invalidateSize(); }, 600);
+            setTimeout(() => { if (mapInst) mapInst.invalidateSize(); }, 1200);
           }
         }));
       } else if (attempts < 30) {
@@ -1107,8 +1131,6 @@
       } catch (_) {}
     }
 
-    // Pre-fetch user location early so it's ready when the modal opens
-    fetchUserLocation();
     restore();
   }
 

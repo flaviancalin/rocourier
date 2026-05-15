@@ -86,6 +86,8 @@
   transition: background 0.12s;
   border-bottom: 1px solid var(--pkd-border, #e8e8e8);
   position: relative;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .pkd-row-last { border-bottom: none; }
@@ -607,8 +609,8 @@
     animation: none;
   }
 
-  .pkd-map-panel { flex: 1; min-height: 0; }
-  #pkd-map       { height: 100%; min-height: 0; }
+  .pkd-map-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  #pkd-map       { flex: 1; min-height: 0; }
 
   .pkd-bottom-sheet {
     width: 100%;
