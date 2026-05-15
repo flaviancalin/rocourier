@@ -285,10 +285,8 @@ export async function fanCreateAwb({
           ...(order.customerEmail ? { email: order.customerEmail } : {}),
           address: isLockerService
             ? {
-                // FANbox: county+locality must match the locker's registered location exactly.
-                // Both fields are required — generate-awb.js ensures they come from the locker DB record.
-                county:           normalizeCounty(order.shippingCounty || "Bucuresti"),
-                locality:         order.shippingCity || "Bucuresti",
+                // FANbox: only pickupLocationId is needed — FAN resolves location from the locker code.
+                // Sending county+locality alongside pickupLocationId may cause validation failure.
                 pickupLocationId: String(effectivePickupId),
               }
             : {
