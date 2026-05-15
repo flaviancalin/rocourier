@@ -955,7 +955,7 @@ export default function OrdersPage() {
                                   </div>
                                 </div>
                                 <div style={{ marginTop:10 }}>
-                                  <Button size="micro" onClick={() => navigate(`/app/orders/${o.id}`)}>Detalii comandă</Button>
+                                  <Button size="micro" onClick={() => navigate(`/app/order-detail/${o.id}`)}>Detalii comandă</Button>
                                 </div>
                               </div>
                             )}
@@ -1156,7 +1156,7 @@ export default function OrdersPage() {
                                       style={{ background:"#e8e8e8", padding:"2px 6px", borderRadius:4, color:"#008060", cursor:"pointer" }}
                                     >{o.awbNumber}</code>
                                     <div style={{ marginTop:6, display:"flex", gap:6 }}>
-                                      <Button size="micro" onClick={() => navigate(`/app/orders/${o.id}`)}>Detalii comandă</Button>
+                                      <Button size="micro" onClick={() => navigate(`/app/order-detail/${o.id}`)}>Detalii comandă</Button>
                                     </div>
                                   </div>
                                 </div>

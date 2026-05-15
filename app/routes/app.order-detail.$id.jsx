@@ -296,7 +296,7 @@ export default function OrderDetail() {
       if (data.success) {
         setToast(`AWB generat: ${data.awbNumber}`);
         setWizardOpen(false);
-        setTimeout(() => navigate(`/app/orders/${order.id}`, { replace: true }), 1200);
+        setTimeout(() => navigate(`/app/order-detail/${order.id}`, { replace: true }), 1200);
       } else {
         setError(data.error || "AWB generation failed");
         setWizardStep(4); // stay on last step to show error
@@ -321,7 +321,7 @@ export default function OrderDetail() {
       if (data.success) {
         setToast("AWB anulat cu succes");
         setDeleteOpen(false);
-        setTimeout(() => navigate(`/app/orders/${order.id}`, { replace: true }), 1000);
+        setTimeout(() => navigate(`/app/order-detail/${order.id}`, { replace: true }), 1000);
       } else {
         setError(data.error || "Delete failed");
         setDeleteOpen(false);
