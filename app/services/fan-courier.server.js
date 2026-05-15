@@ -117,11 +117,12 @@ export async function fanGetPickupPoints({ clientId, username, password }) {
   );
 
   const points = data.data || [];
-  if (points.length > 0) {
-    console.error("[FAN] pickup-points first raw point keys:", JSON.stringify(Object.keys(points[0])));
-    console.error("[FAN] pickup-points first raw point:", JSON.stringify(points[0]));
-  }
   console.error(`[FAN] pickup-points fetched: ${points.length}`);
+  if (points.length > 0) {
+    console.error("[FAN] pickup-points first raw point:", JSON.stringify(points[0]));
+    // Log first 5 to confirm p.id vs p.code format (docs show "F1011137" for pickupLocationId)
+    points.slice(0, 5).forEach((p, i) => console.error(`[FAN] point[${i}] id="${p.id}" code="${p.code}" name="${p.name}"`));
+  }
 
   return points.map((p) => {
     const addr = p.address || {};
@@ -132,9 +133,9 @@ export async function fanGetPickupPoints({ clientId, username, password }) {
                    p.county || p.district || p.judCode || p.jud || "";
     const zip    = addr.zipCode  || addr.zip || p.zipCode || p.zip || "";
 
-    // p.code (e.g. "FAN0039") is what /intern-awb expects as pickupLocationId.
-    // p.id (e.g. "F1000005") is FAN's internal identifier — NOT accepted by the AWB API.
-    const externalId = p.code || String(p.id || "");
+    // FAN API docs show pickupLocationId format "F1011137" (p.id) not "FAN0962" (p.code).
+    // Using p.id as primary. Re-sync pickup points after this deploy to update DB.
+    const externalId = p.id || p.code || "";
 
     return {
       id:         externalId,
@@ -224,31 +225,28 @@ export async function fanCreateAwb({
   const isLocker = !!effectivePickupId;
   const hasCod   = (order.codAmount || 0) > 0;
 
-  // FANbox locker delivery uses "FANbox" or "FANbox Cont Collector" (with COD).
-  // "Cont Collector" (ID 4) is account-based payment on regular home delivery — completely different.
-  // Auto-upgrade "FANbox" → "FANbox Cont Collector" when COD is present.
+  // FANbox locker delivery uses "FANbox" or "FANbox Cont Colector" (with COD).
+  // Service name MUST match exactly what /services returns — note single 'l' in "Colector".
   let service;
   if (serviceOverride === "FANbox" && hasCod) {
-    service = "FANbox Cont Collector";
+    service = "FANbox Cont Colector";
   } else if (serviceOverride) {
     service = serviceOverride;
   } else if (isLocker) {
-    service = hasCod ? "FANbox Cont Collector" : "FANbox";
+    service = hasCod ? "FANbox Cont Colector" : "FANbox";
   } else {
     service = "Standard";
   }
 
-  const isLockerService    = service === "FANbox" || service === "FANbox Cont Collector";
-  const isLockerWithCod    = service === "FANbox Cont Collector";
+  const isLockerService = service === "FANbox" || service === "FANbox Cont Colector";
 
-  // Options per FAN API docs:
-  //   "V" = simple FANbox locker pickup (no COD)
-  //   "Y" = mPOS card payment at FANbox locker (COD via card — required for FANbox Cont Collector)
-  //   "S" = Saturday delivery
-  const optionLetters = [
-    ...(isLockerWithCod  ? ["Y"] : isLockerService ? ["V"] : []),
+  // Options must be an ARRAY per FAN API docs (not a joined string).
+  // "V" = PickUp (recipient picks up from FANbox locker) — used for all FANbox including COD.
+  // "S" = Saturday delivery.
+  const optionsArray = [
+    ...(isLockerService ? ["V"] : []),
     ...(saturdayDelivery ? ["S"] : []),
-  ].join("");
+  ];
 
   const payload = {
     clientId,
@@ -263,17 +261,15 @@ export async function fanCreateAwb({
           weight:        order.weight || 1,
           cod:           order.codAmount || 0,
           declaredValue: declaredValue || 0,
-          // FANbox Cont Collector (COD via mPOS): payment must be "sender" — shipping pre-paid,
-          // customer pays goods at locker. Regular FANbox and home delivery: dynamic per caller.
-          payment:       isLockerWithCod ? "sender" : (shipmentPayer === "sender" ? "sender" : "recipient"),
+          // All FANbox (with or without COD): payment = "sender" per FAN API docs examples.
+          payment:       isLockerService ? "sender" : (shipmentPayer === "sender" ? "sender" : "recipient"),
           // returnPayment only for home delivery — locker services don't use it
           ...(!isLockerService ? { returnPayment: "sender" } : {}),
           content:       "Colet",
           observation:   observations || order.notes || "",
           openPackage:   isLockerService ? 0 : (openPackage ? 1 : 0),
           dimensions:    { width: 20, height: 15, length: 30 },
-          // options: "V" = FANbox locker pickup, "S" = Saturday delivery
-          ...(optionLetters ? { options: optionLetters } : {}),
+          ...(optionsArray.length > 0 ? { options: optionsArray } : {}),
         },
         // ── Recipient ──────────────────────────────────────────────────
         recipient: {
