@@ -317,12 +317,39 @@ export async function packetaDownloadLabel({ apiKey, packetId, barcode = null })
     }
   }
 
-  // ── Attempt 2: v6 REST label endpoint ───────────────────────────────────────
-  // Pattern mirrors tracking: /v6/{apiKey}/parcel/{barcode}/label
-  // Try with barcode first (what Packeta tracking uses), then numeric id as fallback.
+  // ── Attempt 2: XML without offset (some Packeta accounts reject the offset field) ──
+  if (numericId && !isNaN(numericId)) {
+    const xmlBodyNoOffset = `<?xml version="1.0" encoding="utf-8"?>
+<packetLabelPdf>
+  <apiPassword>${xmlEscape(apiKey)}</apiPassword>
+  <packetId>${numericId}</packetId>
+</packetLabelPdf>`;
+    try {
+      const res2 = await fetch(`${PACKETA_REST_BASE}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/xml; charset=utf-8", Accept: "*/*" },
+        body: xmlBodyNoOffset,
+      });
+      console.error(`[Packeta] packetLabelPdf no-offset [${res2.status}] content-type: ${res2.headers.get("content-type")}`);
+      if (res2.ok) {
+        const ct2 = res2.headers.get("content-type") || "";
+        if (ct2.includes("pdf") || ct2.includes("octet")) {
+          return Buffer.from(await res2.arrayBuffer());
+        }
+        const txt2 = await res2.text();
+        const b64m = txt2.match(/<result>\s*([A-Za-z0-9+/=\r\n]+)\s*<\/result>/i);
+        if (b64m?.[1]) return Buffer.from(b64m[1].replace(/\s/g, ""), "base64");
+        console.error("[Packeta] packetLabelPdf no-offset XML:", txt2.slice(0, 400));
+      }
+    } catch (e) { console.error("[Packeta] packetLabelPdf no-offset error:", e.message); }
+  }
+
+  // ── Attempt 3: v6 REST label endpoint ────────────────────────────────────────
+  // Try multiple URL patterns — Packeta's v6 REST docs are not fully public.
   const restCandidates = [
     barcode ? `${PACKETA_PARCEL_BASE}/${encodeURIComponent(apiKey)}/parcel/${encodeURIComponent(barcode)}/label` : null,
     numericId ? `${PACKETA_PARCEL_BASE}/${encodeURIComponent(apiKey)}/parcel/${numericId}/label` : null,
+    barcode ? `${PACKETA_PARCEL_BASE}/${encodeURIComponent(apiKey)}/packets/${encodeURIComponent(barcode)}/label` : null,
   ].filter(Boolean);
 
   for (const restUrl of restCandidates) {
