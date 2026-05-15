@@ -317,30 +317,38 @@ export async function packetaDownloadLabel({ apiKey, packetId, barcode = null })
     }
   }
 
-  // ── Attempt 2: v6 REST label endpoint (uses barcode / short API key) ─────────
-  // Packeta's v6 REST API: GET /v6/{apiKey}/parcels/print/{id or barcode}
-  const restTarget = barcode || String(numericId || packetId);
-  if (restTarget) {
-    const restUrl = `${PACKETA_PARCEL_BASE}/${encodeURIComponent(apiKey)}/parcels/print/${encodeURIComponent(restTarget)}`;
+  // ── Attempt 2: v6 REST label endpoint ───────────────────────────────────────
+  // Pattern mirrors tracking: /v6/{apiKey}/parcel/{barcode}/label
+  // Try with barcode first (what Packeta tracking uses), then numeric id as fallback.
+  const restCandidates = [
+    barcode ? `${PACKETA_PARCEL_BASE}/${encodeURIComponent(apiKey)}/parcel/${encodeURIComponent(barcode)}/label` : null,
+    numericId ? `${PACKETA_PARCEL_BASE}/${encodeURIComponent(apiKey)}/parcel/${numericId}/label` : null,
+  ].filter(Boolean);
+
+  for (const restUrl of restCandidates) {
     console.error(`[Packeta] Trying v6 REST label: ${restUrl}`);
     try {
       const restRes = await fetch(restUrl, {
         headers: { Accept: "application/pdf, application/json, */*" },
       });
-      console.error(`[Packeta] v6 REST label [${restRes.status}] content-type: ${restRes.headers.get("content-type")}`);
+      const ct = restRes.headers.get("content-type") || "";
+      console.error(`[Packeta] v6 REST label [${restRes.status}] content-type: ${ct}`);
       if (restRes.ok) {
-        const ct = restRes.headers.get("content-type") || "";
         if (ct.includes("pdf")) {
           return Buffer.from(await restRes.arrayBuffer());
         }
-        // Maybe JSON with base64
         const text = await restRes.text();
+        // Maybe JSON with base64
         try {
           const json = JSON.parse(text);
-          const b64 = json.label || json.pdf || json.data;
-          if (b64) return Buffer.from(b64.replace(/\s/g, ""), "base64");
+          const b64 = json.label || json.pdf || json.data || json.result;
+          if (b64) return Buffer.from(String(b64).replace(/\s/g, ""), "base64");
         } catch { /* not JSON */ }
-        console.error("[Packeta] v6 REST label unexpected body:", text.slice(0, 200));
+        // Maybe raw base64 string
+        if (/^[A-Za-z0-9+/=\r\n]{100,}$/.test(text.trim())) {
+          return Buffer.from(text.replace(/\s/g, ""), "base64");
+        }
+        console.error("[Packeta] v6 REST label unexpected body:", text.slice(0, 300));
       }
     } catch (e) {
       console.error("[Packeta] v6 REST label error:", e.message);
