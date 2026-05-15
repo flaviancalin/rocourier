@@ -223,9 +223,11 @@ export async function action({ request }) {
       awbNumber: awbResult.awbNumber,
       awbStatus: "generated",
       courierType: courier,
-      // Store courier-specific IDs needed for deletion / label download
-      ...(awbResult.parcelId  ? { awbPdfUrl: `gls_parcelid:${awbResult.parcelId}`   } : {}),
-      ...(awbResult.packetId  ? { awbPdfUrl: `packeta_id:${awbResult.packetId}`     } : {}),
+      // GLS: store the label PDF (already returned by PrintLabels) so download works without GetPrintedLabels
+      // Packeta: store the numeric packetId (needed for packetLabelPdf — barcode won't work)
+      ...(awbResult.labelBase64 ? { awbPdfUrl: `gls_label:${awbResult.labelBase64}` } :
+          awbResult.parcelId    ? { awbPdfUrl: `gls_parcelid:${awbResult.parcelId}` } : {}),
+      ...(awbResult.packetId    ? { awbPdfUrl: `packeta_id:${awbResult.packetId}`   } : {}),
     });
 
     // Sync to Shopify fulfillment (makes xConnector compatible)

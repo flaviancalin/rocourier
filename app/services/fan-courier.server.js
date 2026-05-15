@@ -268,8 +268,8 @@ export async function fanCreateAwb({
           ...(!isLockerService ? { returnPayment: "sender" } : {}),
           content:       "Colet",
           observation:   observations || order.notes || "",
-          // FANbox does not support open-upon-delivery; only apply for home delivery
-          ...(!isLockerService && openPackage ? { openPackage: 1 } : {}),
+          // FAN API requires openPackage to be explicit: 0 for lockers, 0 or 1 for home delivery
+          openPackage: isLockerService ? 0 : (openPackage ? 1 : 0),
           dimensions:    { width: 20, height: 15, length: 30 },
           // options: "V" = FANbox locker pickup, "S" = Saturday delivery
           ...(optionLetters ? { options: optionLetters } : {}),
@@ -335,8 +335,9 @@ export async function fanCreateAwb({
       .join("; ");
     throw new Error(`FAN AWB: ${msg}`);
   }
-  const fanError = firstResult?.message || data.message || data.error || JSON.stringify(data);
-  // Include pickupLocationId in error so we can verify the ID format being sent
+  // errors is sometimes a plain string ("An error occurred" = generic FAN rejection)
+  const errStr = typeof errors === "string" ? errors : null;
+  const fanError = firstResult?.message || errStr || data.message || data.error || JSON.stringify(data);
   const lockerCtx = isLockerService ? ` [locker: "${effectivePickupId}", service: "${service}"]` : "";
   throw new Error(`FAN AWB generation failed${lockerCtx}: ${fanError}`);
 }

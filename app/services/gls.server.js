@@ -91,9 +91,9 @@ async function glsRequest(base, method, body) {
   }
 
   // GLS returns errors with HTTP 200 but with an error list.
-  // The property name is ErrorCode (not Code) — check both for safety.
-  const errorList = data.PrintLabelsErrorList || data.GetParcelStatusErrors ||
-    data.DeleteLabelsErrorList || data.ErrorList;
+  // Each endpoint uses a different list key — check all known keys.
+  const errorList = data.PrintLabelsErrorList || data.GetPrintedLabelsErrorList ||
+    data.GetParcelStatusErrors || data.DeleteLabelsErrorList || data.ErrorList;
   if (errorList?.length > 0) {
     const first = errorList[0];
     const code = first.ErrorCode ?? first.Code ?? 0;
@@ -224,6 +224,8 @@ export async function glsCreateAwb({
     awbNumber: String(info.ParcelNumber),
     parcelId: info.ParcelId,
     pdfBase64: result.Labels ? Buffer.from(result.Labels, "base64") : null,
+    // Keep raw base64 string so generate-awb.js can store it in awbPdfUrl for direct download
+    labelBase64: result.Labels || null,
     raw: result,
   };
 }

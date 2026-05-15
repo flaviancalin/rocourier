@@ -56,22 +56,29 @@ export async function loader({ request }) {
       });
 
     } else if (courier === "gls") {
-      pdfBuffer = await glsDownloadAwbPdf({
-        username: settings.glsUsername,
-        password: settings.glsPassword,
-        sandbox: !!settings.glsSandbox,
-        awbNumber: order.awbNumber,
-      });
+      if (order.awbPdfUrl?.startsWith("gls_label:")) {
+        // Label was stored at AWB creation time — decode directly, no API call needed
+        pdfBuffer = Buffer.from(order.awbPdfUrl.replace("gls_label:", ""), "base64");
+      } else {
+        // Fallback for older orders that only have parcelId stored
+        pdfBuffer = await glsDownloadAwbPdf({
+          username: settings.glsUsername,
+          password: settings.glsPassword,
+          sandbox: !!settings.glsSandbox,
+          awbNumber: order.awbNumber,
+        });
+      }
 
     } else if (courier === "packeta") {
-      // Packeta needs packetId — stored as awbNumber (barcode) but label needs the id
-      // The packetId is stored in the awbPdfUrl field if present, else use awbNumber
+      // Packeta needs packetId — stored in awbPdfUrl with packeta_id: prefix
+      // barcode (awbNumber) is passed as fallback for the v6 REST label endpoint
       const packetId = order.awbPdfUrl?.startsWith("packeta_id:")
         ? order.awbPdfUrl.replace("packeta_id:", "")
         : order.awbNumber;
       pdfBuffer = await packetaDownloadLabel({
         apiKey: settings.packetaApiKey,
         packetId,
+        barcode: order.awbNumber,
       });
 
     } else {

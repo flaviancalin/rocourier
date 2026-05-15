@@ -258,73 +258,107 @@ export async function packetaCreatePacket({
 // POST /packetLabelPdf (XML) or GET /api/v6/{apiKey}/parcels/print/{id}
 // Returns binary PDF buffer
 // ─────────────────────────────────────────────────────────────────────────────
-export async function packetaDownloadLabel({ apiKey, packetId }) {
+export async function packetaDownloadLabel({ apiKey, packetId, barcode = null }) {
   // packetLabelPdf requires the numeric packet ID — barcodes (e.g. Z00012345678) are rejected.
-  // If awbPdfUrl was not stored at creation time, re-generate the AWB to get the correct ID.
   const numericId = parseInt(String(packetId), 10);
-  if (!numericId || isNaN(numericId)) {
-    throw new Error(
-      `Packeta PDF: "${packetId}" is not a numeric packet ID (it looks like a barcode). ` +
-      `Re-generate the AWB so the numeric ID gets saved.`
-    );
-  }
 
-  // First attempt: XML REST packetLabelPdf endpoint
-  const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
+  // ── Attempt 1: XML REST packetLabelPdf ──────────────────────────────────────
+  if (numericId && !isNaN(numericId)) {
+    const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
 <packetLabelPdf>
   <apiPassword>${xmlEscape(apiKey)}</apiPassword>
   <packetId>${numericId}</packetId>
   <offset>0</offset>
 </packetLabelPdf>`;
 
-  const res = await fetch(`${PACKETA_REST_BASE}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/xml; charset=utf-8",
-      Accept: "application/pdf, application/xml",
-    },
-    body: xmlBody,
-  });
+    const res = await fetch(`${PACKETA_REST_BASE}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/xml; charset=utf-8",
+        Accept: "application/pdf, application/xml, text/xml",
+      },
+      body: xmlBody,
+    });
 
-  console.error(`[Packeta] packetLabelPdf [${res.status}] content-type: ${res.headers.get("content-type")}`);
+    console.error(`[Packeta] packetLabelPdf [${res.status}] content-type: ${res.headers.get("content-type")}`);
 
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("[Packeta] packetLabelPdf error body:", text.slice(0, 600));
-    throw new Error(`Packeta label download failed [${res.status}]: ${text}`);
+    if (res.ok) {
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("pdf")) {
+        const arrayBuffer = await res.arrayBuffer();
+        return Buffer.from(arrayBuffer);
+      }
+
+      const xml = await res.text();
+      console.error("[Packeta] packetLabelPdf XML response:", xml.slice(0, 800));
+
+      const statusMatch = xml.match(/<status>([^<]+)<\/status>/i);
+      if (statusMatch?.[1] !== "fault") {
+        // Try to extract base64 PDF from result
+        const b64Match = xml.match(/<result>\s*([A-Za-z0-9+/=\r\n]+)\s*<\/result>/i) ||
+                         xml.match(/<labelContents>([^<]+)<\/labelContents>/i) ||
+                         xml.match(/<base64PDF>([^<]+)<\/base64PDF>/i);
+        if (b64Match?.[1]) {
+          return Buffer.from(b64Match[1].replace(/\s/g, ""), "base64");
+        }
+      }
+
+      // XML fault — extract message and code for logging, then fall through to REST fallback
+      const msgMatch = xml.match(/<message[^>]*>([^<]+)<\/message>/i) ||
+                       xml.match(/<faultString>([^<]+)<\/faultString>/i);
+      const codeMatch = xml.match(/<code[^>]*>\s*([^<\s]+)\s*<\/code>/i) ||
+                        xml.match(/<faultCode>([^<]+)<\/faultCode>/i);
+      const xmlErrMsg = msgMatch?.[1] || xml.slice(0, 200);
+      const xmlErrCode = codeMatch?.[1] || "?";
+      console.error(`[Packeta] packetLabelPdf XML fault [${xmlErrCode}]: ${xmlErrMsg} — trying REST fallback`);
+    } else {
+      const text = await res.text();
+      console.error("[Packeta] packetLabelPdf HTTP error:", res.status, text.slice(0, 300));
+    }
   }
 
-  const contentType = res.headers.get("content-type") || "";
-  if (contentType.includes("pdf")) {
-    const arrayBuffer = await res.arrayBuffer();
-    return Buffer.from(arrayBuffer);
+  // ── Attempt 2: v6 REST label endpoint (uses barcode / short API key) ─────────
+  // Packeta's v6 REST API: GET /v6/{apiKey}/parcels/print/{id or barcode}
+  const restTarget = barcode || String(numericId || packetId);
+  if (restTarget) {
+    const restUrl = `${PACKETA_PARCEL_BASE}/${encodeURIComponent(apiKey)}/parcels/print/${encodeURIComponent(restTarget)}`;
+    console.error(`[Packeta] Trying v6 REST label: ${restUrl}`);
+    try {
+      const restRes = await fetch(restUrl, {
+        headers: { Accept: "application/pdf, application/json, */*" },
+      });
+      console.error(`[Packeta] v6 REST label [${restRes.status}] content-type: ${restRes.headers.get("content-type")}`);
+      if (restRes.ok) {
+        const ct = restRes.headers.get("content-type") || "";
+        if (ct.includes("pdf")) {
+          return Buffer.from(await restRes.arrayBuffer());
+        }
+        // Maybe JSON with base64
+        const text = await restRes.text();
+        try {
+          const json = JSON.parse(text);
+          const b64 = json.label || json.pdf || json.data;
+          if (b64) return Buffer.from(b64.replace(/\s/g, ""), "base64");
+        } catch { /* not JSON */ }
+        console.error("[Packeta] v6 REST label unexpected body:", text.slice(0, 200));
+      }
+    } catch (e) {
+      console.error("[Packeta] v6 REST label error:", e.message);
+    }
   }
 
-  // Response is XML — log full response for debugging
-  const xml = await res.text();
-  console.error("[Packeta] packetLabelPdf XML response:", xml.slice(0, 800));
-
-  const statusMatch = xml.match(/<status>([^<]+)<\/status>/i);
-  if (statusMatch?.[1] === "fault") {
-    const msgMatch = xml.match(/<message[^>]*>([^<]+)<\/message>/i) ||
-                     xml.match(/<faultString>([^<]+)<\/faultString>/i) ||
-                     xml.match(/<string>([^<]+)<\/string>/i);
-    const codeMatch = xml.match(/<code[^>]*>\s*([^<\s]+)\s*<\/code>/i) ||
-                      xml.match(/<faultCode>([^<]+)<\/faultCode>/i);
-    const msg = msgMatch?.[1] || xml.slice(0, 300);
-    throw new Error(`Packeta label fault [${codeMatch?.[1] || "?"}]: ${msg}`);
+  // ── All attempts failed ───────────────────────────────────────────────────────
+  if (!numericId || isNaN(numericId)) {
+    throw new Error(
+      `Packeta PDF: "${packetId}" is not a numeric packet ID. ` +
+      `Re-generate the AWB so the numeric ID gets saved, then try again.`
+    );
   }
-
-  // Packeta packetLabelPdf returns base64 PDF inside <result>
-  const b64Match = xml.match(/<result>\s*([A-Za-z0-9+/=\r\n]+)\s*<\/result>/i) ||
-                   xml.match(/<labelContents>([^<]+)<\/labelContents>/i) ||
-                   xml.match(/<packetLabelContents>([^<]+)<\/packetLabelContents>/i) ||
-                   xml.match(/<base64PDF>([^<]+)<\/base64PDF>/i);
-  if (b64Match?.[1]) {
-    return Buffer.from(b64Match[1].replace(/\s/g, ""), "base64");
-  }
-
-  throw new Error(`Packeta label: unexpected response format: ${xml.slice(0, 300)}`);
+  throw new Error(
+    `Packeta label download failed for packetId ${numericId}. ` +
+    `The XML endpoint returned an error and the REST fallback also failed. ` +
+    `Check Railway logs for the full Packeta response.`
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
