@@ -263,15 +263,14 @@ export async function fanCreateAwb({
           weight:        order.weight || 1,
           cod:           order.codAmount || 0,
           declaredValue: declaredValue || 0,
-          // Locker services (FANbox / FANbox Cont Collector): sender always pre-pays shipping.
-          // "recipient" payment is invalid for lockers — recipient can only pay goods via mPOS (option Y).
-          payment:       isLockerService ? "sender" : (shipmentPayer === "sender" ? "sender" : "recipient"),
-          // returnPayment only for home delivery with COD — locker services don't use it
+          // FANbox Cont Collector (COD via mPOS): payment must be "sender" — shipping pre-paid,
+          // customer pays goods at locker. Regular FANbox and home delivery: dynamic per caller.
+          payment:       isLockerWithCod ? "sender" : (shipmentPayer === "sender" ? "sender" : "recipient"),
+          // returnPayment only for home delivery — locker services don't use it
           ...(!isLockerService ? { returnPayment: "sender" } : {}),
           content:       "Colet",
           observation:   observations || order.notes || "",
-          // FAN API requires openPackage to be explicit: 0 for lockers, 0 or 1 for home delivery
-          openPackage: isLockerService ? 0 : (openPackage ? 1 : 0),
+          openPackage:   isLockerService ? 0 : (openPackage ? 1 : 0),
           dimensions:    { width: 20, height: 15, length: 30 },
           // options: "V" = FANbox locker pickup, "S" = Saturday delivery
           ...(optionLetters ? { options: optionLetters } : {}),
@@ -280,9 +279,7 @@ export async function fanCreateAwb({
         recipient: {
           name:  order.customerName,
           phone: normalizePhone(order.customerPhone),
-          // FAN API docs don't include email in the recipient object; omit empty strings
-          // to avoid unexpected field rejection
-          ...(order.customerEmail ? { email: order.customerEmail } : {}),
+          email: order.customerEmail || "",
           address: isLockerService
             ? {
                 // FANbox: county+locality must come from the locker's own data (not the customer's address).
