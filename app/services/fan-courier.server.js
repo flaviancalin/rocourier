@@ -126,9 +126,11 @@ export async function fanGetPickupPoints({ clientId, username, password }) {
   return points.map((p) => {
     const addr = p.address || {};
     const street = [addr.street, addr.streetNo].filter(Boolean).join(" ");
-    const city   = addr.locality || addr.city || "";
-    const county = addr.county   || "";
-    const zip    = addr.zipCode  || "";
+    const city   = addr.locality || addr.city || p.locality || p.city || "";
+    // FAN API uses different field names across versions — try all known ones
+    const county = addr.county || addr.district || addr.judCode || addr.jud ||
+                   p.county || p.district || p.judCode || p.jud || "";
+    const zip    = addr.zipCode  || addr.zip || p.zipCode || p.zip || "";
 
     // p.code (e.g. "FAN0039") is what /intern-awb expects as pickupLocationId.
     // p.id (e.g. "F1000005") is FAN's internal identifier — NOT accepted by the AWB API.
@@ -278,10 +280,13 @@ export async function fanCreateAwb({
         recipient: {
           name:  order.customerName,
           phone: normalizePhone(order.customerPhone),
-          email: order.customerEmail || "",
+          // FAN API docs don't include email in the recipient object; omit empty strings
+          // to avoid unexpected field rejection
+          ...(order.customerEmail ? { email: order.customerEmail } : {}),
           address: isLockerService
             ? {
-                // FANbox: county+locality of the locker + pickupLocationId (string)
+                // FANbox: county+locality must match the locker's registered location exactly.
+                // Both fields are required — generate-awb.js ensures they come from the locker DB record.
                 county:           normalizeCounty(order.shippingCounty || "Bucuresti"),
                 locality:         order.shippingCity || "Bucuresti",
                 pickupLocationId: String(effectivePickupId),

@@ -76,9 +76,16 @@ export async function action({ request }) {
   if (lockerPoint) {
     if (lockerPoint.city)    orderData.shippingCity    = lockerPoint.city;
     if (lockerPoint.county)  orderData.shippingCounty  = lockerPoint.county;
+    else if (lockerPoint.address) {
+      // County is null in DB — try to extract it from the formatted address string
+      // Format stored at sync time: "Street Name, City, County"
+      const addrParts = lockerPoint.address.split(",").map((s) => s.trim()).filter(Boolean);
+      if (addrParts.length >= 2) orderData.shippingCounty = addrParts[addrParts.length - 1];
+    }
     if (!orderData.shippingAddress1) orderData.shippingAddress1 = lockerPoint.address || "";
     if (!orderData.shippingZip)      orderData.shippingZip      = lockerPoint.zip     || "";
   }
+  console.error(`[AWB] locker county="${orderData.shippingCounty}" city="${orderData.shippingCity}" from lockerPoint.county="${lockerPoint?.county}" lockerPoint.city="${lockerPoint?.city}"`);
 
   let awbResult;
 
