@@ -234,10 +234,11 @@ model DiscountCode {
 }
 
 model DiscountCodeUsage {
-  id      Int      @id @default(autoincrement())
-  code    String
-  shop    String
-  usedAt  DateTime @default(now())
+  id           Int          @id @default(autoincrement())
+  code         String
+  shop         String
+  usedAt       DateTime     @default(now())
+  discountCode DiscountCode @relation(fields: [code], references: [code])
 
   @@unique([code, shop])
 }
