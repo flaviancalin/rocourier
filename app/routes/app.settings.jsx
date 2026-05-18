@@ -156,7 +156,8 @@ export async function action({ request }) {
       glsClientNumber: get("glsClientNumber") || "",
       glsEnabled:      get("glsEnabled") === "true",
       glsSandbox:      get("glsSandbox") === "true",
-      packetaEnabled: get("packetaEnabled") === "true",
+      packetaEnabled:     get("packetaEnabled") === "true",
+      packetaLabelFormat: get("packetaLabelFormat") || "A6 on A4",
       xconnectorEnabled: get("xconnectorEnabled") === "true",
       defaultCourier:  get("defaultCourier") || "fan",
       defaultWeight:   parseFloat(get("defaultWeight")) || 1,
@@ -239,8 +240,9 @@ export default function Settings() {
   const [glsUsername,     setGlsUsername]     = useState(settings.glsUsername || "");
   const [glsPassword,     setGlsPassword]     = useState("");
 
-  const [packetaEnabled, setPacketaEnabled] = useState(!!settings.packetaEnabled);
-  const [packetaApiKey,  setPacketaApiKey]  = useState("");
+  const [packetaEnabled,     setPacketaEnabled]     = useState(!!settings.packetaEnabled);
+  const [packetaApiKey,      setPacketaApiKey]      = useState("");
+  const [packetaLabelFormat, setPacketaLabelFormat] = useState(settings.packetaLabelFormat || "A6 on A4");
 
   const [xconnectorEnabled, setXconnectorEnabled] = useState(!!settings.xconnectorEnabled);
   const [xconnectorApiKey,  setXconnectorApiKey]  = useState("");
@@ -309,6 +311,7 @@ export default function Settings() {
       glsEnabled: String(glsEnabled), glsSandbox: String(glsSandbox),
       glsClientNumber, glsUsername,
       packetaEnabled: String(packetaEnabled),
+      packetaLabelFormat,
       xconnectorEnabled: String(xconnectorEnabled),
       defaultCourier, defaultWeight,
       showPickupMap: String(showPickupMap),
@@ -330,7 +333,7 @@ export default function Settings() {
       samedayEnabled, samedayUsername, samedayPassword, samedaySandbox,
       cargusEnabled, cargusSubscriptionKey, cargusUsername, cargusPassword,
       glsEnabled, glsClientNumber, glsUsername, glsPassword, glsSandbox,
-      packetaEnabled, packetaApiKey,
+      packetaEnabled, packetaApiKey, packetaLabelFormat,
       xconnectorEnabled, xconnectorApiKey, defaultCourier, defaultWeight,
       showPickupMap, autoGenerateAwb, widgetLanguage,
       fanHomeDeliveryFee, fanPickupFee, samedayHomeDeliveryFee, samedayPickupFee,
@@ -604,6 +607,16 @@ export default function Settings() {
                             placeholder={t("packeta_api_key_ph")}
                             helpText={t("packeta_api_key_help")}
                             autoComplete="new-password"
+                          />
+                          <Select
+                            label="Format etichetă AWB"
+                            value={packetaLabelFormat}
+                            onChange={setPacketaLabelFormat}
+                            options={[
+                              { label: "A6 pe A4 (recomandat — 1 etichetă mare per foaie)", value: "A6 on A4" },
+                              { label: "A7 pe A4 (4 etichete mici per foaie)", value: "A7 on A4" },
+                            ]}
+                            helpText="Dimensiunea etichetei Packeta generată la descărcarea AWB."
                           />
                         </FormLayout>
                         {actionData?.testResult?.courier === "packeta" && (

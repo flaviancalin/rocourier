@@ -79,6 +79,7 @@ export async function loader({ request }) {
         apiKey: settings.packetaApiKey,
         packetId,
         barcode: order.awbNumber,
+        format: settings.packetaLabelFormat || "A6 on A4",
       });
 
     } else {

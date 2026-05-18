@@ -58,7 +58,7 @@ async function fetchPdf(order, settings) {
     const packetId = order.awbPdfUrl?.startsWith("packeta_id:")
       ? order.awbPdfUrl.replace("packeta_id:", "")
       : order.awbNumber;
-    return packetaDownloadLabel({ apiKey: settings.packetaApiKey, packetId });
+    return packetaDownloadLabel({ apiKey: settings.packetaApiKey, packetId, format: settings.packetaLabelFormat || "A6 on A4" });
   }
 
   throw new Error(`Unsupported courier: ${courier}`);

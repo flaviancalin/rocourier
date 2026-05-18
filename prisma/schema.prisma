@@ -72,8 +72,9 @@ model ShopSettings {
 
   // ── Packeta (Zásilkovna) ─────────────────────────────────────────────────────
   // Get from: client.packeta.com → Settings → API → API password
-  packetaApiKey  String?
-  packetaEnabled Boolean  @default(false)
+  packetaApiKey     String?
+  packetaEnabled    Boolean @default(false)
+  packetaLabelFormat String @default("A6 on A4")  // "A6 on A4" | "A7 on A4"
 
   // ── xConnector Note ──────────────────────────────────────────────────────────
   // xConnector is a separate Shopify App (by InfoQuest, apps.shopify.com/xconnector)
