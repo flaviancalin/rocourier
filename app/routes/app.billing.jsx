@@ -13,6 +13,8 @@ import { prisma } from "../db.server.js";
 const TRIAL_LIMIT   = 10;
 const APP_URL       = process.env.SHOPIFY_APP_URL || "https://rocourier-production.up.railway.app";
 const RETURN_URL    = `${APP_URL}/app/billing`;
+// Use test mode in non-production environments so Shopify reviewers can test billing
+const BILLING_TEST  = process.env.NODE_ENV !== "production";
 
 const PLANS = {
   monthly:  { name: "Pro Monthly",  price: 19.00,  interval: "EVERY_30_DAYS", label: "$19 / lună",  badge: null },
@@ -167,8 +169,8 @@ export async function action({ request }) {
 
       if (plan === "lifetime") {
         const res = await admin.graphql(`
-          mutation appPurchaseOneTimeCreate($name: String!, $price: MoneyInput!, $returnUrl: URL!) {
-            appPurchaseOneTimeCreate(name: $name, price: $price, returnUrl: $returnUrl, test: false) {
+          mutation appPurchaseOneTimeCreate($name: String!, $price: MoneyInput!, $returnUrl: URL!, $test: Boolean!) {
+            appPurchaseOneTimeCreate(name: $name, price: $price, returnUrl: $returnUrl, test: $test) {
               appPurchaseOneTime { id status }
               confirmationUrl
               userErrors { field message }
@@ -179,6 +181,7 @@ export async function action({ request }) {
             name:      planConfig.name,
             price:     { amount: price, currencyCode: "USD" },
             returnUrl,
+            test:      BILLING_TEST,
           },
         });
         const body = await res.json();
@@ -190,8 +193,8 @@ export async function action({ request }) {
 
       } else {
         const res = await admin.graphql(`
-          mutation appSubscriptionCreate($name: String!, $lineItems: [AppSubscriptionLineItemInput!]!, $returnUrl: URL!) {
-            appSubscriptionCreate(name: $name, lineItems: $lineItems, returnUrl: $returnUrl, test: false) {
+          mutation appSubscriptionCreate($name: String!, $lineItems: [AppSubscriptionLineItemInput!]!, $returnUrl: URL!, $test: Boolean!) {
+            appSubscriptionCreate(name: $name, lineItems: $lineItems, returnUrl: $returnUrl, test: $test) {
               appSubscription { id status }
               confirmationUrl
               userErrors { field message }
@@ -201,6 +204,7 @@ export async function action({ request }) {
           variables: {
             name:      planConfig.name,
             returnUrl,
+            test:      BILLING_TEST,
             lineItems: [{
               plan: {
                 appRecurringPricingDetails: {
