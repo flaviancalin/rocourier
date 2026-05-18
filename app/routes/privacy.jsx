@@ -15,10 +15,10 @@ export default function PrivacyPolicy() {
     <div style={styles.page}>
       <div style={styles.container}>
         <h1 style={styles.h1}>Privacy Policy</h1>
-        <p style={styles.meta}>Last updated: April 2025</p>
+        <p style={styles.meta}>Last updated: May 2026</p>
 
         <p>
-          This Privacy Policy explains how <strong>TODO: Your Company Name</strong>{" "}
+          This Privacy Policy explains how <strong>Flash Stations</strong>{" "}
           (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;) collects, uses, and protects
           personal data when you use the <strong>Picklo</strong> Shopify application
           (&ldquo;the App&rdquo;).
@@ -26,9 +26,9 @@ export default function PrivacyPolicy() {
 
         <h2 style={styles.h2}>1. Who We Are</h2>
         <p>
-          <strong>TODO: Your Company Name</strong><br />
-          TODO: Company address, City, Country<br />
-          Contact: <a href="mailto:TODO@yourdomain.com">TODO@yourdomain.com</a>
+          <strong>Flash Stations</strong><br />
+          Strada Dan Defleury, Dolj County, Romania<br />
+          Contact: <a href="mailto:theflashstations@gmail.com">theflashstations@gmail.com</a>
         </p>
 
         <h2 style={styles.h2}>2. What Data We Collect</h2>
@@ -91,7 +91,7 @@ export default function PrivacyPolicy() {
         </ul>
         <p>
           To exercise these rights, contact us at{" "}
-          <a href="mailto:TODO@yourdomain.com">TODO@yourdomain.com</a>.
+          <a href="mailto:theflashstations@gmail.com">theflashstations@gmail.com</a>.
         </p>
 
         <h2 style={styles.h2}>7. Security</h2>
@@ -111,11 +111,11 @@ export default function PrivacyPolicy() {
         <h2 style={styles.h2}>9. Contact</h2>
         <p>
           For any privacy-related questions, contact us at{" "}
-          <a href="mailto:TODO@yourdomain.com">TODO@yourdomain.com</a>.
+          <a href="mailto:theflashstations@gmail.com">theflashstations@gmail.com</a>.
         </p>
 
         <p style={styles.footer}>
-          &copy; {new Date().getFullYear()} TODO: Your Company Name. All rights reserved.
+          &copy; {new Date().getFullYear()} Flash Stations. All rights reserved.
         </p>
       </div>
     </div>
