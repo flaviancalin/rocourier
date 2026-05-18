@@ -255,145 +255,68 @@ export async function packetaCreatePacket({
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Download label PDF
-// POST /packetLabelPdf (XML) or GET /api/v6/{apiKey}/parcels/print/{id}
-// Returns binary PDF buffer
+// POST /packetLabelPdf (XML) — response is base64 in <result> tag
+// format is REQUIRED: "A7 on A4" or "A6 on A4"
 // ─────────────────────────────────────────────────────────────────────────────
-export async function packetaDownloadLabel({ apiKey, packetId, barcode = null }) {
-  // packetLabelPdf requires the numeric packet ID — barcodes (e.g. Z00012345678) are rejected.
+export async function packetaDownloadLabel({ apiKey, packetId, barcode = null, format = "A6 on A4" }) {
   const numericId = parseInt(String(packetId), 10);
 
-  // ── Attempt 1: XML REST packetLabelPdf ──────────────────────────────────────
-  if (numericId && !isNaN(numericId)) {
-    const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
-<packetLabelPdf>
-  <apiPassword>${xmlEscape(apiKey)}</apiPassword>
-  <packetId>${numericId}</packetId>
-  <offset>0</offset>
-</packetLabelPdf>`;
-
-    const res = await fetch(`${PACKETA_REST_BASE}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/xml; charset=utf-8",
-        Accept: "application/pdf, application/xml, text/xml",
-      },
-      body: xmlBody,
-    });
-
-    console.error(`[Packeta] packetLabelPdf [${res.status}] content-type: ${res.headers.get("content-type")}`);
-
-    if (res.ok) {
-      const contentType = res.headers.get("content-type") || "";
-      if (contentType.includes("pdf")) {
-        const arrayBuffer = await res.arrayBuffer();
-        return Buffer.from(arrayBuffer);
-      }
-
-      const xml = await res.text();
-      console.error("[Packeta] packetLabelPdf XML response:", xml.slice(0, 800));
-
-      const statusMatch = xml.match(/<status>([^<]+)<\/status>/i);
-      if (statusMatch?.[1] !== "fault") {
-        // Try to extract base64 PDF from result
-        const b64Match = xml.match(/<result>\s*([A-Za-z0-9+/=\r\n]+)\s*<\/result>/i) ||
-                         xml.match(/<labelContents>([^<]+)<\/labelContents>/i) ||
-                         xml.match(/<base64PDF>([^<]+)<\/base64PDF>/i);
-        if (b64Match?.[1]) {
-          return Buffer.from(b64Match[1].replace(/\s/g, ""), "base64");
-        }
-      }
-
-      // XML fault — extract message and code for logging, then fall through to REST fallback
-      const msgMatch = xml.match(/<message[^>]*>([^<]+)<\/message>/i) ||
-                       xml.match(/<faultString>([^<]+)<\/faultString>/i);
-      const codeMatch = xml.match(/<code[^>]*>\s*([^<\s]+)\s*<\/code>/i) ||
-                        xml.match(/<faultCode>([^<]+)<\/faultCode>/i);
-      const xmlErrMsg = msgMatch?.[1] || xml.slice(0, 200);
-      const xmlErrCode = codeMatch?.[1] || "?";
-      console.error(`[Packeta] packetLabelPdf XML fault [${xmlErrCode}]: ${xmlErrMsg} — trying REST fallback`);
-    } else {
-      const text = await res.text();
-      console.error("[Packeta] packetLabelPdf HTTP error:", res.status, text.slice(0, 300));
-    }
-  }
-
-  // ── Attempt 2: XML without offset (some Packeta accounts reject the offset field) ──
-  if (numericId && !isNaN(numericId)) {
-    const xmlBodyNoOffset = `<?xml version="1.0" encoding="utf-8"?>
-<packetLabelPdf>
-  <apiPassword>${xmlEscape(apiKey)}</apiPassword>
-  <packetId>${numericId}</packetId>
-</packetLabelPdf>`;
-    try {
-      const res2 = await fetch(`${PACKETA_REST_BASE}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/xml; charset=utf-8", Accept: "*/*" },
-        body: xmlBodyNoOffset,
-      });
-      console.error(`[Packeta] packetLabelPdf no-offset [${res2.status}] content-type: ${res2.headers.get("content-type")}`);
-      if (res2.ok) {
-        const ct2 = res2.headers.get("content-type") || "";
-        if (ct2.includes("pdf") || ct2.includes("octet")) {
-          return Buffer.from(await res2.arrayBuffer());
-        }
-        const txt2 = await res2.text();
-        const b64m = txt2.match(/<result>\s*([A-Za-z0-9+/=\r\n]+)\s*<\/result>/i);
-        if (b64m?.[1]) return Buffer.from(b64m[1].replace(/\s/g, ""), "base64");
-        console.error("[Packeta] packetLabelPdf no-offset XML:", txt2.slice(0, 400));
-      }
-    } catch (e) { console.error("[Packeta] packetLabelPdf no-offset error:", e.message); }
-  }
-
-  // ── Attempt 3: v6 REST label endpoint ────────────────────────────────────────
-  // Try multiple URL patterns — Packeta's v6 REST docs are not fully public.
-  const restCandidates = [
-    barcode ? `${PACKETA_PARCEL_BASE}/${encodeURIComponent(apiKey)}/parcel/${encodeURIComponent(barcode)}/label` : null,
-    numericId ? `${PACKETA_PARCEL_BASE}/${encodeURIComponent(apiKey)}/parcel/${numericId}/label` : null,
-    barcode ? `${PACKETA_PARCEL_BASE}/${encodeURIComponent(apiKey)}/packets/${encodeURIComponent(barcode)}/label` : null,
-  ].filter(Boolean);
-
-  for (const restUrl of restCandidates) {
-    console.error(`[Packeta] Trying v6 REST label: ${restUrl}`);
-    try {
-      const restRes = await fetch(restUrl, {
-        headers: { Accept: "application/pdf, application/json, */*" },
-      });
-      const ct = restRes.headers.get("content-type") || "";
-      console.error(`[Packeta] v6 REST label [${restRes.status}] content-type: ${ct}`);
-      if (restRes.ok) {
-        if (ct.includes("pdf")) {
-          return Buffer.from(await restRes.arrayBuffer());
-        }
-        const text = await restRes.text();
-        // Maybe JSON with base64
-        try {
-          const json = JSON.parse(text);
-          const b64 = json.label || json.pdf || json.data || json.result;
-          if (b64) return Buffer.from(String(b64).replace(/\s/g, ""), "base64");
-        } catch { /* not JSON */ }
-        // Maybe raw base64 string
-        if (/^[A-Za-z0-9+/=\r\n]{100,}$/.test(text.trim())) {
-          return Buffer.from(text.replace(/\s/g, ""), "base64");
-        }
-        console.error("[Packeta] v6 REST label unexpected body:", text.slice(0, 300));
-      }
-    } catch (e) {
-      console.error("[Packeta] v6 REST label error:", e.message);
-    }
-  }
-
-  // ── All attempts failed ───────────────────────────────────────────────────────
   if (!numericId || isNaN(numericId)) {
     throw new Error(
       `Packeta PDF: "${packetId}" is not a numeric packet ID. ` +
       `Re-generate the AWB so the numeric ID gets saved, then try again.`
     );
   }
-  throw new Error(
-    `Packeta label download failed for packetId ${numericId}. ` +
-    `The XML endpoint returned an error and the REST fallback also failed. ` +
-    `Check Railway logs for the full Packeta response.`
-  );
+
+  const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
+<packetLabelPdf>
+  <apiPassword>${xmlEscape(apiKey)}</apiPassword>
+  <packetId>${numericId}</packetId>
+  <format>${xmlEscape(format)}</format>
+  <offset>0</offset>
+</packetLabelPdf>`;
+
+  const res = await fetch(`${PACKETA_REST_BASE}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/xml; charset=utf-8",
+      Accept: "application/xml, text/xml",
+    },
+    body: xmlBody,
+  });
+
+  const rawText = await res.text();
+  console.error(`[Packeta] packetLabelPdf [${res.status}] content-type: ${res.headers.get("content-type")}`);
+  console.error("[Packeta] packetLabelPdf response:", rawText.slice(0, 600));
+
+  if (!res.ok) {
+    throw new Error(`Packeta API HTTP error [${res.status}]: ${rawText.slice(0, 300)}`);
+  }
+
+  // Success: base64 PDF in <result>
+  const statusMatch = rawText.match(/<status>([^<]+)<\/status>/i);
+  const status = statusMatch?.[1];
+
+  if (status === "ok" || !status) {
+    const b64Match = rawText.match(/<result>([\s\S]+?)<\/result>/i);
+    if (b64Match?.[1]) {
+      const b64 = b64Match[1].replace(/\s/g, "");
+      if (b64.length > 100) {
+        return Buffer.from(b64, "base64");
+      }
+    }
+  }
+
+  // Fault — extract error message
+  const msgMatch = rawText.match(/<message[^>]*>([^<]+)<\/message>/i) ||
+                   rawText.match(/<faultString>([^<]+)<\/faultString>/i) ||
+                   rawText.match(/<string>([^<]+)<\/string>/i);
+  const codeMatch = rawText.match(/<code[^>]*>\s*([^<\s]+)\s*<\/code>/i) ||
+                    rawText.match(/<faultCode>([^<]+)<\/faultCode>/i);
+  const errMsg  = msgMatch?.[1]  || rawText.slice(0, 200);
+  const errCode = codeMatch?.[1] || "?";
+
+  throw new Error(`Packeta label error [${errCode}]: ${errMsg}`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
