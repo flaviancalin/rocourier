@@ -129,7 +129,7 @@ export async function loader({ request }) {
     }),
     prisma.shopSettings.findUnique({
       where: { shop },
-      select: { fanEnabled: true, samedayEnabled: true, cargusEnabled: true, glsEnabled: true, packetaEnabled: true },
+      select: { fanEnabled: true, samedayEnabled: true, cargusEnabled: true, glsEnabled: true, packetaEnabled: true, planType: true, awbCount: true },
     }),
   ]);
 
@@ -637,6 +637,25 @@ export default function OrdersPage() {
         }}
       >
         <Layout>
+          {/* Trial warning */}
+          {settings?.planType === "trial" && (() => {
+            const left = Math.max(0, 10 - (settings.awbCount || 0));
+            if (left > 3) return null;
+            return (
+              <Layout.Section>
+                <Banner
+                  tone={left === 0 ? "critical" : "warning"}
+                  title={left === 0 ? "Trial expirat — nu mai poți genera AWB-uri" : `Atenție: îți mai rămân ${left} AWB-uri gratuite`}
+                  action={{ content: "Activează un plan", url: "/app/billing" }}
+                >
+                  {left === 0
+                    ? "Ai atins limita de 10 AWB-uri gratuite. Activează un plan Pro pentru a continua."
+                    : `Ai generat ${settings.awbCount} din 10 AWB-uri gratuite. Activează un plan înainte să rămâi fără.`}
+                </Banner>
+              </Layout.Section>
+            );
+          })()}
+
           {/* Sync error */}
           {syncError && (
             <Layout.Section>

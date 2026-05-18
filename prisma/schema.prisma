@@ -72,9 +72,15 @@ model ShopSettings {
 
   // ── Packeta (Zásilkovna) ─────────────────────────────────────────────────────
   // Get from: client.packeta.com → Settings → API → API password
-  packetaApiKey     String?
-  packetaEnabled    Boolean @default(false)
-  packetaLabelFormat String @default("A6 on A4")  // "A6 on A4" | "A7 on A4"
+  packetaApiKey      String?
+  packetaEnabled     Boolean @default(false)
+  packetaLabelFormat String  @default("A6 on A4")  // "A6 on A4" | "A7 on A4"
+
+  // ── Billing / Plan ───────────────────────────────────────────────────────────
+  planType          String    @default("trial")  // "trial" | "pro_monthly" | "pro_yearly" | "lifetime"
+  awbCount          Int       @default(0)         // cumulative AWBs generated (trial gate)
+  shopifyChargeId   String?                       // active Shopify subscription/charge GID
+  planActivatedAt   DateTime?
 
   // ── xConnector Note ──────────────────────────────────────────────────────────
   // xConnector is a separate Shopify App (by InfoQuest, apps.shopify.com/xconnector)
@@ -212,4 +218,26 @@ model PickupPoint {
   @@index([courier])
   @@index([county])
   @@index([country])
+}
+
+// ─── Discount Codes ───────────────────────────────────────────────────────────
+model DiscountCode {
+  id         Int      @id @default(autoincrement())
+  code       String   @unique
+  type       String   // "lifetime_gift" | "percent"
+  percentOff Int?     // e.g. 20 = 20% off (only for "percent" type)
+  maxUses    Int?     // null = unlimited
+  usedCount  Int      @default(0)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  usages     DiscountCodeUsage[]
+}
+
+model DiscountCodeUsage {
+  id      Int      @id @default(autoincrement())
+  code    String
+  shop    String
+  usedAt  DateTime @default(now())
+
+  @@unique([code, shop])
 }

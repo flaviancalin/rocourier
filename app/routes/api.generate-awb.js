@@ -39,6 +39,15 @@ export async function action({ request }) {
   if (!order) return json({ error: "Order not found" }, { status: 404 });
   if (!settings) return json({ error: "Shop not configured" }, { status: 400 });
 
+  // ── Trial / plan gate ────────────────────────────────────────────────────────
+  const TRIAL_LIMIT = 10;
+  if (settings.planType === "trial" && settings.awbCount >= TRIAL_LIMIT) {
+    return json({
+      error: `Ai atins limita de ${TRIAL_LIMIT} AWB-uri gratuite. Activează un plan Pro pentru a continua.`,
+      requiresUpgrade: true,
+    }, { status: 402 });
+  }
+
   const courier = courierOverride || order.courierType;
   const orderData = {
     ...order,
@@ -224,6 +233,12 @@ export async function action({ request }) {
     if (!awbResult?.success) {
       throw new Error("AWB generation returned unsuccessful result");
     }
+
+    // Increment AWB counter (used for trial gate)
+    await prisma.shopSettings.update({
+      where: { shop },
+      data: { awbCount: { increment: 1 } },
+    });
 
     // Update our DB — also persist the actual courier used (wizard may override order.courierType)
     const updatedOrder = await updateOrderAwb(order.id, {
