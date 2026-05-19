@@ -21,28 +21,22 @@ export default function AuthLogin() {
       <div style={{
         background: "#fff", borderRadius: 12, padding: 40,
         boxShadow: "0 2px 16px rgba(0,0,0,0.10)", maxWidth: 400, width: "100%",
+        textAlign: "center",
       }}>
-        <h1 style={{ marginBottom: 8 }}>🚚 Picklo</h1>
-        <form method="post">
-          <input
-            type="text"
-            name="shop"
-            placeholder="your-store.myshopify.com"
-            style={{
-              width: "100%", padding: "10px 12px", borderRadius: 6,
-              border: "1px solid #ccc", fontSize: 15, marginBottom: 12,
-              boxSizing: "border-box",
-            }}
-            required
-          />
-          <button type="submit" style={{
-            width: "100%", padding: "10px 0", background: "#008060",
-            color: "#fff", border: "none", borderRadius: 6,
-            fontSize: 15, cursor: "pointer", fontWeight: 600,
-          }}>
-            Install App
-          </button>
-        </form>
+        <h1 style={{ marginBottom: 8, fontSize: 22 }}>Picklo</h1>
+        <p style={{ color: "#6b7280", fontSize: 15, marginBottom: 24, lineHeight: 1.6 }}>
+          To install Picklo, visit the Shopify App Store and click <strong>Install</strong> from your store.
+        </p>
+        <a
+          href="https://apps.shopify.com/picklo"
+          style={{
+            display: "inline-block", padding: "10px 24px", background: "#008060",
+            color: "#fff", borderRadius: 6, fontSize: 15, fontWeight: 600,
+            textDecoration: "none",
+          }}
+        >
+          Go to Shopify App Store
+        </a>
       </div>
     </div>
   );
