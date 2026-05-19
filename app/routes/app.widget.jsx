@@ -1,7 +1,6 @@
 // app/routes/app.widget.jsx
 // Admin page: Picklo Cart Drawer Widget — generates injectable Liquid snippet
 import { json } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
 import { authenticate } from "../shopify.server.js";
 import {
   Page, Layout, Card, Text, BlockStack,
@@ -10,30 +9,26 @@ import {
 import { useTranslation } from "../context/i18n.jsx";
 
 export async function loader({ request }) {
-  const { session } = await authenticate.admin(request);
-  return json({ shop: session.shop });
+  await authenticate.admin(request);
+  return json({});
 }
 
 
 export default function WidgetPage() {
-  const { shop } = useLoaderData();
   const { t } = useTranslation();
-
-  // Deep link: opens Theme Editor on the cart template and auto-adds the Picklo app block
-  const addBlockUrl  = `https://${shop}/admin/themes/current/editor?template=cart&addAppBlockId=rocourier-cart/shipping-selector&target=newAppsSection`;
-  const themeEditorUrl = `https://${shop}/admin/themes/current/editor?template=cart`;
 
   return (
     <Page
       title={t("nav_widget")}
-      subtitle="Instalare widget Picklo prin Shopify Theme App Extension"
+      subtitle="Widget selector curier pentru cart drawer"
     >
       <Layout>
         <Layout.Section>
-          <Banner tone="success">
+          <Banner tone="info">
             <p>
-              Widgetul Picklo folosește o <strong>Theme App Extension</strong> — instalarea nu necesită
-              modificarea manuală a codului temei tale.
+              Widgetul Picklo pentru cart drawer se integrează direct în tema magazinului tău.
+              Deoarece fiecare temă Shopify are o structură diferită, echipa noastră se ocupă
+              de instalare gratuit — fără modificări manuale din partea ta.
             </p>
           </Banner>
         </Layout.Section>
@@ -41,16 +36,19 @@ export default function WidgetPage() {
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
-              <Text variant="headingMd" fontWeight="semibold">Pasul 1 — Adaugă blocul în tema ta</Text>
-              <Text variant="bodyMd" tone="subdued">
-                Apasă butonul de mai jos. Shopify va deschide Theme Editor pe template-ul Cart și va
-                adăuga automat blocul <strong>Picklo Cart Widget</strong> în secțiunea de aplicații.
-              </Text>
-              <Box>
-                <Button variant="primary" url={addBlockUrl} external size="large">
-                  Adaugă widgetul Picklo în temă
-                </Button>
-              </Box>
+              <Text variant="headingMd" fontWeight="semibold">Ce face widgetul</Text>
+              <BlockStack gap="200">
+                <Text variant="bodyMd" tone="subdued">
+                  Widgetul apare în cart drawer-ul magazinului tău și permite clienților să aleagă
+                  metoda de livrare (acasă sau punct de ridicare) înainte de checkout.
+                </Text>
+                <Divider />
+                <Text variant="bodySm" tone="subdued">• Selector livrare acasă vs. punct de ridicare (locker, easybox, ParcelShop)</Text>
+                <Text variant="bodySm" tone="subdued">• Hartă interactivă cu toate punctele de ridicare disponibile</Text>
+                <Text variant="bodySm" tone="subdued">• Suport FAN Courier, Sameday, Cargus, GLS, Packeta</Text>
+                <Text variant="bodySm" tone="subdued">• Compatibil cu temele Dawn, Debut, Impulse, Prestige și altele</Text>
+                <Text variant="bodySm" tone="subdued">• Răspunde la setarea de limbă din aplicație (RO / EN / DE / HU)</Text>
+              </BlockStack>
             </BlockStack>
           </Card>
         </Layout.Section>
@@ -58,35 +56,27 @@ export default function WidgetPage() {
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
-              <Text variant="headingMd" fontWeight="semibold">Pasul 2 — Configurează curierii și tarifele</Text>
+              <Text variant="headingMd" fontWeight="semibold">Solicită instalarea gratuită</Text>
               <Text variant="bodyMd" tone="subdued">
-                După ce blocul este adăugat, selectează-l în Theme Editor. În panoul din dreapta vei
-                putea activa/dezactiva fiecare curier și seta tarifele de livrare acasă și la punct de ridicare.
+                Trimite-ne un email sau un mesaj WhatsApp și ne ocupăm de instalare în termen de 24 de ore.
+                Nu ai nevoie de cunoștințe tehnice — noi facem tot.
               </Text>
               <Divider />
-              <BlockStack gap="200">
-                <Text variant="bodySm" tone="subdued" fontWeight="semibold">Ce poți configura direct în tema:</Text>
-                <Text variant="bodySm" tone="subdued">• Activare FAN Courier, Sameday, Cargus, GLS, Packeta</Text>
-                <Text variant="bodySm" tone="subdued">• Tarife livrare acasă și punct ridicare (RON) per curier</Text>
-                <Text variant="bodySm" tone="subdued">• URL aplicație (completat automat)</Text>
+              <BlockStack gap="300">
+                <Box>
+                  <Button
+                    variant="primary"
+                    url="mailto:support@picklo.app?subject=Instalare%20widget%20cart%20drawer&body=Buna%20ziua%2C%20as%20dori%20instalarea%20widgetului%20Picklo%20pe%20magazinul%20meu."
+                    external
+                  >
+                    Trimite email — support@picklo.app
+                  </Button>
+                </Box>
+                <Text variant="bodySm" tone="subdued">
+                  Sau contactează-ne pe WhatsApp pentru răspuns rapid.
+                  Instalarea este gratuită pentru toți utilizatorii Picklo.
+                </Text>
               </BlockStack>
-              <Box>
-                <Button url={themeEditorUrl} external>
-                  Deschide Theme Editor
-                </Button>
-              </Box>
-            </BlockStack>
-          </Card>
-        </Layout.Section>
-
-        <Layout.Section>
-          <Card>
-            <BlockStack gap="300">
-              <Text variant="headingMd" fontWeight="semibold">Credențiale API curieri</Text>
-              <Text variant="bodyMd" tone="subdued">
-                Cheile API și credențialele pentru fiecare curier se configurează în pagina{" "}
-                <strong>Setări</strong>, nu în tema Shopify.
-              </Text>
             </BlockStack>
           </Card>
         </Layout.Section>
