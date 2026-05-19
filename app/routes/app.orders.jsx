@@ -15,89 +15,6 @@ import {
 } from "@shopify/polaris";
 import { useTranslation } from "../context/i18n.jsx";
 
-// ─── Background sync (fire-and-forget, never blocks page load) ───────────────
-async function syncShopifyOrders(shop, token) {
-  const FIELDS = "id,name,created_at,note_attributes,shipping_address,customer,total_price,line_items";
-  let nextUrl = `https://${shop}/admin/api/2024-10/orders.json?status=any&limit=250&fields=${FIELDS}`;
-
-  while (nextUrl) {
-    const res = await fetch(nextUrl, { headers: { "X-Shopify-Access-Token": token } });
-    if (!res.ok) break;
-
-    const { orders: shopifyOrders } = await res.json();
-    for (const o of shopifyOrders || []) {
-      const attrs = {};
-      (o.note_attributes || []).forEach((a) => { attrs[a.name] = a.value; });
-
-      const method  = attrs["_rc_method"]        || attrs["_rocourier_method"]        || "home_delivery";
-      const courier = attrs["_rc_courier"]       || attrs["_rocourier_courier"]       || "fan";
-      const pid     = attrs["_rc_point_id"]      || attrs["_rocourier_point_id"]      || null;
-      const pname   = attrs["_rc_point_name"]    || attrs["_rocourier_point_name"]    || null;
-      const paddr   = attrs["_rc_point_address"] || attrs["_rocourier_point_address"] || null;
-
-      const sa = o.shipping_address || {};
-      const weightKg = (o.line_items || []).reduce(
-        (sum, item) => sum + (item.grams || 0) * (item.quantity || 1), 0
-      ) / 1000;
-
-      const data = {
-        shopifyOrderName:    o.name,
-        customerName:        [sa.first_name, sa.last_name].filter(Boolean).join(" ") || o.customer?.first_name || "Unknown",
-        customerPhone:       sa.phone || o.customer?.phone || "",
-        customerEmail:       o.customer?.email || "",
-        shippingAddress1:    sa.address1 || "",
-        shippingCity:        sa.city || "",
-        shippingCounty:      sa.province || "",
-        shippingZip:         sa.zip || "",
-        shippingCountry:     sa.country_code || "RO",
-        shippingMethod:      method,
-        courierType:         courier,
-        pickupPointId:       pid,
-        pickupPointName:     pname,
-        pickupPointAddress:  paddr,
-        codAmount:           parseFloat(o.total_price) || 0,
-        orderTotal:          parseFloat(o.total_price) || 0,
-        weight:              weightKg > 0 ? weightKg : undefined,
-        shopifyCreatedAt:    new Date(o.created_at),
-      };
-
-      await prisma.order.upsert({
-        where: { shop_shopifyOrderId: { shop, shopifyOrderId: String(o.id) } },
-        update: {
-          shopifyOrderName:   data.shopifyOrderName,
-          customerName:       data.customerName,
-          customerPhone:      data.customerPhone,
-          customerEmail:      data.customerEmail,
-          shippingAddress1:   data.shippingAddress1,
-          shippingCity:       data.shippingCity,
-          shippingCounty:     data.shippingCounty,
-          shippingZip:        data.shippingZip,
-          codAmount:          data.codAmount,
-          orderTotal:         data.orderTotal,
-          ...(weightKg > 0 ? { weight: weightKg } : {}),
-        },
-        create: { shop, shopifyOrderId: String(o.id), awbStatus: "pending", ...data },
-      });
-
-      await prisma.order.updateMany({
-        where: { shop, shopifyOrderId: String(o.id), awbStatus: "pending" },
-        data: {
-          shippingMethod:     data.shippingMethod,
-          courierType:        data.courierType,
-          pickupPointId:      data.pickupPointId,
-          pickupPointName:    data.pickupPointName,
-          pickupPointAddress: data.pickupPointAddress,
-        },
-      });
-    }
-
-    // Follow Shopify pagination via Link header
-    const link = res.headers.get("Link") || "";
-    const nextMatch = link.match(/<([^>]+)>;\s*rel="next"/);
-    nextUrl = nextMatch ? nextMatch[1] : null;
-  }
-}
-
 export async function loader({ request }) {
   const { session } = await authenticate.admin(request);
   const url = new URL(request.url);
@@ -107,9 +24,6 @@ export async function loader({ request }) {
   if (!shop) {
     return json({ orders: [], total: 0, totalPages: 1, page: 1, filters: { status: "", courier: "", method: "", search: "" } });
   }
-
-  // Fire-and-forget — page loads immediately from DB, sync runs in background
-  syncShopifyOrders(shop, session.accessToken).catch(() => {});
 
   const page    = parseInt(url.searchParams.get("page")    || "1");
   const status  = url.searchParams.get("status")  || "";

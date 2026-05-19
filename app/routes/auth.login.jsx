@@ -1,4 +1,7 @@
 // app/routes/auth.login.jsx
+// Shopify Remix scaffold — fallback auth page for direct installs.
+// Required by @shopify/shopify-app-remix; do not publicly promote this URL.
+// Installation must be initiated from the Shopify App Store or Partner Dashboard.
 import { login } from "../shopify.server.js";
 
 export const loader = async ({ request }) => {
