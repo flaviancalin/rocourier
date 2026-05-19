@@ -9,6 +9,7 @@ import {
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
+import { useTranslation } from "../context/i18n.jsx";
 
 const TRIAL_LIMIT   = 10;
 const APP_URL       = process.env.SHOPIFY_APP_URL || "https://rocourier-production.up.railway.app";
@@ -17,9 +18,9 @@ const RETURN_URL    = `${APP_URL}/app/billing`;
 const BILLING_TEST  = process.env.NODE_ENV !== "production";
 
 const PLANS = {
-  monthly:  { name: "Pro Monthly",  price: 19.00,  interval: "EVERY_30_DAYS", label: "$19 / lună",  badge: null },
-  yearly:   { name: "Pro Yearly",   price: 149.00, interval: "ANNUAL",        label: "$149 / an",   badge: "Economisești 35%" },
-  lifetime: { name: "Pro Lifetime", price: 299.00, interval: null,            label: "$299 o dată", badge: "Plată unică" },
+  monthly:  { name: "Pro Monthly",  price: 19.00,  interval: "EVERY_30_DAYS" },
+  yearly:   { name: "Pro Yearly",   price: 149.00, interval: "ANNUAL" },
+  lifetime: { name: "Pro Lifetime", price: 299.00, interval: null },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -65,7 +66,6 @@ export async function loader({ request }) {
       console.error("[Billing] charge verification error:", e.message);
     }
 
-    // Strip charge_id from URL to avoid re-processing on refresh
     return redirect("/app/billing?activated=1");
   }
 
@@ -105,7 +105,6 @@ export async function action({ request }) {
       return json({ error: "Codul a atins limita de utilizări." });
     }
 
-    // Check if this shop already used this code
     const already = await prisma.discountCodeUsage.findUnique({
       where: { code_shop: { code, shop } },
     });
@@ -128,7 +127,7 @@ export async function action({ request }) {
 
   // ── Subscribe — create Shopify charge ────────────────────────────────────────
   if (intent === "subscribe") {
-    const plan         = formData.get("plan");    // "monthly" | "yearly" | "lifetime"
+    const plan         = formData.get("plan");
     const discountCode = String(formData.get("discountCode") || "").trim().toUpperCase();
 
     const planConfig = PLANS[plan];
@@ -136,7 +135,6 @@ export async function action({ request }) {
 
     let price = planConfig.price;
 
-    // Validate % discount code
     if (discountCode) {
       const dc = await prisma.discountCode.findUnique({ where: { code: discountCode } });
       const alreadyUsed = dc ? await prisma.discountCodeUsage.findUnique({
@@ -155,7 +153,6 @@ export async function action({ request }) {
 
       price = parseFloat((price * (1 - dc.percentOff / 100)).toFixed(2));
 
-      // Mark discount code as used immediately (before Shopify charge)
       await prisma.$transaction([
         prisma.discountCode.update({ where: { code: discountCode }, data: { usedCount: { increment: 1 } } }),
         prisma.discountCodeUsage.create({ data: { code: discountCode, shop } }),
@@ -238,33 +235,34 @@ export async function action({ request }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // UI
 // ─────────────────────────────────────────────────────────────────────────────
-function PlanCard({ plan, planKey, current, onSelect, loading, isSwitch }) {
+function PlanCard({ planKey, current, onSelect, loading, isSwitch, t }) {
   const isCurrent = current === planKey ||
-    (planKey === "monthly" && current === "pro_monthly") ||
-    (planKey === "yearly"  && current === "pro_yearly")  ||
+    (planKey === "monthly"  && current === "pro_monthly") ||
+    (planKey === "yearly"   && current === "pro_yearly")  ||
     (planKey === "lifetime" && current === "lifetime");
 
-  const btnLabel = isCurrent ? "Plan activ" :
-    planKey === "lifetime" ? (isSwitch ? "Upgradează la Lifetime" : "Cumpără licența") :
-    isSwitch ? "Schimbă la acest plan" : "Abonează-te";
+  const planLabel = t(`billing_${planKey}_price`);
+  const planBadge = planKey === "yearly"   ? t("billing_save_pct") :
+                    planKey === "lifetime" ? t("billing_one_time_badge") : null;
+  const planDesc  = t(`billing_${planKey}_desc`);
+
+  const btnLabel = isCurrent ? t("billing_plan_active") :
+    planKey === "lifetime" ? (isSwitch ? t("billing_upgrade_lifetime") : t("billing_buy_license")) :
+    isSwitch ? t("billing_switch_plan") : t("billing_subscribe");
 
   return (
     <Card>
       <BlockStack gap="300">
         <InlineStack align="space-between" blockAlign="start">
           <BlockStack gap="100">
-            <Text variant="headingMd" fontWeight="semibold">{plan.label}</Text>
-            {plan.badge && <Badge tone="success">{plan.badge}</Badge>}
+            <Text variant="headingMd" fontWeight="semibold">{planLabel}</Text>
+            {planBadge && <Badge tone="success">{planBadge}</Badge>}
           </BlockStack>
-          {isCurrent && <Badge tone="success">Plan activ</Badge>}
+          {isCurrent && <Badge tone="success">{t("billing_plan_active")}</Badge>}
         </InlineStack>
-        <Text variant="bodySm" tone="subdued">
-          {planKey === "monthly"  && "Acces nelimitat la generarea AWB-urilor, toate curierele suportate."}
-          {planKey === "yearly"   && "Totul din planul lunar, cu 35% reducere. Ideal pentru volume mari."}
-          {planKey === "lifetime" && "Plătești o singură dată, accesi aplicația pentru totdeauna. Fără abonament."}
-        </Text>
+        <Text variant="bodySm" tone="subdued">{planDesc}</Text>
         {isCurrent ? (
-          <Button disabled fullWidth>Plan activ</Button>
+          <Button disabled fullWidth>{t("billing_plan_active")}</Button>
         ) : (
           <Button variant="primary" onClick={() => onSelect(planKey)} loading={loading} fullWidth>
             {btnLabel}
@@ -280,6 +278,7 @@ export default function BillingPage() {
   const actionData  = useActionData();
   const submit      = useSubmit();
   const navigation  = useNavigation();
+  const { t }       = useTranslation();
   const isSubmitting = navigation.state === "submitting";
 
   const [giftCode,      setGiftCode]      = useState("");
@@ -287,7 +286,6 @@ export default function BillingPage() {
   const [selectedPlan,  setSelectedPlan]  = useState(null);
   const [toast,         setToast]         = useState(null);
 
-  // Redirect to Shopify billing confirmation URL
   useEffect(() => {
     if (actionData?.confirmationUrl) {
       window.open(actionData.confirmationUrl, "_top");
@@ -295,8 +293,8 @@ export default function BillingPage() {
   }, [actionData]);
 
   useEffect(() => {
-    if (activated) setToast("Plan activat cu succes!");
-    if (actionData?.giftActivated) setToast("Cod activat! Ai acces lifetime.");
+    if (activated) setToast(t("billing_activated_toast"));
+    if (actionData?.giftActivated) setToast(t("billing_gift_activated_toast"));
   }, [activated, actionData]);
 
   const isActive   = planType !== "trial";
@@ -315,8 +313,8 @@ export default function BillingPage() {
 
   return (
     <Page
-      title="Plan & Facturare"
-      subtitle="Gestionează subscripția aplicației Picklo"
+      title={t("billing_page_title")}
+      subtitle={t("billing_subtitle")}
     >
       {toast && (
         <div style={{ marginBottom: 16 }}>
@@ -325,7 +323,7 @@ export default function BillingPage() {
       )}
       {actionData?.error && (
         <div style={{ marginBottom: 16 }}>
-          <Banner tone="critical" title="Eroare">{actionData.error}</Banner>
+          <Banner tone="critical" title={t("error")}>{actionData.error}</Banner>
         </div>
       )}
 
@@ -335,8 +333,8 @@ export default function BillingPage() {
           <Card>
             <BlockStack gap="400">
               <InlineStack align="space-between" blockAlign="center">
-                <Text variant="headingMd" fontWeight="semibold">Planul tău curent</Text>
-                {planType === "trial"    && <Badge tone="warning">Trial</Badge>}
+                <Text variant="headingMd" fontWeight="semibold">{t("billing_current_plan")}</Text>
+                {planType === "trial"       && <Badge tone="warning">Trial</Badge>}
                 {planType === "pro_monthly" && <Badge tone="success">Pro Monthly</Badge>}
                 {planType === "pro_yearly"  && <Badge tone="success">Pro Yearly</Badge>}
                 {planType === "lifetime"    && <Badge tone="success">Lifetime</Badge>}
@@ -345,29 +343,29 @@ export default function BillingPage() {
               {planType === "trial" && (
                 <BlockStack gap="200">
                   <InlineStack align="space-between">
-                    <Text variant="bodySm">AWB-uri folosite în trial</Text>
+                    <Text variant="bodySm">{t("billing_awbs_used")}</Text>
                     <Text variant="bodySm" fontWeight="semibold">{awbCount} / {TRIAL_LIMIT}</Text>
                   </InlineStack>
                   <ProgressBar progress={trialPct} tone={trialLeft === 0 ? "critical" : trialLeft <= 3 ? "warning" : "highlight"} />
                   {trialLeft === 0 && (
-                    <Banner tone="critical" title="Trial expirat">
-                      Ai generat cele {TRIAL_LIMIT} AWB-uri gratuite. Alege un plan de mai jos pentru a continua.
+                    <Banner tone="critical" title={t("billing_trial_expired_title")}>
+                      {t("billing_trial_expired_desc", { n: TRIAL_LIMIT })}
                     </Banner>
                   )}
                   {trialLeft > 0 && trialLeft <= 3 && (
                     <Banner tone="warning">
-                      Îți mai rămân <strong>{trialLeft} AWB-uri</strong> gratuite. Activează un plan înainte să rămâi fără.
+                      {t("billing_trial_warning", { n: trialLeft })}
                     </Banner>
                   )}
                   {trialLeft > 3 && (
-                    <Text variant="bodySm" tone="subdued">Îți mai rămân {trialLeft} AWB-uri gratuite.</Text>
+                    <Text variant="bodySm" tone="subdued">{t("billing_trial_left", { n: trialLeft })}</Text>
                   )}
                 </BlockStack>
               )}
 
               {isActive && (
                 <Banner tone="success">
-                  Contul tău este activ. Poți genera AWB-uri nelimitat.
+                  {t("billing_active_banner")}
                 </Banner>
               )}
             </BlockStack>
@@ -379,24 +377,23 @@ export default function BillingPage() {
           <Layout.Section>
             <BlockStack gap="400">
               <Text variant="headingMd" fontWeight="semibold">
-                {isActive ? "Schimbă planul" : "Alege un plan"}
+                {isActive ? t("billing_change_plan") : t("billing_choose_plan")}
               </Text>
               {isActive && (
                 <Banner tone="info">
-                  Selectând un plan diferit vei fi redirecționat către Shopify pentru confirmare.
-                  Planul curent va fi anulat automat la activarea celui nou.
+                  {t("billing_switch_info")}
                 </Banner>
               )}
               <InlineGrid columns={{ xs: 1, sm: 3 }} gap="400">
-                {Object.entries(PLANS).map(([key, plan]) => (
+                {Object.keys(PLANS).map((key) => (
                   <PlanCard
                     key={key}
                     planKey={key}
-                    plan={plan}
                     current={planType}
                     onSelect={handleSubscribe}
                     loading={isSubmitting && selectedPlan === key}
                     isSwitch={isActive}
+                    t={t}
                   />
                 ))}
               </InlineGrid>
@@ -405,12 +402,12 @@ export default function BillingPage() {
               {!isActive && (
                 <Card>
                   <BlockStack gap="300">
-                    <Text variant="headingMd" fontWeight="semibold">Cod de reducere</Text>
-                    <Text variant="bodySm" tone="subdued">Dacă ai un cod promoțional, introdu-l înainte de a te abona.</Text>
+                    <Text variant="headingMd" fontWeight="semibold">{t("billing_discount_title")}</Text>
+                    <Text variant="bodySm" tone="subdued">{t("billing_discount_desc")}</Text>
                     <InlineStack gap="300" blockAlign="end">
                       <Box minWidth="240px">
                         <TextField
-                          label="Cod reducere (%)"
+                          label={t("billing_discount_field")}
                           value={discountCode}
                           onChange={setDiscountCode}
                           placeholder="ex: LAUNCH20"
@@ -418,7 +415,7 @@ export default function BillingPage() {
                         />
                       </Box>
                     </InlineStack>
-                    <Text variant="bodySm" tone="subdued">Codul va fi aplicat automat la apăsarea butonului de abonare.</Text>
+                    <Text variant="bodySm" tone="subdued">{t("billing_discount_help")}</Text>
                   </BlockStack>
                 </Card>
               )}
@@ -431,15 +428,15 @@ export default function BillingPage() {
           <Layout.Section>
             <Card>
               <BlockStack gap="300">
-                <Text variant="headingMd" fontWeight="semibold">Cod cadou — Lifetime gratuit</Text>
+                <Text variant="headingMd" fontWeight="semibold">{t("billing_gift_title")}</Text>
                 <Text variant="bodySm" tone="subdued">
-                  Dacă ai primit un cod cadou lifetime, activează-l aici fără nicio plată.
+                  {t("billing_gift_desc")}
                 </Text>
                 <Divider />
                 <InlineStack gap="300" blockAlign="end">
                   <Box minWidth="240px">
                     <TextField
-                      label="Cod cadou"
+                      label={t("billing_gift_field")}
                       value={giftCode}
                       onChange={setGiftCode}
                       placeholder="ex: EARLYBIRD2026"
@@ -453,7 +450,7 @@ export default function BillingPage() {
                       loading={isSubmitting && !selectedPlan}
                       disabled={!giftCode.trim()}
                     >
-                      Activează codul
+                      {t("billing_gift_activate")}
                     </Button>
                   </Box>
                 </InlineStack>
@@ -467,10 +464,9 @@ export default function BillingPage() {
           <Layout.Section>
             <Card>
               <BlockStack gap="300">
-                <Text variant="headingMd" fontWeight="semibold">Gestionare subscripție</Text>
+                <Text variant="headingMd" fontWeight="semibold">{t("billing_manage_title")}</Text>
                 <Text variant="bodySm" tone="subdued">
-                  Ai planul Lifetime — acces permanent fără abonament recurent.
-                  Pentru întrebări contactează suportul la <strong>support@picklo.app</strong>.
+                  {t("billing_lifetime_manage_desc")}
                 </Text>
               </BlockStack>
             </Card>

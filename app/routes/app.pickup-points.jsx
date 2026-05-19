@@ -10,6 +10,7 @@ import {
   BlockStack, Select, TextField, Banner,
   EmptyState, Frame, Toast, Tabs, InlineStack,
 } from "@shopify/polaris";
+import { useTranslation } from "../context/i18n.jsx";
 
 const COURIER_CONFIG = {
   fan:     { label: "FANbox (FAN Courier)", color: "#e65100", badgeTone: "warning",   badgeLabel: "FANbox"   },
@@ -93,6 +94,7 @@ export default function PickupPointsPage() {
   const actionData = useActionData();
   const navigate   = useNavigate();
   const submit     = useSubmit();
+  const { t }      = useTranslation();
 
   const [courierFilter, setCourierFilter] = useState(filters.courier);
   const [countyFilter,  setCountyFilter]  = useState(filters.county);
@@ -102,10 +104,10 @@ export default function PickupPointsPage() {
   const [selectedTab,   setSelectedTab]   = useState(0);
 
   const tabCouriers = ["", ...Object.keys(COURIER_CONFIG)];
-  const tabLabels   = ["Toți", "FANbox", "Easybox", "Cargus", "GLS", "Packeta"];
+  const tabLabels   = [t("all_tab"), "FANbox", "Easybox", "Cargus", "GLS", "Packeta"];
 
   const countryOptions = [
-    { label: "Toate țările", value: "" },
+    { label: t("all_countries"), value: "" },
     ...availableCountries.map((c) => ({
       label: COUNTRY_NAMES[c] ? `${COUNTRY_NAMES[c]} (${c.toUpperCase()})` : c.toUpperCase(),
       value: c,
@@ -118,7 +120,7 @@ export default function PickupPointsPage() {
       const parts = Object.keys(COURIER_CONFIG)
         .map((c) => `${COURIER_CONFIG[c].badgeLabel}: ${r[c] ?? 0}`)
         .join(", ");
-      const msg = `Reîmprospătat! ${parts}${r.errors?.length ? ` | Erori: ${r.errors.join("; ")}` : ""}`;
+      const msg = `${t("refresh_now").replace("🔄 ", "")} ${parts}${r.errors?.length ? ` | ${t("error")}: ${r.errors.join("; ")}` : ""}`;
       setToast(msg);
       setRefreshing(false);
       navigate("/app/pickup-points");
@@ -149,7 +151,7 @@ export default function PickupPointsPage() {
   function handleRefresh() {
     setRefreshing(true);
     submit({}, { method: "post" });
-    setToast("Reîmprospătare în curs... poate dura 1-2 minute pentru toate țările.");
+    setToast(t("refresh_in_progress"));
   }
 
   const rows = points.map((p) => {
@@ -166,7 +168,7 @@ export default function PickupPointsPage() {
       p.address,
       p.lat && p.lng
         ? <Text variant="bodySm" tone="subdued">{p.lat.toFixed(4)}, {p.lng.toFixed(4)}</Text>
-        : <Badge tone="critical">Fără coord.</Badge>,
+        : <Badge tone="critical">{t("no_coords")}</Badge>,
     ];
   });
 
@@ -175,10 +177,10 @@ export default function PickupPointsPage() {
   return (
     <Frame>
       <Page
-        title="Puncte de ridicare"
-        subtitle={`${total.toLocaleString("ro-RO")} puncte active${filters.country ? ` din ${COUNTRY_NAMES[filters.country] || filters.country.toUpperCase()}` : " din toate țările"}`}
+        title={t("pickup_points_title")}
+        subtitle={t("pickup_points_sub", { n: total.toLocaleString("ro-RO") }) + (filters.country ? ` (${COUNTRY_NAMES[filters.country] || filters.country.toUpperCase()})` : "")}
         primaryAction={{
-          content: refreshing ? "Se reîmprospătează..." : "Reîmprospătează acum",
+          content: refreshing ? t("refreshing") : t("refresh_now"),
           onAction: handleRefresh,
           loading: refreshing,
         }}
@@ -220,7 +222,7 @@ export default function PickupPointsPage() {
                 <Text variant="headingXl" fontWeight="bold">
                   {Object.values(countMap).reduce((a, b) => a + b, 0).toLocaleString("ro-RO")}
                 </Text>
-                <Text variant="bodySm" tone="subdued">Total puncte active</Text>
+                <Text variant="bodySm" tone="subdued">{t("total_active")}</Text>
               </div>
             </div>
           </Layout.Section>
@@ -237,7 +239,7 @@ export default function PickupPointsPage() {
                       hour: "2-digit", minute: "2-digit",
                     })}
                   </strong>
-                  {" "}— Actualizare automată la 24h. Widget-ul filtrează automat după țara clientului.
+                  {" "}— {t("auto_refresh_extended")}
                 </Text>
               </Banner>
             </Layout.Section>
@@ -245,7 +247,7 @@ export default function PickupPointsPage() {
 
           {refreshErrors.length > 0 && (
             <Layout.Section>
-              <Banner tone="warning" title="Unii curieri nu au putut fi reîmprospătați">
+              <Banner tone="warning" title={t("refresh_partial_error")}>
                 <BlockStack gap="100">
                   {refreshErrors.map((err, i) => <Text key={i} variant="bodySm">{err}</Text>)}
                 </BlockStack>
@@ -274,7 +276,7 @@ export default function PickupPointsPage() {
                   <InlineStack gap="300" align="end" blockAlign="end" wrap>
                     <div style={{ flex: "2 1 180px" }}>
                       <Select
-                        label="Filtrează după țară"
+                        label={t("filter_country")}
                         options={countryOptions}
                         value={countryFilter}
                         onChange={(val) => {
@@ -285,10 +287,10 @@ export default function PickupPointsPage() {
                     </div>
                     <div style={{ flex: "2 1 180px" }}>
                       <TextField
-                        label="Filtrează după județ"
+                        label={t("filter_county")}
                         value={countyFilter}
                         onChange={setCountyFilter}
-                        placeholder="ex: Cluj, Prahova..."
+                        placeholder={t("filter_county_ph")}
                         onKeyDown={(e) => e.key === "Enter" && applyFilters(courierFilter, countyFilter, countryFilter)}
                         clearButton
                         onClearButtonClick={() => {
@@ -299,7 +301,7 @@ export default function PickupPointsPage() {
                     </div>
                     <div style={{ paddingTop: 24 }}>
                       <Button onClick={() => applyFilters(courierFilter, countyFilter, countryFilter)} variant="primary">
-                        Filtrează
+                        {t("filter")}
                       </Button>
                     </div>
                   </InlineStack>
@@ -308,27 +310,27 @@ export default function PickupPointsPage() {
                     <EmptyState
                       heading={
                         tabCouriers[selectedTab]
-                          ? `Niciun punct ${COURIER_CONFIG[tabCouriers[selectedTab]]?.badgeLabel || ""}`
-                          : "Niciun punct de ridicare"
+                          ? `${t("no_pickup_points")} — ${COURIER_CONFIG[tabCouriers[selectedTab]]?.badgeLabel || ""}`
+                          : t("no_pickup_points")
                       }
                       image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
                     >
                       <p>
                         {tabCouriers[selectedTab]
-                          ? `Verifică că ${COURIER_CONFIG[tabCouriers[selectedTab]]?.label} este activat și credențialele sunt corecte în Setări, apoi apasă "Reîmprospătează acum".`
-                          : "Configurează credențialele curierilor în Setări, apoi apasă \"Reîmprospătează acum\"."
+                          ? `${COURIER_CONFIG[tabCouriers[selectedTab]]?.label}`
+                          : t("go_settings")
                         }
                       </p>
-                      <Button onClick={() => navigate("/app/settings")}>Mergi la Setări</Button>
+                      <Button onClick={() => navigate("/app/settings")}>{t("go_settings")}</Button>
                     </EmptyState>
                   ) : (
                     <DataTable
                       columnContentTypes={["text","text","text","text","text","text","text"]}
-                      headings={["Curier","Nume","Țară","Județ","Localitate","Adresă","Coordonate"]}
+                      headings={[t("col_courier"), t("col_name"), t("col_country"), t("col_county"), t("col_city"), t("col_address"), t("col_coords")]}
                       rows={rows}
                       hasZebraStripingOnData
                       increasedTableDensity
-                      footerContent={`Afișând ${points.length.toLocaleString("ro-RO")} din ${total.toLocaleString("ro-RO")} puncte${filters.country ? ` din ${COUNTRY_NAMES[filters.country] || filters.country.toUpperCase()}` : ""}`}
+                      footerContent={t("showing_points", { n: points.length.toLocaleString("ro-RO"), t: total.toLocaleString("ro-RO") }) + (filters.country ? ` (${COUNTRY_NAMES[filters.country] || filters.country.toUpperCase()})` : "")}
                     />
                   )}
                 </BlockStack>

@@ -20,34 +20,27 @@ export default function WidgetPage() {
   return (
     <Page
       title={t("nav_widget")}
-      subtitle="Widget selector curier pentru cart drawer"
+      subtitle={t("widget_page_subtitle")}
     >
       <Layout>
         <Layout.Section>
           <Banner tone="info">
-            <p>
-              Widgetul Picklo pentru cart drawer se integrează direct în tema magazinului tău.
-              Deoarece fiecare temă Shopify are o structură diferită, echipa noastră se ocupă
-              de instalare gratuit — fără modificări manuale din partea ta.
-            </p>
+            <p>{t("widget_banner_text")}</p>
           </Banner>
         </Layout.Section>
 
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
-              <Text variant="headingMd" fontWeight="semibold">Ce face widgetul</Text>
+              <Text variant="headingMd" fontWeight="semibold">{t("widget_what_title")}</Text>
               <BlockStack gap="200">
-                <Text variant="bodyMd" tone="subdued">
-                  Widgetul apare în cart drawer-ul magazinului tău și permite clienților să aleagă
-                  metoda de livrare (acasă sau punct de ridicare) înainte de checkout.
-                </Text>
+                <Text variant="bodyMd" tone="subdued">{t("widget_what_desc")}</Text>
                 <Divider />
-                <Text variant="bodySm" tone="subdued">• Selector livrare acasă vs. punct de ridicare (locker, easybox, ParcelShop)</Text>
-                <Text variant="bodySm" tone="subdued">• Hartă interactivă cu toate punctele de ridicare disponibile</Text>
-                <Text variant="bodySm" tone="subdued">• Suport FAN Courier, Sameday, Cargus, GLS, Packeta</Text>
-                <Text variant="bodySm" tone="subdued">• Compatibil cu temele Dawn, Debut, Impulse, Prestige și altele</Text>
-                <Text variant="bodySm" tone="subdued">• Răspunde la setarea de limbă din aplicație (RO / EN / DE / HU)</Text>
+                <Text variant="bodySm" tone="subdued">• {t("widget_feature_1")}</Text>
+                <Text variant="bodySm" tone="subdued">• {t("widget_feature_2")}</Text>
+                <Text variant="bodySm" tone="subdued">• {t("widget_feature_3")}</Text>
+                <Text variant="bodySm" tone="subdued">• {t("widget_feature_4")}</Text>
+                <Text variant="bodySm" tone="subdued">• {t("widget_feature_5")}</Text>
               </BlockStack>
             </BlockStack>
           </Card>
@@ -56,11 +49,8 @@ export default function WidgetPage() {
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
-              <Text variant="headingMd" fontWeight="semibold">Solicită instalarea gratuită</Text>
-              <Text variant="bodyMd" tone="subdued">
-                Trimite-ne un email sau un mesaj WhatsApp și ne ocupăm de instalare în termen de 24 de ore.
-                Nu ai nevoie de cunoștințe tehnice — noi facem tot.
-              </Text>
+              <Text variant="headingMd" fontWeight="semibold">{t("widget_install_title")}</Text>
+              <Text variant="bodyMd" tone="subdued">{t("widget_install_desc")}</Text>
               <Divider />
               <BlockStack gap="300">
                 <Box>
@@ -69,13 +59,10 @@ export default function WidgetPage() {
                     url="mailto:theflashstations@gmail.com?subject=Instalare%20widget%20cart%20drawer&body=Buna%20ziua%2C%20as%20dori%20instalarea%20widgetului%20Picklo%20pe%20magazinul%20meu."
                     external
                   >
-                    Trimite email — theflashstations@gmail.com
+                    {t("widget_email_btn")}
                   </Button>
                 </Box>
-                <Text variant="bodySm" tone="subdued">
-                  Sau contactează-ne pe WhatsApp pentru răspuns rapid.
-                  Instalarea este gratuită pentru toți utilizatorii Picklo.
-                </Text>
+                <Text variant="bodySm" tone="subdued">{t("widget_whatsapp_note")}</Text>
               </BlockStack>
             </BlockStack>
           </Card>
