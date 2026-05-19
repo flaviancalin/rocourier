@@ -194,7 +194,8 @@ function buildBodySnippet({ appUrl, cfg }) {
 }
 
 export default function WidgetPage() {
-  const { appUrl, settings } = useLoaderData();
+  const { appUrl, settings, shop } = useLoaderData();
+  const themeEditorUrl = `https://${shop}/admin/themes/current/editor`;
   const { t } = useTranslation();
 
   const defaultCfg = {
@@ -250,15 +251,33 @@ export default function WidgetPage() {
   return (
     <Page
       title={t("nav_widget")}
-      subtitle="Snippet injectabil pentru magazine cu cart drawer"
+      subtitle="Instalare widget Picklo în tema Shopify"
     >
       <Layout>
         <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <Text variant="headingMd" fontWeight="semibold">Instalare prin Theme Editor (recomandat)</Text>
+              <Text variant="bodyMd" tone="subdued">
+                Cel mai simplu mod de a adăuga widgetul Picklo este prin Theme Editor.
+                Deschide editorul temei, selectează secțiunea Cart Drawer și adaugă blocul Picklo din panoul de aplicații.
+              </Text>
+              <Button
+                variant="primary"
+                url={themeEditorUrl}
+                external
+              >
+                Deschide Theme Editor
+              </Button>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
+        <Layout.Section>
           <Banner tone="info">
             <p>
-              Widgetul Picklo pentru cart drawer se instalează manual în tema Shopify,
-              complet separat de widgetul de pe pagina de coș. Configurează curierii și tarifele,
-              copiază snippet-ul generat și inserează-l în tema ta.
+              <strong>Instalare manuală (avansată)</strong> — dacă tema ta nu suportă blocuri de aplicații
+              în cart drawer, poți instala widgetul manual urmând instrucțiunile de mai jos.
             </p>
           </Banner>
         </Layout.Section>

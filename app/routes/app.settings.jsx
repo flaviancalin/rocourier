@@ -87,7 +87,9 @@ export async function action({ request }) {
     const APP_URL = (process.env.SHOPIFY_APP_URL || "https://rocourier-production.up.railway.app").replace(/\/$/, "");
     const CALLBACK_URL = `${APP_URL}/carrier-service`;
     try {
-      // Use Shopify Admin REST API via fetch with the session token
+      // NOTE: carrier_services has no Admin GraphQL equivalent — REST is the only supported
+      // method for registering rate-calculation callback services. Documented Shopify exception:
+      // https://shopify.dev/docs/api/admin-rest/latest/resources/carrierservice
       const shop = session.shop;
       const token = session.accessToken;
       const apiVersion = "2024-10";

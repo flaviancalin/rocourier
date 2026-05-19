@@ -1,6 +1,11 @@
 // app/routes/api.carrier-setup.js
 // Registers (or checks) our carrier service with Shopify.
 // Called from the Settings page by the merchant.
+//
+// NOTE: Shopify's carrier_services resource has no equivalent in the Admin GraphQL API.
+// The REST endpoint is the only supported way to register callback-based carrier services
+// (rate-calculation callbacks). This is a documented Shopify exception — see:
+// https://shopify.dev/docs/api/admin-rest/latest/resources/carrierservice
 
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server.js";

@@ -94,8 +94,26 @@ function slipHtml(order, lineItems, settings) {
 </div>`;
 }
 
+const LINE_ITEMS_QUERY = `
+  query getOrderLineItems($id: ID!) {
+    order(id: $id) {
+      lineItems(first: 50) {
+        edges {
+          node {
+            name
+            quantity
+            sku
+            variantTitle
+            originalUnitPriceSet { shopMoney { amount } }
+          }
+        }
+      }
+    }
+  }
+`;
+
 export async function loader({ request }) {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const { shop } = session;
 
   const url = new URL(request.url);
@@ -109,27 +127,26 @@ export async function loader({ request }) {
 
   if (!orders.length) return new Response("No orders found", { status: 404 });
 
-  // Fetch Shopify line items for each order
-  const token = (await prisma.session.findFirst({ where: { shop } }))?.accessToken;
+  // Fetch Shopify line items via Admin GraphQL API
   const lineItemsByOrder = {};
-
-  if (token) {
-    await Promise.all(
-      orders.map(async (order) => {
-        try {
-          const res = await fetch(
-            `https://${shop}/admin/api/2024-10/orders/${order.shopifyOrderId}.json?fields=id,line_items`,
-            { headers: { "X-Shopify-Access-Token": token } }
-          );
-          if (res.ok) {
-            const { order: o } = await res.json();
-            lineItemsByOrder[order.id] = o?.line_items || [];
-          }
-        } catch (_) {}
-        if (!lineItemsByOrder[order.id]) lineItemsByOrder[order.id] = [];
-      })
-    );
-  }
+  await Promise.all(
+    orders.map(async (order) => {
+      try {
+        const gid = `gid://shopify/Order/${order.shopifyOrderId}`;
+        const res  = await admin.graphql(LINE_ITEMS_QUERY, { variables: { id: gid } });
+        const body = await res.json();
+        const edges = body?.data?.order?.lineItems?.edges || [];
+        lineItemsByOrder[order.id] = edges.map(({ node }) => ({
+          name:          node.name,
+          variant_title: node.variantTitle || null,
+          sku:           node.sku || null,
+          quantity:      node.quantity,
+          price:         node.originalUnitPriceSet?.shopMoney?.amount || "0",
+        }));
+      } catch (_) {}
+      if (!lineItemsByOrder[order.id]) lineItemsByOrder[order.id] = [];
+    })
+  );
 
   const slips = orders
     .map((o) => slipHtml(o, lineItemsByOrder[o.id] || [], settings))

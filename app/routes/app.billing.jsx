@@ -238,11 +238,15 @@ export async function action({ request }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // UI
 // ─────────────────────────────────────────────────────────────────────────────
-function PlanCard({ plan, planKey, current, onSelect, loading }) {
+function PlanCard({ plan, planKey, current, onSelect, loading, isSwitch }) {
   const isCurrent = current === planKey ||
     (planKey === "monthly" && current === "pro_monthly") ||
     (planKey === "yearly"  && current === "pro_yearly")  ||
     (planKey === "lifetime" && current === "lifetime");
+
+  const btnLabel = isCurrent ? "Plan activ" :
+    planKey === "lifetime" ? (isSwitch ? "Upgradează la Lifetime" : "Cumpără licența") :
+    isSwitch ? "Schimbă la acest plan" : "Abonează-te";
 
   return (
     <Card>
@@ -259,13 +263,12 @@ function PlanCard({ plan, planKey, current, onSelect, loading }) {
           {planKey === "yearly"   && "Totul din planul lunar, cu 35% reducere. Ideal pentru volume mari."}
           {planKey === "lifetime" && "Plătești o singură dată, accesi aplicația pentru totdeauna. Fără abonament."}
         </Text>
-        {!isCurrent && (
-          <Button variant="primary" onClick={() => onSelect(planKey)} loading={loading} fullWidth>
-            {planKey === "lifetime" ? "Cumpără licența" : "Abonează-te"}
-          </Button>
-        )}
-        {isCurrent && (
+        {isCurrent ? (
           <Button disabled fullWidth>Plan activ</Button>
+        ) : (
+          <Button variant="primary" onClick={() => onSelect(planKey)} loading={loading} fullWidth>
+            {btnLabel}
+          </Button>
         )}
       </BlockStack>
     </Card>
@@ -297,6 +300,7 @@ export default function BillingPage() {
   }, [activated, actionData]);
 
   const isActive   = planType !== "trial";
+  const isLifetime = planType === "lifetime";
   const trialLeft  = Math.max(0, TRIAL_LIMIT - awbCount);
   const trialPct   = Math.min(100, (awbCount / TRIAL_LIMIT) * 100);
 
@@ -370,11 +374,19 @@ export default function BillingPage() {
           </Card>
         </Layout.Section>
 
-        {/* ── Plan cards ── */}
-        {!isActive && (
+        {/* ── Plan cards — shown for trial + active non-lifetime users ── */}
+        {!isLifetime && (
           <Layout.Section>
             <BlockStack gap="400">
-              <Text variant="headingMd" fontWeight="semibold">Alege un plan</Text>
+              <Text variant="headingMd" fontWeight="semibold">
+                {isActive ? "Schimbă planul" : "Alege un plan"}
+              </Text>
+              {isActive && (
+                <Banner tone="info">
+                  Selectând un plan diferit vei fi redirecționat către Shopify pentru confirmare.
+                  Planul curent va fi anulat automat la activarea celui nou.
+                </Banner>
+              )}
               <InlineGrid columns={{ xs: 1, sm: 3 }} gap="400">
                 {Object.entries(PLANS).map(([key, plan]) => (
                   <PlanCard
@@ -384,34 +396,37 @@ export default function BillingPage() {
                     current={planType}
                     onSelect={handleSubscribe}
                     loading={isSubmitting && selectedPlan === key}
+                    isSwitch={isActive}
                   />
                 ))}
               </InlineGrid>
 
               {/* Discount code for paid plans */}
-              <Card>
-                <BlockStack gap="300">
-                  <Text variant="headingMd" fontWeight="semibold">Cod de reducere</Text>
-                  <Text variant="bodySm" tone="subdued">Dacă ai un cod promoțional, introdu-l înainte de a te abona.</Text>
-                  <InlineStack gap="300" blockAlign="end">
-                    <Box minWidth="240px">
-                      <TextField
-                        label="Cod reducere (%)"
-                        value={discountCode}
-                        onChange={setDiscountCode}
-                        placeholder="ex: LAUNCH20"
-                        autoComplete="off"
-                      />
-                    </Box>
-                  </InlineStack>
-                  <Text variant="bodySm" tone="subdued">Codul va fi aplicat automat la apăsarea butonului de abonare.</Text>
-                </BlockStack>
-              </Card>
+              {!isActive && (
+                <Card>
+                  <BlockStack gap="300">
+                    <Text variant="headingMd" fontWeight="semibold">Cod de reducere</Text>
+                    <Text variant="bodySm" tone="subdued">Dacă ai un cod promoțional, introdu-l înainte de a te abona.</Text>
+                    <InlineStack gap="300" blockAlign="end">
+                      <Box minWidth="240px">
+                        <TextField
+                          label="Cod reducere (%)"
+                          value={discountCode}
+                          onChange={setDiscountCode}
+                          placeholder="ex: LAUNCH20"
+                          autoComplete="off"
+                        />
+                      </Box>
+                    </InlineStack>
+                    <Text variant="bodySm" tone="subdued">Codul va fi aplicat automat la apăsarea butonului de abonare.</Text>
+                  </BlockStack>
+                </Card>
+              )}
             </BlockStack>
           </Layout.Section>
         )}
 
-        {/* ── Gift code (lifetime, no Shopify charge) ── */}
+        {/* ── Gift code (lifetime, no Shopify charge) — only for trial users ── */}
         {!isActive && (
           <Layout.Section>
             <Card>
@@ -447,15 +462,15 @@ export default function BillingPage() {
           </Layout.Section>
         )}
 
-        {/* ── Active plan — manage ── */}
-        {isActive && (
+        {/* ── Lifetime — no plan switching needed ── */}
+        {isLifetime && (
           <Layout.Section>
             <Card>
               <BlockStack gap="300">
                 <Text variant="headingMd" fontWeight="semibold">Gestionare subscripție</Text>
                 <Text variant="bodySm" tone="subdued">
-                  Pentru anulare sau modificare plan, contactează suportul la{" "}
-                  <strong>support@picklo.app</strong> sau folosește panoul Shopify Partners.
+                  Ai planul Lifetime — acces permanent fără abonament recurent.
+                  Pentru întrebări contactează suportul la <strong>support@picklo.app</strong>.
                 </Text>
               </BlockStack>
             </Card>
