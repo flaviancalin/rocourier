@@ -25,6 +25,19 @@ api_version = "2025-01"
   topics = [ "orders/updated" ]
   uri = "/webhooks/orders-updated"
 
+  # Mandatory GDPR compliance webhooks
+  [[webhooks.subscriptions]]
+  topics = [ "customers/data_request" ]
+  uri = "/webhooks/customers-data-request"
+
+  [[webhooks.subscriptions]]
+  topics = [ "customers/redact" ]
+  uri = "/webhooks/customers-redact"
+
+  [[webhooks.subscriptions]]
+  topics = [ "shop/redact" ]
+  uri = "/webhooks/shop-redact"
+
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 scopes = "read_customers,read_fulfillments,read_orders,read_shipping,write_fulfillments,write_orders,write_shipping"
