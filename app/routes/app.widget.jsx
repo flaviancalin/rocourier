@@ -66,10 +66,10 @@ export default function WidgetPage() {
                 <Box>
                   <Button
                     variant="primary"
-                    url="mailto:support@picklo.app?subject=Instalare%20widget%20cart%20drawer&body=Buna%20ziua%2C%20as%20dori%20instalarea%20widgetului%20Picklo%20pe%20magazinul%20meu."
+                    url="mailto:theflashstations@gmail.com?subject=Instalare%20widget%20cart%20drawer&body=Buna%20ziua%2C%20as%20dori%20instalarea%20widgetului%20Picklo%20pe%20magazinul%20meu."
                     external
                   >
-                    Trimite email — support@picklo.app
+                    Trimite email — theflashstations@gmail.com
                   </Button>
                 </Box>
                 <Text variant="bodySm" tone="subdued">
