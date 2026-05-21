@@ -157,10 +157,9 @@ export async function action({ request }) {
       ]);
     }
 
-    // Must route back through Shopify admin so the embedded app re-authenticates correctly.
-    // Using the raw server URL causes authenticate.admin to fail and redirects to App Store.
-    // Format per Shopify docs: {shop_url}/admin/apps/{client-id}
-    const returnUrl = `https://${shop}/admin/apps/${API_KEY}/billing`;
+    // Return URL must use Shopify admin format so the embedded app iframe re-authenticates.
+    // The path after /apps/{id}/ maps directly to the Remix app route — /app/billing.
+    const returnUrl = `https://${shop}/admin/apps/${API_KEY}/app/billing`;
 
     try {
       let confirmationUrl;
