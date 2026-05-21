@@ -1,7 +1,7 @@
 // app/routes/app.billing.jsx
 // Plan management & billing page
 import { useState, useEffect, useCallback } from "react";
-import { json, redirect } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { useLoaderData, useActionData, useSubmit, useNavigation } from "@remix-run/react";
 import {
   Page, Layout, Card, BlockStack, InlineStack, Text, Badge, Button,
@@ -12,8 +12,7 @@ import { prisma } from "../db.server.js";
 import { useTranslation } from "../context/i18n.jsx";
 
 const TRIAL_LIMIT   = 10;
-// Shopify uses the API key (client_id) as the app identifier in admin URLs
-const API_KEY       = process.env.SHOPIFY_API_KEY || "rocourier";
+const APP_URL       = process.env.SHOPIFY_APP_URL || "https://rocourier-production.up.railway.app";
 // Always test mode — Shopify reviewers must be able to approve without real charges
 const BILLING_TEST  = true;
 
@@ -24,58 +23,22 @@ const PLANS = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Loader — also handles Shopify billing callback (?charge_id=...)
+// Loader — charge verification is handled by /auth/billing-callback
 // ─────────────────────────────────────────────────────────────────────────────
 export async function loader({ request }) {
-  const { session, admin } = await authenticate.admin(request);
-  const { shop } = session;
+  const { session } = await authenticate.admin(request);
+  const { shop }    = session;
 
-  const url    = new URL(request.url);
-  const chargeId = url.searchParams.get("charge_id");
-
-  // Shopify billing return — verify and activate plan
-  if (chargeId) {
-    const isOneTime = chargeId.includes("AppPurchaseOneTime");
-    const query = isOneTime
-      ? `query { node(id: "${chargeId}") { ... on AppPurchaseOneTime { id status name } } }`
-      : `query { node(id: "${chargeId}") { ... on AppSubscription { id status name } } }`;
-
-    try {
-      const res  = await admin.graphql(query);
-      const body = await res.json();
-      const node = body?.data?.node;
-      const status = node?.status;
-      const name   = node?.name || "";
-
-      if (status === "ACTIVE" || status === "ACCEPTED") {
-        let planType;
-        if (isOneTime)                    planType = "lifetime";
-        else if (name.includes("Yearly")) planType = "pro_yearly";
-        else                              planType = "pro_monthly";
-
-        await prisma.shopSettings.upsert({
-          where:  { shop },
-          create: { shop, planType, shopifyChargeId: chargeId, planActivatedAt: new Date() },
-          update: { planType, shopifyChargeId: chargeId, planActivatedAt: new Date() },
-        });
-      }
-    } catch (e) {
-      console.error("[Billing] charge verification error:", e.message);
-    }
-
-    // Redirect to app URL (not admin URL) — the embedded context is already established
-    return redirect(`/app/billing?activated=1`);
-  }
-
-  const settings = await prisma.shopSettings.findUnique({ where: { shop } });
+  const url       = new URL(request.url);
   const activated = url.searchParams.get("activated") === "1";
+  const settings  = await prisma.shopSettings.findUnique({ where: { shop } });
 
   return json({
     shop,
-    planType:    settings?.planType    || "trial",
-    awbCount:    settings?.awbCount    || 0,
-    chargeId:    settings?.shopifyChargeId || null,
-    activatedAt: settings?.planActivatedAt || null,
+    planType:    settings?.planType          || "trial",
+    awbCount:    settings?.awbCount          || 0,
+    chargeId:    settings?.shopifyChargeId   || null,
+    activatedAt: settings?.planActivatedAt   || null,
     activated,
   });
 }
@@ -157,9 +120,9 @@ export async function action({ request }) {
       ]);
     }
 
-    // Return URL must use Shopify admin format so the embedded app iframe re-authenticates.
-    // The path after /apps/{id}/ maps directly to the Remix app route — /app/billing.
-    const returnUrl = `https://${shop}/admin/apps/${API_KEY}/app/billing`;
+    // Callback route handles charge verification without needing embedded app context.
+    // Using the Shopify admin URL causes "To install" page for unpublished apps.
+    const returnUrl = `${APP_URL}/auth/billing-callback?shop=${shop}`;
 
     try {
       let confirmationUrl;
