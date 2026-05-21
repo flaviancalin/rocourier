@@ -12,10 +12,10 @@ import { prisma } from "../db.server.js";
 import { useTranslation } from "../context/i18n.jsx";
 
 const TRIAL_LIMIT   = 10;
-const APP_URL       = process.env.SHOPIFY_APP_URL || "https://rocourier-production.up.railway.app";
-const RETURN_URL    = `${APP_URL}/app/billing`;
-// Use test mode in non-production environments so Shopify reviewers can test billing
-const BILLING_TEST  = process.env.NODE_ENV !== "production";
+// Shopify uses the API key (client_id) as the app identifier in admin URLs
+const API_KEY       = process.env.SHOPIFY_API_KEY || "rocourier";
+// Always test mode — Shopify reviewers must be able to approve without real charges
+const BILLING_TEST  = true;
 
 const PLANS = {
   monthly:  { name: "Pro Monthly",  price: 19.00,  interval: "EVERY_30_DAYS" },
@@ -40,7 +40,6 @@ export async function loader({ request }) {
       ? `query { node(id: "${chargeId}") { ... on AppPurchaseOneTime { id status name } } }`
       : `query { node(id: "${chargeId}") { ... on AppSubscription { id status name } } }`;
 
-    let planType = null;
     try {
       const res  = await admin.graphql(query);
       const body = await res.json();
@@ -49,24 +48,23 @@ export async function loader({ request }) {
       const name   = node?.name || "";
 
       if (status === "ACTIVE" || status === "ACCEPTED") {
-        if (isOneTime)             planType = "lifetime";
-        else if (name.includes("Yearly"))  planType = "pro_yearly";
-        else                               planType = "pro_monthly";
+        let planType;
+        if (isOneTime)                    planType = "lifetime";
+        else if (name.includes("Yearly")) planType = "pro_yearly";
+        else                              planType = "pro_monthly";
 
-        await prisma.shopSettings.update({
-          where: { shop },
-          data: {
-            planType,
-            shopifyChargeId:  chargeId,
-            planActivatedAt:  new Date(),
-          },
+        await prisma.shopSettings.upsert({
+          where:  { shop },
+          create: { shop, planType, shopifyChargeId: chargeId, planActivatedAt: new Date() },
+          update: { planType, shopifyChargeId: chargeId, planActivatedAt: new Date() },
         });
       }
     } catch (e) {
       console.error("[Billing] charge verification error:", e.message);
     }
 
-    return redirect("/app/billing?activated=1");
+    // Redirect to app URL (not admin URL) — the embedded context is already established
+    return redirect(`/app/billing?activated=1`);
   }
 
   const settings = await prisma.shopSettings.findUnique({ where: { shop } });
@@ -159,7 +157,10 @@ export async function action({ request }) {
       ]);
     }
 
-    const returnUrl = `${RETURN_URL}?t=${Date.now()}`;
+    // Must route back through Shopify admin so the embedded app re-authenticates correctly.
+    // Using the raw server URL causes authenticate.admin to fail and redirects to App Store.
+    // Format per Shopify docs: {shop_url}/admin/apps/{client-id}
+    const returnUrl = `https://${shop}/admin/apps/${API_KEY}/billing`;
 
     try {
       let confirmationUrl;
