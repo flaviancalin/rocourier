@@ -52,6 +52,9 @@
 
 /* ── Widget ─────────────────────────────────────────────────────────────────── */
 .rocourier-widget {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
   font-family: inherit;
   margin: 16px 0;
 }

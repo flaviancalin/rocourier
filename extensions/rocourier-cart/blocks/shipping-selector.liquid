@@ -3,9 +3,17 @@
   No <input> elements — pure div/button UI to avoid Shopify cart section re-renders
 {% endcomment %}
 
+{%- assign rc_padding_map = block.settings.widget_padding | default: 'none' -%}
+{%- if rc_padding_map == 'small' -%}{%- assign rc_padding = '8px' -%}
+{%- elsif rc_padding_map == 'medium' -%}{%- assign rc_padding = '16px' -%}
+{%- elsif rc_padding_map == 'large' -%}{%- assign rc_padding = '24px' -%}
+{%- else -%}{%- assign rc_padding = '0px' -%}
+{%- endif -%}
+
 <div
   id="rocourier-widget"
   class="rocourier-widget"
+  style="padding: {{ rc_padding }};"
   data-shop="{{ shop.permanent_domain }}"
   data-app-url="{{ block.settings.app_url }}"
   data-currency="{{ cart.currency.iso_code | default: 'RON' }}"
@@ -218,6 +226,15 @@
         { "value": "pill",    "label": "Pill (24px)" }
       ],
       "default": "rounded"
+    },
+    { "type": "select",   "id": "widget_padding",     "label": "Spațiu interior (padding)",
+      "options": [
+        { "value": "none",   "label": "Fără (0px)" },
+        { "value": "small",  "label": "Mic (8px)" },
+        { "value": "medium", "label": "Mediu (16px)" },
+        { "value": "large",  "label": "Mare (24px)" }
+      ],
+      "default": "none"
     },
     { "type": "checkbox", "id": "show_title",         "label": "Afișează titlul secțiunii", "default": true },
     { "type": "text",     "id": "title",              "label": "Titlu secțiune",       "default": "Metoda de livrare:" },
