@@ -14,7 +14,7 @@ import { useTranslation } from "../context/i18n.jsx";
 const TRIAL_LIMIT   = 10;
 const APP_URL       = process.env.SHOPIFY_APP_URL || "https://rocourier-production.up.railway.app";
 // Always test mode — Shopify reviewers must be able to approve without real charges
-const BILLING_TEST  = true;
+const BILLING_TEST  = false;
 
 const PLANS = {
   monthly:  { name: "Pro Monthly",  price: 19.00,  interval: "EVERY_30_DAYS" },
@@ -30,8 +30,9 @@ export async function loader({ request }) {
   const { shop }    = session;
 
   const url       = new URL(request.url);
-  const activated = url.searchParams.get("activated") === "1";
-  const settings  = await prisma.shopSettings.findUnique({ where: { shop } });
+  const activated    = url.searchParams.get("activated")     === "1";
+  const billingError = url.searchParams.get("billing_error") === "1";
+  const settings     = await prisma.shopSettings.findUnique({ where: { shop } });
 
   return json({
     shop,
@@ -40,6 +41,7 @@ export async function loader({ request }) {
     chargeId:    settings?.shopifyChargeId   || null,
     activatedAt: settings?.planActivatedAt   || null,
     activated,
+    billingError,
   });
 }
 
@@ -237,17 +239,18 @@ function PlanCard({ planKey, current, onSelect, loading, isSwitch, t }) {
 }
 
 export default function BillingPage() {
-  const { planType, awbCount, activated } = useLoaderData();
+  const { planType, awbCount, activated, billingError } = useLoaderData();
   const actionData  = useActionData();
   const submit      = useSubmit();
   const navigation  = useNavigation();
   const { t }       = useTranslation();
   const isSubmitting = navigation.state === "submitting";
 
-  const [giftCode,      setGiftCode]      = useState("");
-  const [discountCode,  setDiscountCode]  = useState("");
-  const [selectedPlan,  setSelectedPlan]  = useState(null);
-  const [toast,         setToast]         = useState(null);
+  const [giftCode,           setGiftCode]           = useState("");
+  const [discountCode,       setDiscountCode]       = useState("");
+  const [selectedPlan,       setSelectedPlan]       = useState(null);
+  const [toast,              setToast]              = useState(null);
+  const [billingErrDismissed, setBillingErrDismissed] = useState(false);
 
   useEffect(() => {
     if (actionData?.confirmationUrl) {
@@ -282,6 +285,13 @@ export default function BillingPage() {
       {toast && (
         <div style={{ marginBottom: 16 }}>
           <Banner tone="success" onDismiss={() => setToast(null)}>{toast}</Banner>
+        </div>
+      )}
+      {billingError && !billingErrDismissed && (
+        <div style={{ marginBottom: 16 }}>
+          <Banner tone="critical" title={t("billing_error_title")} onDismiss={() => setBillingErrDismissed(true)}>
+            {t("billing_error_desc")}
+          </Banner>
         </div>
       )}
       {actionData?.error && (

@@ -1,9 +1,11 @@
 // app/routes/app._index.jsx
 // Main Dashboard — stats overview + recent orders
 
+import { useState, useEffect } from "react";
 import { json } from "@remix-run/node";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import { authenticate } from "../shopify.server.js";
+import { prisma } from "../db.server.js";
 import { getOrders, getDashboardStats } from "../models/order.server.js";
 import {
   Page,
@@ -20,21 +22,32 @@ import {
 } from "@shopify/polaris";
 import { useTranslation } from "../context/i18n.jsx";
 
+const LOCALE_MAP = { ro: "ro-RO", en: "en-US", de: "de-DE", hu: "hu-HU", cs: "cs-CZ" };
+
 // ─── Loader ──────────────────────────────────────────────────────────────────
 export async function loader({ request }) {
   const { session } = await authenticate.admin(request);
-  const url = new URL(request.url);
+  const url  = new URL(request.url);
   const page = parseInt(url.searchParams.get("page") || "1");
 
-  const [{ orders, total, totalPages }, stats] = await Promise.all([
+  const [{ orders, total, totalPages }, stats, settings] = await Promise.all([
     getOrders({ shop: session.shop, page, perPage: 20 }),
     getDashboardStats(session.shop),
+    prisma.shopSettings.findUnique({ where: { shop: session.shop } }),
   ]);
 
-  return json({ orders, total, totalPages, page, stats });
+  const isCourierConfigured = !!(
+    (settings?.fanClientId && settings?.fanUsername) ||
+    settings?.samedayUsername ||
+    (settings?.cargusSubscriptionKey && settings?.cargusUsername) ||
+    settings?.glsUsername ||
+    settings?.packetaApiKey
+  );
+
+  return json({ orders, total, totalPages, page, stats, isCourierConfigured });
 }
 
-// ─── Static courier config (labels stay English brand names regardless of lang) ──
+// ─── Static courier config ───────────────────────────────────────────────────
 const COURIER_CONFIG = {
   fan:     { label: "FAN Courier",  color: "#e65100" },
   sameday: { label: "Sameday",      color: "#1565c0" },
@@ -97,11 +110,126 @@ function StatCard({ label, value, sub, accent }) {
   );
 }
 
+// ─── Onboarding card ─────────────────────────────────────────────────────────
+function OnboardingCard({ isCourierConfigured, totalOrders, navigate, t }) {
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("picklo_onboarding_v1") === "1") setDismissed(true);
+    } catch {}
+  }, []);
+
+  const step1Done = isCourierConfigured;
+  const step2Done = totalOrders > 0;
+
+  // Auto-dismiss once fully set up
+  if (step1Done && step2Done) return null;
+  if (dismissed) return null;
+
+  const handleDismiss = () => {
+    try { localStorage.setItem("picklo_onboarding_v1", "1"); } catch {}
+    setDismissed(true);
+  };
+
+  const StepDot = ({ n, done, active }) => (
+    <div style={{
+      width: 28, height: 28, borderRadius: "50%",
+      background: done ? "#008060" : active ? "#5c6ac4" : "#e1e3e5",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      flexShrink: 0,
+    }}>
+      <span style={{ color: done || active ? "#fff" : "#8c9196", fontSize: 13, fontWeight: 700 }}>
+        {done ? "✓" : n}
+      </span>
+    </div>
+  );
+
+  return (
+    <Layout.Section>
+      <Card>
+        <BlockStack gap="400">
+          <InlineStack align="space-between" blockAlign="start">
+            <BlockStack gap="050">
+              <Text variant="headingMd" fontWeight="semibold">{t("onboarding_title")}</Text>
+              <Text variant="bodySm" tone="subdued">{t("onboarding_subtitle")}</Text>
+            </BlockStack>
+            <Button variant="plain" onClick={handleDismiss}>{t("onboarding_dismiss")}</Button>
+          </InlineStack>
+          <Divider />
+
+          {/* Step 1 */}
+          <InlineStack align="space-between" blockAlign="center" wrap={false} gap="400">
+            <InlineStack gap="300" blockAlign="center">
+              <StepDot n="1" done={step1Done} active={!step1Done} />
+              <BlockStack gap="050">
+                <Text variant="bodySm" fontWeight="semibold"
+                  tone={step1Done ? "success" : undefined}>
+                  {t("onboarding_step1")}
+                </Text>
+                <Text variant="bodySm" tone="subdued">{t("onboarding_step1_desc")}</Text>
+              </BlockStack>
+            </InlineStack>
+            {!step1Done && (
+              <div style={{ flexShrink: 0 }}>
+                <Button size="slim" onClick={() => navigate("/app/settings")}>
+                  {t("onboarding_configure")}
+                </Button>
+              </div>
+            )}
+          </InlineStack>
+
+          {/* Step 2 */}
+          <InlineStack align="space-between" blockAlign="center" wrap={false} gap="400">
+            <InlineStack gap="300" blockAlign="center">
+              <StepDot n="2" done={step2Done} active={step1Done && !step2Done} />
+              <BlockStack gap="050">
+                <Text variant="bodySm" fontWeight="semibold"
+                  tone={step2Done ? "success" : undefined}>
+                  {t("onboarding_step2")}
+                </Text>
+                <Text variant="bodySm" tone="subdued">{t("onboarding_step2_desc")}</Text>
+              </BlockStack>
+            </InlineStack>
+            {step1Done && !step2Done && (
+              <div style={{ flexShrink: 0 }}>
+                <Button size="slim" onClick={() => navigate("/app/orders")}>
+                  {t("onboarding_go_orders")}
+                </Button>
+              </div>
+            )}
+          </InlineStack>
+
+          {/* Step 3 */}
+          <InlineStack align="space-between" blockAlign="center" wrap={false} gap="400">
+            <InlineStack gap="300" blockAlign="center">
+              <StepDot n="3" done={false} active={step1Done && step2Done} />
+              <BlockStack gap="050">
+                <Text variant="bodySm" fontWeight="semibold">{t("onboarding_step3")}</Text>
+                <Text variant="bodySm" tone="subdued">{t("onboarding_step3_desc")}</Text>
+              </BlockStack>
+            </InlineStack>
+            {step1Done && step2Done && (
+              <div style={{ flexShrink: 0 }}>
+                <Button size="slim" onClick={() => navigate("/app/orders")}>
+                  {t("onboarding_go_orders")}
+                </Button>
+              </div>
+            )}
+          </InlineStack>
+        </BlockStack>
+      </Card>
+    </Layout.Section>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const { orders, stats } = useLoaderData();
+  const { orders, stats, isCourierConfigured } = useLoaderData();
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
+
+  const locale = LOCALE_MAP[lang] || "en-US";
 
   const totalOrders = Object.values(stats.byStatus).reduce((a, b) => a + b, 0);
   const delivered   = stats.byStatus.delivered || 0;
@@ -115,8 +243,8 @@ export default function Dashboard() {
     o.customerName || "—",
     <CourierBadge courier={o.courierType} />,
     o.shippingMethod === "pickup_point"
-      ? `📦 ${o.pickupPointName || t("pickup_short")}`
-      : `🚚 ${t("at_home")}`,
+      ? `${o.pickupPointName || t("pickup_short")}`
+      : t("at_home"),
     o.awbNumber
       ? <span style={{ fontFamily: "monospace", fontSize: 13 }}>{o.awbNumber}</span>
       : <Text tone="subdued">—</Text>,
@@ -124,7 +252,7 @@ export default function Dashboard() {
     o.codAmount > 0
       ? <Text fontWeight="semibold">{o.codAmount.toFixed(2)} RON</Text>
       : <Text tone="subdued">—</Text>,
-    new Date(o.createdAt).toLocaleDateString("ro-RO", {
+    new Date(o.createdAt).toLocaleDateString(locale, {
       day: "2-digit", month: "2-digit", year: "numeric",
       hour: "2-digit", minute: "2-digit",
     }),
@@ -145,13 +273,21 @@ export default function Dashboard() {
     >
       <Layout>
 
+        {/* ── Onboarding ────────────────────────────────────────────────── */}
+        <OnboardingCard
+          isCourierConfigured={isCourierConfigured}
+          totalOrders={totalOrders}
+          navigate={navigate}
+          t={t}
+        />
+
         {/* ── Stats row ─────────────────────────────────────────────────── */}
         <Layout.Section>
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-            <StatCard label={t("stats_total")}     value={totalOrders} accent="#5c6ac4" />
-            <StatCard label={t("stats_generated")} value={generated}   accent="#006fbb" />
-            <StatCard label={t("stats_in_transit")} value={inTransit}  accent="#f49342" />
-            <StatCard label={t("stats_delivered")} value={delivered}   accent="#108043" />
+            <StatCard label={t("stats_total")}      value={totalOrders} accent="#5c6ac4" />
+            <StatCard label={t("stats_generated")}  value={generated}   accent="#006fbb" />
+            <StatCard label={t("stats_in_transit")} value={inTransit}   accent="#f49342" />
+            <StatCard label={t("stats_delivered")}  value={delivered}   accent="#108043" />
             <StatCard
               label={t("stats_cod")}
               value={`${stats.pendingCodTotal.toFixed(0)} RON`}
@@ -205,7 +341,7 @@ export default function Dashboard() {
                     { key: "pickup_point",  label: t("pickup_point_stat"),  color: "#108043" },
                   ].map(({ key, label, color }) => {
                     const count = stats.byMethod[key] || 0;
-                    const pct = totalOrders > 0 ? Math.round((count / totalOrders) * 100) : 0;
+                    const pct   = totalOrders > 0 ? Math.round((count / totalOrders) * 100) : 0;
                     return (
                       <div key={key}>
                         <InlineStack align="space-between">

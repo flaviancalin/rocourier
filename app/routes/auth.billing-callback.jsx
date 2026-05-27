@@ -7,12 +7,16 @@ import { redirect } from "@remix-run/node";
 import { prisma } from "../db.server.js";
 
 const API_VERSION = "2025-01";
-const APP_HANDLE  = process.env.SHOPIFY_API_KEY || "rocourier";
+// Use SHOPIFY_APP_HANDLE (the "rocourier" handle), not SHOPIFY_API_KEY (hex client ID).
+// Set SHOPIFY_APP_HANDLE=rocourier in Railway env vars.
+const APP_HANDLE  = process.env.SHOPIFY_APP_HANDLE || "rocourier";
 
 export async function loader({ request }) {
   const url   = new URL(request.url);
   const shop  = url.searchParams.get("shop");
   const rawId = url.searchParams.get("charge_id");
+
+  let activationSucceeded = false;
 
   if (shop && rawId) {
     try {
@@ -30,6 +34,7 @@ export async function loader({ request }) {
             create: { shop, planType, shopifyChargeId: rawId, planActivatedAt: new Date() },
             update: { planType, shopifyChargeId: rawId, planActivatedAt: new Date() },
           });
+          activationSucceeded = true;
         }
       }
     } catch (err) {
@@ -37,12 +42,10 @@ export async function loader({ request }) {
     }
   }
 
-  // Redirect to the embedded app root — no charge_id forwarded, no subpath.
-  // Shopify admin will load the embedded app in the iframe normally.
-  const dest = shop
-    ? `https://${shop}/admin/apps/${APP_HANDLE}`
-    : "/app/billing";
-  return redirect(dest);
+  if (!shop) return redirect("/app/billing");
+
+  const base = `https://${shop}/admin/apps/${APP_HANDLE}/billing`;
+  return redirect(activationSucceeded ? `${base}?activated=1` : `${base}?billing_error=1`);
 }
 
 async function resolveCharge(shop, token, rawId) {

@@ -483,6 +483,23 @@ export const T = {
     billing_plan_pro_monthly:  "Pro Monthly",
     billing_plan_pro_yearly:   "Pro Yearly",
     billing_plan_lifetime:     "Lifetime",
+
+    // ── Billing error banner ─────────────────────────────────────────────────
+    billing_error_title:       "Activare eșuată",
+    billing_error_desc:        "Plata nu a putut fi verificată. Încearcă din nou sau contactează suportul.",
+
+    // ── Onboarding card ──────────────────────────────────────────────────────
+    onboarding_title:          "Bun venit în Picklo! Hai să configuram totul.",
+    onboarding_subtitle:       "Câțiva pași rapizi și ești gata să generezi AWB-uri.",
+    onboarding_step1:          "Configurează un curier",
+    onboarding_step1_desc:     "Adaugă credențialele contului tău de curier în Setări.",
+    onboarding_step2:          "Sincronizează comenzile",
+    onboarding_step2_desc:     "Importă comenzile din magazinul tău Shopify.",
+    onboarding_step3:          "Generează primul AWB",
+    onboarding_step3_desc:     "Selectează o comandă și trimite-o la curier.",
+    onboarding_configure:      "Configurează",
+    onboarding_go_orders:      "Vezi comenzi",
+    onboarding_dismiss:        "Închide",
   },
 
   en: {
@@ -937,6 +954,23 @@ export const T = {
     billing_plan_pro_monthly:  "Pro Monthly",
     billing_plan_pro_yearly:   "Pro Yearly",
     billing_plan_lifetime:     "Lifetime",
+
+    // ── Billing error banner ─────────────────────────────────────────────────
+    billing_error_title:       "Activation failed",
+    billing_error_desc:        "Your payment could not be verified. Please try again or contact support.",
+
+    // ── Onboarding card ──────────────────────────────────────────────────────
+    onboarding_title:          "Welcome to Picklo! Let's get you set up.",
+    onboarding_subtitle:       "A few quick steps and you'll be generating AWBs.",
+    onboarding_step1:          "Configure a courier",
+    onboarding_step1_desc:     "Add your courier account credentials in Settings.",
+    onboarding_step2:          "Sync your orders",
+    onboarding_step2_desc:     "Import orders from your Shopify store.",
+    onboarding_step3:          "Generate your first AWB",
+    onboarding_step3_desc:     "Select an order and send it to your courier.",
+    onboarding_configure:      "Configure",
+    onboarding_go_orders:      "View orders",
+    onboarding_dismiss:        "Dismiss",
   },
 
   de: {
@@ -1391,6 +1425,23 @@ export const T = {
     billing_plan_pro_monthly:  "Pro Monatlich",
     billing_plan_pro_yearly:   "Pro Jährlich",
     billing_plan_lifetime:     "Lifetime",
+
+    // ── Billing error banner ─────────────────────────────────────────────────
+    billing_error_title:       "Aktivierung fehlgeschlagen",
+    billing_error_desc:        "Ihre Zahlung konnte nicht verifiziert werden. Bitte versuchen Sie es erneut oder kontaktieren Sie den Support.",
+
+    // ── Onboarding card ──────────────────────────────────────────────────────
+    onboarding_title:          "Willkommen bei Picklo! Lassen Sie uns alles einrichten.",
+    onboarding_subtitle:       "Ein paar schnelle Schritte und Sie können AWBs generieren.",
+    onboarding_step1:          "Kurier konfigurieren",
+    onboarding_step1_desc:     "Fügen Sie Ihre Kurier-Kontodaten in den Einstellungen hinzu.",
+    onboarding_step2:          "Bestellungen synchronisieren",
+    onboarding_step2_desc:     "Importieren Sie Bestellungen aus Ihrem Shopify-Shop.",
+    onboarding_step3:          "Erste AWB generieren",
+    onboarding_step3_desc:     "Wählen Sie eine Bestellung aus und senden Sie sie an Ihren Kurier.",
+    onboarding_configure:      "Konfigurieren",
+    onboarding_go_orders:      "Bestellungen anzeigen",
+    onboarding_dismiss:        "Schließen",
   },
 
   hu: {
@@ -1845,6 +1896,23 @@ export const T = {
     billing_plan_pro_monthly:  "Pro Havi",
     billing_plan_pro_yearly:   "Pro Éves",
     billing_plan_lifetime:     "Lifetime",
+
+    // ── Billing error banner ─────────────────────────────────────────────────
+    billing_error_title:       "Az aktiválás sikertelen",
+    billing_error_desc:        "A fizetés nem volt ellenőrizhető. Kérjük, próbálja újra, vagy lépjen kapcsolatba az ügyfélszolgálattal.",
+
+    // ── Onboarding card ──────────────────────────────────────────────────────
+    onboarding_title:          "Üdvözöljük a Picklóban! Állítsunk be mindent.",
+    onboarding_subtitle:       "Néhány gyors lépés, és máris generálhat AWB-ket.",
+    onboarding_step1:          "Futár konfigurálása",
+    onboarding_step1_desc:     "Adja meg futárfiókja hitelesítő adatait a Beállításokban.",
+    onboarding_step2:          "Rendelések szinkronizálása",
+    onboarding_step2_desc:     "Importálja a rendeléseket Shopify áruházából.",
+    onboarding_step3:          "Első AWB generálása",
+    onboarding_step3_desc:     "Válasszon egy rendelést, és küldje el a futárnak.",
+    onboarding_configure:      "Konfigurálás",
+    onboarding_go_orders:      "Rendelések megtekintése",
+    onboarding_dismiss:        "Bezárás",
   },
 
   cs: {
@@ -2299,6 +2367,23 @@ export const T = {
     billing_plan_pro_monthly:  "Pro Měsíční",
     billing_plan_pro_yearly:   "Pro Roční",
     billing_plan_lifetime:     "Lifetime",
+
+    // ── Billing error banner ─────────────────────────────────────────────────
+    billing_error_title:       "Aktivace se nezdařila",
+    billing_error_desc:        "Platbu nebylo možné ověřit. Zkuste to znovu nebo kontaktujte podporu.",
+
+    // ── Onboarding card ──────────────────────────────────────────────────────
+    onboarding_title:          "Vítejte v Picklo! Pojďme vše nastavit.",
+    onboarding_subtitle:       "Několik rychlých kroků a budete generovat AWB.",
+    onboarding_step1:          "Nakonfigurujte kurýra",
+    onboarding_step1_desc:     "Přidejte přihlašovací údaje kurýrního účtu v Nastavení.",
+    onboarding_step2:          "Synchronizujte objednávky",
+    onboarding_step2_desc:     "Importujte objednávky z vašeho obchodu Shopify.",
+    onboarding_step3:          "Vygenerujte první AWB",
+    onboarding_step3_desc:     "Vyberte objednávku a odešlete ji kurýrovi.",
+    onboarding_configure:      "Konfigurovat",
+    onboarding_go_orders:      "Zobrazit objednávky",
+    onboarding_dismiss:        "Zavřít",
   },
 };
 

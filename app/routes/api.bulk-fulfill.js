@@ -12,6 +12,40 @@ const COURIER_TRACKING = {
   packeta: { company: "Packeta",        url: (awb) => `https://tracking.packeta.com/?id=${awb}` },
 };
 
+const FULFILLMENT_ORDERS_QUERY = `
+  query GetFulfillmentOrders($orderId: ID!) {
+    order(id: $orderId) {
+      fulfillmentOrders(first: 10) {
+        nodes {
+          id
+          status
+          lineItems(first: 50) {
+            nodes {
+              id
+              remainingQuantity
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+const FULFILLMENT_CREATE_MUTATION = `
+  mutation FulfillmentCreateV2($fulfillment: FulfillmentV2Input!) {
+    fulfillmentCreateV2(fulfillment: $fulfillment) {
+      fulfillment {
+        id
+        status
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
 export async function action({ request }) {
   const { session, admin } = await authenticate.admin(request);
   const { shop } = session;
@@ -34,67 +68,90 @@ export async function action({ request }) {
         url: () => "",
       };
 
-      // Get fulfillment orders for this Shopify order
-      const foResp = await admin.rest.get({
-        path: `orders/${order.shopifyOrderId}/fulfillment_orders`,
-      });
+      // Get fulfillment orders via GraphQL Admin API
+      const orderId = `gid://shopify/Order/${order.shopifyOrderId}`;
+      const foRes  = await admin.graphql(FULFILLMENT_ORDERS_QUERY, { variables: { orderId } });
+      const foBody = await foRes.json();
+      const fulfillmentOrders = foBody?.data?.order?.fulfillmentOrders?.nodes || [];
 
-      const fulfillmentOrders = foResp.body?.fulfillment_orders || [];
-
-      // Only pick open/in_progress fulfillment orders
+      // Only pick OPEN or IN_PROGRESS fulfillment orders
       const openFOs = fulfillmentOrders.filter((fo) =>
-        ["open", "in_progress"].includes(fo.status)
+        ["OPEN", "IN_PROGRESS"].includes(fo.status)
       );
 
       if (!openFOs.length) {
-        results.push({ orderId: order.id, orderName: order.shopifyOrderName, success: false, error: "Already fulfilled or no open fulfillment orders" });
+        results.push({
+          orderId: order.id,
+          orderName: order.shopifyOrderName,
+          success: false,
+          error: "Already fulfilled or no open fulfillment orders",
+        });
         continue;
       }
 
-      const lineItems = openFOs.flatMap((fo) =>
-        (fo.line_items || [])
-          .filter((li) => li.fulfillable_quantity > 0)
-          .map((li) => ({
-            fulfillment_order_id: fo.id,
-            fulfillment_order_line_item_id: li.id,
-            quantity: li.fulfillable_quantity,
-          }))
-      );
+      const lineItemsByFulfillmentOrder = openFOs
+        .map((fo) => {
+          const items = (fo.lineItems?.nodes || []).filter((li) => li.remainingQuantity > 0);
+          if (!items.length) return null;
+          return {
+            fulfillmentOrderId: fo.id,
+            fulfillmentOrderLineItems: items.map((li) => ({
+              id: li.id,
+              quantity: li.remainingQuantity,
+            })),
+          };
+        })
+        .filter(Boolean);
 
-      if (!lineItems.length) {
-        results.push({ orderId: order.id, orderName: order.shopifyOrderName, success: false, error: "No fulfillable items" });
+      if (!lineItemsByFulfillmentOrder.length) {
+        results.push({
+          orderId: order.id,
+          orderName: order.shopifyOrderName,
+          success: false,
+          error: "No fulfillable items",
+        });
         continue;
       }
 
-      const fulfillResp = await admin.rest.post({
-        path: "fulfillments",
-        data: {
+      const fulfillRes  = await admin.graphql(FULFILLMENT_CREATE_MUTATION, {
+        variables: {
           fulfillment: {
-            line_items_by_fulfillment_order: lineItems,
-            tracking_info: {
-              number: order.awbNumber,
+            lineItemsByFulfillmentOrder,
+            trackingInfo: {
               company: tracking.company,
-              url: tracking.url(order.awbNumber),
+              number:  order.awbNumber,
+              url:     tracking.url(order.awbNumber),
             },
-            notify_customer: false,
+            notifyCustomer: false,
           },
         },
-        type: admin.rest.DataType?.JSON || "application/json",
       });
+      const fulfillBody = await fulfillRes.json();
+      const result      = fulfillBody?.data?.fulfillmentCreateV2;
 
-      const fulfillment = fulfillResp.body?.fulfillment;
+      if (result?.userErrors?.length) {
+        const errMsg = result.userErrors.map((e) => e.message).join("; ");
+        results.push({
+          orderId: order.id,
+          orderName: order.shopifyOrderName,
+          success: false,
+          error: errMsg,
+        });
+        continue;
+      }
+
       results.push({
-        orderId: order.id,
-        orderName: order.shopifyOrderName,
-        success: true,
-        fulfillmentId: fulfillment?.id,
+        orderId:       order.id,
+        orderName:     order.shopifyOrderName,
+        success:       true,
+        fulfillmentId: result?.fulfillment?.id,
       });
     } catch (e) {
       results.push({
-        orderId: order.id,
+        orderId:   order.id,
         orderName: order.shopifyOrderName,
-        success: false,
-        error: e.message,
+        success:   false,
+        error:     e.message,
       });
     }
   }
