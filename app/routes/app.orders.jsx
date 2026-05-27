@@ -888,7 +888,7 @@ export default function OrdersPage() {
                                   </div>
                                 </div>
                                 <div style={{ marginTop:10 }}>
-                                  <Button size="micro" onClick={() => navigate(`/app/order-detail/${o.id}`)}>Detalii comandă</Button>
+                                  <Button size="micro" onClick={() => navigate(`/app/order-detail/${o.id}`)}>{t("order_details")}</Button>
                                 </div>
                               </div>
                             )}
@@ -1040,7 +1040,7 @@ export default function OrdersPage() {
                             <button
                               onClick={() => toggleExpand(o.id)}
                               style={{ background:"none", border:"1px solid #ddd", borderRadius:6, padding:"5px 8px", cursor:"pointer", fontSize:12, color:"#6d7175" }}
-                              title={isExpanded ? "Restrânge" : "Detalii"}
+                              title={isExpanded ? t("collapse") : t("order_details")}
                             >
                               {isExpanded ? "▲" : "▼"}
                             </button>
@@ -1089,7 +1089,7 @@ export default function OrdersPage() {
                                       style={{ background:"#e8e8e8", padding:"2px 6px", borderRadius:4, color:"#008060", cursor:"pointer" }}
                                     >{o.awbNumber}</code>
                                     <div style={{ marginTop:6, display:"flex", gap:6 }}>
-                                      <Button size="micro" onClick={() => navigate(`/app/order-detail/${o.id}`)}>Detalii comandă</Button>
+                                      <Button size="micro" onClick={() => navigate(`/app/order-detail/${o.id}`)}>{t("order_details")}</Button>
                                     </div>
                                   </div>
                                 </div>
@@ -1373,19 +1373,19 @@ export default function OrdersPage() {
               {swCourier === "cargus" && (
                 <InlineStack gap="500" align="start" blockAlign="start">
                   <div style={{ flex:1 }}>
-                    <Text variant="bodyMd" fontWeight="semibold">Tip ramburs</Text>
+                    <Text variant="bodyMd" fontWeight="semibold">{t("wizard_reimbursement")}</Text>
                     <div style={{ marginTop:8 }}>
-                      <RadioButton label="Ramburs cash" checked={swCargusReimb === "cash"} id="sw-cash" name="swReimb" onChange={() => setSwCargusReimb("cash")} />
-                      <RadioButton label="Ramburs cont colector" checked={swCargusReimb === "account"} id="sw-account" name="swReimb" onChange={() => setSwCargusReimb("account")} />
+                      <RadioButton label={t("wizard_cash")} checked={swCargusReimb === "cash"} id="sw-cash" name="swReimb" onChange={() => setSwCargusReimb("cash")} />
+                      <RadioButton label={t("wizard_account")} checked={swCargusReimb === "account"} id="sw-account" name="swReimb" onChange={() => setSwCargusReimb("account")} />
                     </div>
                   </div>
                   <div style={{ flex:1 }}>
-                    <Text variant="bodyMd" fontWeight="semibold">Opțiuni</Text>
+                    <Text variant="bodyMd" fontWeight="semibold">{t("wizard_options_label")}</Text>
                     <div style={{ marginTop:8 }}>
-                      <div style={{ marginBottom:8 }}><Checkbox label="Deschidere la livrare" checked={swOpenPackage} onChange={setSwOpenPackage} /></div>
-                      <div style={{ marginBottom:8 }}><Checkbox label="Livrare sâmbătă" checked={swSaturday} onChange={setSwSaturday} /></div>
-                      <div style={{ marginBottom:8 }}><Checkbox label="Livrare dimineața" checked={swMorning} onChange={setSwMorning} /></div>
-                      <div style={{ marginBottom:8 }}><Checkbox label="Serviciu Swap" checked={swSwap} onChange={setSwSwap} /></div>
+                      <div style={{ marginBottom:8 }}><Checkbox label={t("wizard_open_package")} checked={swOpenPackage} onChange={setSwOpenPackage} /></div>
+                      <div style={{ marginBottom:8 }}><Checkbox label={t("wizard_saturday")} checked={swSaturday} onChange={setSwSaturday} /></div>
+                      <div style={{ marginBottom:8 }}><Checkbox label={t("wizard_morning")} checked={swMorning} onChange={setSwMorning} /></div>
+                      <div style={{ marginBottom:8 }}><Checkbox label={t("wizard_swap")} checked={swSwap} onChange={setSwSwap} /></div>
                     </div>
                   </div>
                 </InlineStack>
@@ -1393,18 +1393,18 @@ export default function OrdersPage() {
 
               {swCourier === "sameday" && (
                 <InlineStack gap="500" align="start" blockAlign="start">
-                  <div style={{ flex:1 }}><Checkbox label="Deschidere la livrare" checked={swOpenPackage} onChange={setSwOpenPackage} /></div>
-                  <div style={{ flex:1 }}><TextField label="Valoare asigurată (RON)" type="number" value={swInsured} onChange={setSwInsured} min="0" suffix="RON" /></div>
+                  <div style={{ flex:1 }}><Checkbox label={t("wizard_open_package")} checked={swOpenPackage} onChange={setSwOpenPackage} /></div>
+                  <div style={{ flex:1 }}><TextField label={t("wizard_insured_value")} type="number" value={swInsured} onChange={setSwInsured} min="0" suffix="RON" /></div>
                 </InlineStack>
               )}
 
               {swCourier === "gls" && (
                 <InlineStack gap="400" blockAlign="start">
                   <div style={{ flex:1 }}>
-                    <Checkbox label="Livrare la ParcelShop / Locker" checked={swGlsShop}
+                    <Checkbox label={t("wizard_parcelshop")} checked={swGlsShop}
                       onChange={(v) => { setSwGlsShop(v); setSwPickupPoint(null); setSwPickupPoints([]); if (v) loadSwPickupPoints("gls"); }} />
                   </div>
-                  <div style={{ flex:1 }}><Checkbox label="Livrare sâmbătă" checked={swSaturday} onChange={setSwSaturday} /></div>
+                  <div style={{ flex:1 }}><Checkbox label={t("wizard_saturday")} checked={swSaturday} onChange={setSwSaturday} /></div>
                 </InlineStack>
               )}
             </BlockStack>
@@ -1430,18 +1430,18 @@ export default function OrdersPage() {
                         <Text variant="bodySm" fontWeight="semibold">{swPickupPoint.name}</Text>
                         <Text variant="bodySm" tone="subdued">{swPickupPoint.address}</Text>
                       </BlockStack>
-                      <Button size="micro" onClick={() => { setSwPickupPoint(null); loadSwPickupPoints(swCourier); }}>Schimbă</Button>
+                      <Button size="micro" onClick={() => { setSwPickupPoint(null); loadSwPickupPoints(swCourier); }}>{t("wizard_change")}</Button>
                     </InlineStack>
                   ) : (
                     <BlockStack gap="200">
-                      <TextField labelHidden label="Caută" placeholder="Caută după oraș, adresă, nume..."
+                      <TextField labelHidden label={t("search")} placeholder={t("wizard_search_pickup")}
                         value={swPickupSearch} onChange={setSwPickupSearch} autoComplete="off" />
                       {swLoadingPP
                         ? <InlineStack align="center"><Spinner size="small" /></InlineStack>
                         : <div style={{ maxHeight:160, overflowY:"auto", border:"1px solid #e0e0e0", borderRadius:6 }}>
                             {filteredPP.length === 0
                               ? <Box padding="400"><Text tone="subdued" alignment="center">
-                                  {swPickupPoints.length === 0 ? "Nicio locație. Sincronizează din Setări." : "Nicio potrivire."}
+                                  {swPickupPoints.length === 0 ? t("wizard_no_location") : t("wizard_no_match")}
                                 </Text></Box>
                               : filteredPP.map((p) => (
                                   <div key={p.id} role="button" tabIndex={0}
@@ -1466,23 +1466,23 @@ export default function OrdersPage() {
               )}
               <FormLayout>
                 <FormLayout.Group>
-                  <TextField label="Nume" value={swName} onChange={setSwName} autoComplete="off" />
-                  <TextField label="Email" value={swEmail} onChange={setSwEmail} autoComplete="off" type="email" />
-                  <TextField label="Telefon" value={swPhone} onChange={setSwPhone} autoComplete="off" />
+                  <TextField label={t("name_label")} value={swName} onChange={setSwName} autoComplete="off" />
+                  <TextField label={t("email_label")} value={swEmail} onChange={setSwEmail} autoComplete="off" type="email" />
+                  <TextField label={t("phone_label")} value={swPhone} onChange={setSwPhone} autoComplete="off" />
                 </FormLayout.Group>
                 <FormLayout.Group>
-                  <TextField label="Adresă" value={swAddress} onChange={setSwAddress} autoComplete="off" />
-                  <TextField label="Detalii adresă (bloc, ap.)" value={swAddrDetails} onChange={setSwAddrDetails} autoComplete="off" />
+                  <TextField label={t("address_label")} value={swAddress} onChange={setSwAddress} autoComplete="off" />
+                  <TextField label={t("wizard_address_details")} value={swAddrDetails} onChange={setSwAddrDetails} autoComplete="off" />
                 </FormLayout.Group>
                 <FormLayout.Group>
-                  <TextField label="Localitate" value={swCity} onChange={setSwCity} autoComplete="off" />
-                  <TextField label="Județ" value={swCounty} onChange={setSwCounty} autoComplete="off" />
+                  <TextField label={t("city_label")} value={swCity} onChange={setSwCity} autoComplete="off" />
+                  <TextField label={t("wizard_county")} value={swCounty} onChange={setSwCounty} autoComplete="off" />
                 </FormLayout.Group>
                 <FormLayout.Group>
-                  <TextField label="Cod poștal" value={swZip} onChange={setSwZip} autoComplete="off" />
-                  <TextField label="Țară" value={swCountry} onChange={setSwCountry} autoComplete="off" />
+                  <TextField label={t("postal_code_label")} value={swZip} onChange={setSwZip} autoComplete="off" />
+                  <TextField label={t("wizard_country")} value={swCountry} onChange={setSwCountry} autoComplete="off" />
                 </FormLayout.Group>
-                <TextField label="Companie (opțional)" value={swCompany} onChange={setSwCompany} autoComplete="off" />
+                <TextField label={t("wizard_company")} value={swCompany} onChange={setSwCompany} autoComplete="off" />
               </FormLayout>
             </BlockStack>
           );
@@ -1497,22 +1497,22 @@ export default function OrdersPage() {
               </Card>
               <FormLayout>
                 <FormLayout.Group>
-                  <TextField label="Ramburs (COD)" type="number" value={swCod} onChange={setSwCod} min="0" step="0.01" suffix="RON" />
-                  <TextField label="Valoare declarată" type="number" value={swDeclared} onChange={setSwDeclared} min="0" step="0.01" suffix="RON" />
+                  <TextField label={t("cod_label")} type="number" value={swCod} onChange={setSwCod} min="0" step="0.01" suffix="RON" />
+                  <TextField label={t("wizard_declared_value")} type="number" value={swDeclared} onChange={setSwDeclared} min="0" step="0.01" suffix="RON" />
                 </FormLayout.Group>
                 <FormLayout.Group>
-                  <Select label="Plata transportului" value={swPayer} onChange={setSwPayer}
-                    options={[{ label:"Destinatar", value:"recipient" }, { label:"Expeditor", value:"sender" }]} />
-                  <TextField label="Nr. colete" type="number" value={swPkgCount} onChange={setSwPkgCount} min="1" step="1" />
+                  <Select label={t("wizard_payer")} value={swPayer} onChange={setSwPayer}
+                    options={[{ label: t("wizard_payer_recipient"), value:"recipient" }, { label: t("wizard_payer_sender"), value:"sender" }]} />
+                  <TextField label={t("wizard_packages")} type="number" value={swPkgCount} onChange={setSwPkgCount} min="1" step="1" />
                 </FormLayout.Group>
                 <FormLayout.Group>
-                  <TextField label="Greutate" type="number" value={swWeight} onChange={setSwWeight} min="0.1" step="0.1" suffix="kg" />
+                  <TextField label={t("weight_label")} type="number" value={swWeight} onChange={setSwWeight} min="0.1" step="0.1" suffix="kg" />
                 </FormLayout.Group>
-                <Text variant="bodyMd" fontWeight="semibold">Dimensiuni colet</Text>
+                <Text variant="bodyMd" fontWeight="semibold">{t("wizard_dimensions")}</Text>
                 <FormLayout.Group>
-                  <TextField label="Înălțime" type="number" value={swHeight} onChange={setSwHeight} min="0" suffix="cm" />
-                  <TextField label="Lățime" type="number" value={swWidth} onChange={setSwWidth} min="0" suffix="cm" />
-                  <TextField label="Lungime" type="number" value={swLength} onChange={setSwLength} min="0" suffix="cm" />
+                  <TextField label={t("wizard_height")} type="number" value={swHeight} onChange={setSwHeight} min="0" suffix="cm" />
+                  <TextField label={t("wizard_width")} type="number" value={swWidth} onChange={setSwWidth} min="0" suffix="cm" />
+                  <TextField label={t("wizard_length")} type="number" value={swLength} onChange={setSwLength} min="0" suffix="cm" />
                 </FormLayout.Group>
               </FormLayout>
             </BlockStack>
@@ -1522,12 +1522,11 @@ export default function OrdersPage() {
         function renderSwStep4() {
           return (
             <BlockStack gap="400">
-              {singleError && <Banner tone="critical" title="Eroare" onDismiss={() => setSingleError(null)}><Text>{singleError}</Text></Banner>}
+              {singleError && <Banner tone="critical" title={t("error")} onDismiss={() => setSingleError(null)}><Text>{singleError}</Text></Banner>}
 
-              {/* Estimated shipping price */}
               <div style={{ background:"#f0faf5", border:"1px solid #b7e4cc", borderRadius:8, padding:"12px 16px" }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                  <Text variant="bodySm" fontWeight="semibold">Preț estimat transport</Text>
+                  <Text variant="bodySm" fontWeight="semibold">{t("wizard_est_price")}</Text>
                   {swEstLoading && <Spinner size="small" />}
                 </div>
                 {!swEstLoading && swEstPrice && (
@@ -1539,35 +1538,35 @@ export default function OrdersPage() {
                   </div>
                 )}
                 {!swEstLoading && !swEstPrice && (
-                  <Text variant="bodySm" tone="subdued">Indisponibil pentru acest curier sau lipsesc datele de adresă.</Text>
+                  <Text variant="bodySm" tone="subdued">{t("wizard_est_unavailable")}</Text>
                 )}
               </div>
 
-              <TextField label="Conținut colet / Observații" value={swNotes} onChange={setSwNotes} multiline={4}
-                placeholder="Ex: Fragil, a nu se răsturna."
-                helpText={swCourier === "fan" && swFanObs.length > 0 ? `Obs. selectate: ${swFanObs.join(", ")}` : undefined}
+              <TextField label={t("wizard_content_label")} value={swNotes} onChange={setSwNotes} multiline={4}
+                placeholder={t("wizard_content_ph")}
+                helpText={swCourier === "fan" && swFanObs.length > 0 ? t("wizard_obs_selected", { obs: swFanObs.join(", ") }) : undefined}
               />
               <BlockStack gap="300">
-                <Checkbox label="Trimite notificare Shopify clientului" checked={swNotify} onChange={setSwNotify}
-                  helpText="Shopify trimite email de confirmare livrare" />
-                <Checkbox label="Marchează comanda ca expediată" checked={swDispatched} onChange={setSwDispatched}
-                  helpText="Setează fulfillment-ul la 'success' în Shopify" />
+                <Checkbox label={t("wizard_notify")} checked={swNotify} onChange={setSwNotify}
+                  helpText={t("wizard_notify_help")} />
+                <Checkbox label={t("wizard_dispatch")} checked={swDispatched} onChange={setSwDispatched}
+                  helpText={t("wizard_dispatch_help")} />
               </BlockStack>
               <Card background="bg-surface-secondary">
                 <BlockStack gap="150">
-                  <Text variant="bodySm" fontWeight="semibold">Rezumat</Text>
+                  <Text variant="bodySm" fontWeight="semibold">{t("wizard_summary")}</Text>
                   <Text variant="bodySm" tone="subdued">
-                    Curier: <strong>{swCourier.toUpperCase()}</strong> · Serviciu: <strong>{swServiceOpts.find((x) => x.value === swService)?.label || swService}</strong>
+                    {t("wizard_courier_label")}: <strong>{swCourier.toUpperCase()}</strong> · {t("wizard_service_label")}: <strong>{swServiceOpts.find((x) => x.value === swService)?.label || swService}</strong>
                   </Text>
-                  <Text variant="bodySm" tone="subdued">Destinatar: <strong>{swName}</strong> — {swPhone}</Text>
+                  <Text variant="bodySm" tone="subdued">{t("wizard_recipient_label")}: <strong>{swName}</strong> — {swPhone}</Text>
                   {swShowPickup && swPickupPoint
                     ? <Text variant="bodySm" tone="subdued">📦 {swPickupPoint.name}</Text>
                     : <Text variant="bodySm" tone="subdued">🚚 {swAddress}, {swCity}</Text>
                   }
                   <Text variant="bodySm" tone="subdued">
-                    Ramburs: <strong>{parseFloat(swCod) > 0 ? `${parseFloat(swCod).toFixed(2)} RON` : "Nu"}</strong>
-                    {" · "}Greutate: <strong>{swWeight} kg</strong>
-                    {" · "}Colete: <strong>{swPkgCount}</strong>
+                    {t("wizard_cod_short")}: <strong>{parseFloat(swCod) > 0 ? `${parseFloat(swCod).toFixed(2)} RON` : t("wizard_no")}</strong>
+                    {" · "}{t("weight_label")}: <strong>{swWeight} kg</strong>
+                    {" · "}{t("wizard_packages_short")}: <strong>{swPkgCount}</strong>
                   </Text>
                 </BlockStack>
               </Card>
@@ -1577,7 +1576,7 @@ export default function OrdersPage() {
 
         return (
           <Modal open={singleWizardOpen} onClose={() => setSingleWizardOpen(false)} size="large"
-            title={`Generează AWB — ${activeOrder.shopifyOrderName}`}>
+            title={`${t("wizard_generate_title")} — ${activeOrder.shopifyOrderName}`}>
             <Modal.Section>
               <SwStepIndicator />
               {singleWizardStep === 1 && renderSwStep1()}
@@ -1585,19 +1584,19 @@ export default function OrdersPage() {
               {singleWizardStep === 3 && renderSwStep3()}
               {singleWizardStep === 4 && renderSwStep4()}
               <div style={{ display:"flex", justifyContent:"flex-end", gap:8, marginTop:24, paddingTop:16, borderTop:"1px solid #e0e0e0" }}>
-                {singleWizardStep > 1 && <Button onClick={() => setSingleWizardStep((s) => s - 1)}>Anterior</Button>}
+                {singleWizardStep > 1 && <Button onClick={() => setSingleWizardStep((s) => s - 1)}>{t("wizard_prev")}</Button>}
                 {singleWizardStep < 4
                   ? <Button variant="primary" onClick={() => {
                       if (singleWizardStep === 2 && swShowPickup && !swPickupPoint) {
-                        setSingleError("Selectează un punct de ridicare înainte de a continua."); return;
+                        setSingleError(t("wizard_error_pickup")); return;
                       }
                       setSingleError(null);
                       const next = singleWizardStep + 1;
                       setSingleWizardStep(next);
                       if (next === 4) estimateShipping();
-                    }}>Următor</Button>
+                    }}>{t("wizard_next")}</Button>
                   : <Button variant="primary" tone="success" loading={singleGenerating} onClick={submitSingleWizard}>
-                      {singleGenerating ? "Se generează..." : "Generează AWB"}
+                      {singleGenerating ? t("generating") : t("wizard_generate_title")}
                     </Button>
                 }
               </div>

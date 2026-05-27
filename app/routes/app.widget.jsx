@@ -56,8 +56,10 @@ export default function WidgetPage() {
                 <Box>
                   <Button
                     variant="primary"
-                    url="mailto:theflashstations@gmail.com?subject=Instalare%20widget%20cart%20drawer&body=Buna%20ziua%2C%20as%20dori%20instalarea%20widgetului%20Picklo%20pe%20magazinul%20meu."
-                    external
+                    onClick={() => window.open(
+                      "mailto:theflashstations@gmail.com?subject=Instalare%20widget%20cart%20drawer&body=Buna%20ziua%2C%20as%20dori%20instalarea%20widgetului%20Picklo%20pe%20magazinul%20meu.",
+                      "_blank"
+                    )}
                   >
                     {t("widget_email_btn")}
                   </Button>
