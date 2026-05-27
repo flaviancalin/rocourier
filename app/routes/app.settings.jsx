@@ -280,24 +280,19 @@ export default function Settings() {
       const r = actionData.carrierResult;
       if (r.success) {
         setCarrierStatus("registered");
-        setCarrierMsg(r.alreadyRegistered ? "Serviciul era deja înregistrat." : "Serviciu de transport înregistrat cu succes!");
+        setCarrierMsg(r.alreadyRegistered ? t("carrier_already_registered") : t("carrier_service_success"));
       } else {
         setCarrierStatus("error");
-        setCarrierMsg(r.error || "Eroare necunoscută.");
+        setCarrierMsg(r.error || t("carrier_service_error"));
       }
     }
     else if (actionData?.refreshResult) {
       const r = actionData.refreshResult;
       if (r.errors?.length) {
-        setToast(`⚠️ Erori: ${r.errors.join(", ")}`);
+        setToast(`⚠️ ${t("error")}: ${r.errors.join(", ")}`);
       } else {
-        const parts = [];
-        if (r.fan)     parts.push(`${r.fan} FANbox`);
-        if (r.sameday) parts.push(`${r.sameday} Sameday`);
-        if (r.cargus)  parts.push(`${r.cargus} Cargus`);
-        if (r.gls)     parts.push(`${r.gls} GLS`);
-        if (r.packeta) parts.push(`${r.packeta} Packeta`);
-        setToast(`✅ ${parts.join(" + ") || "0"} puncte reîmprospătate`);
+        const total = (r.fan || 0) + (r.sameday || 0) + (r.cargus || 0) + (r.gls || 0) + (r.packeta || 0);
+        setToast(`✅ ${t("carrier_pts_refreshed", { n: total })}`);
       }
     }
   }, [actionData, t]);
@@ -611,14 +606,14 @@ export default function Settings() {
                             autoComplete="new-password"
                           />
                           <Select
-                            label="Format etichetă AWB"
+                            label={t("packeta_label_format")}
                             value={packetaLabelFormat}
                             onChange={setPacketaLabelFormat}
                             options={[
-                              { label: "A6 pe A4 (recomandat — 1 etichetă mare per foaie)", value: "A6 on A4" },
-                              { label: "A7 pe A4 (4 etichete mici per foaie)", value: "A7 on A4" },
+                              { label: t("packeta_label_a6_a4"), value: "A6 on A4" },
+                              { label: t("packeta_label_a7_a4"), value: "A7 on A4" },
                             ]}
-                            helpText="Dimensiunea etichetei Packeta generată la descărcarea AWB."
+                            helpText={t("packeta_label_help")}
                           />
                         </FormLayout>
                         {actionData?.testResult?.courier === "packeta" && (

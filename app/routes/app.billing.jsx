@@ -56,20 +56,20 @@ export async function action({ request }) {
   // ── Apply gift code ──────────────────────────────────────────────────────────
   if (intent === "apply-gift") {
     const code = String(formData.get("code") || "").trim().toUpperCase();
-    if (!code) return json({ error: "Introdu un cod." });
+    if (!code) return json({ error: "error_code_required" });
 
     const dc = await prisma.discountCode.findUnique({ where: { code } });
     if (!dc || !dc.active || dc.type !== "lifetime_gift") {
-      return json({ error: "Cod invalid sau expirat." });
+      return json({ error: "error_code_invalid" });
     }
     if (dc.maxUses !== null && dc.usedCount >= dc.maxUses) {
-      return json({ error: "Codul a atins limita de utilizări." });
+      return json({ error: "error_code_max_uses" });
     }
 
     const already = await prisma.discountCodeUsage.findUnique({
       where: { code_shop: { code, shop } },
     });
-    if (already) return json({ error: "Ai folosit deja acest cod." });
+    if (already) return json({ error: "error_code_already_used" });
 
     await prisma.$transaction([
       prisma.shopSettings.update({
@@ -92,7 +92,7 @@ export async function action({ request }) {
     const discountCode = String(formData.get("discountCode") || "").trim().toUpperCase();
 
     const planConfig = PLANS[plan];
-    if (!planConfig) return json({ error: "Plan invalid." });
+    if (!planConfig) return json({ error: "error_intent_invalid" });
 
     let price = planConfig.price;
 
@@ -103,13 +103,13 @@ export async function action({ request }) {
       }) : null;
 
       if (!dc || !dc.active || dc.type !== "percent") {
-        return json({ error: "Codul de reducere nu este valid." });
+        return json({ error: "error_discount_invalid" });
       }
       if (dc.maxUses !== null && dc.usedCount >= dc.maxUses) {
-        return json({ error: "Codul a atins limita de utilizări." });
+        return json({ error: "error_code_max_uses" });
       }
       if (alreadyUsed) {
-        return json({ error: "Ai folosit deja acest cod de reducere." });
+        return json({ error: "error_discount_already_used" });
       }
 
       price = parseFloat((price * (1 - dc.percentOff / 100)).toFixed(2));
@@ -183,7 +183,7 @@ export async function action({ request }) {
         confirmationUrl = result?.confirmationUrl;
       }
 
-      if (!confirmationUrl) return json({ error: "Nu am putut crea subscripția. Încearcă din nou." });
+      if (!confirmationUrl) return json({ error: "error_subscription_failed" });
       return json({ confirmationUrl });
 
     } catch (e) {
@@ -192,7 +192,7 @@ export async function action({ request }) {
     }
   }
 
-  return json({ error: "Intent invalid." });
+  return json({ error: "error_intent_invalid" });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -286,7 +286,7 @@ export default function BillingPage() {
       )}
       {actionData?.error && (
         <div style={{ marginBottom: 16 }}>
-          <Banner tone="critical" title={t("error")}>{actionData.error}</Banner>
+          <Banner tone="critical" title={t("error")}>{t(actionData.error) || actionData.error}</Banner>
         </div>
       )}
 
@@ -297,10 +297,10 @@ export default function BillingPage() {
             <BlockStack gap="400">
               <InlineStack align="space-between" blockAlign="center">
                 <Text variant="headingMd" fontWeight="semibold">{t("billing_current_plan")}</Text>
-                {planType === "trial"       && <Badge tone="warning">Trial</Badge>}
-                {planType === "pro_monthly" && <Badge tone="success">Pro Monthly</Badge>}
-                {planType === "pro_yearly"  && <Badge tone="success">Pro Yearly</Badge>}
-                {planType === "lifetime"    && <Badge tone="success">Lifetime</Badge>}
+                {planType === "trial"       && <Badge tone="warning">{t("billing_plan_trial")}</Badge>}
+                {planType === "pro_monthly" && <Badge tone="success">{t("billing_plan_pro_monthly")}</Badge>}
+                {planType === "pro_yearly"  && <Badge tone="success">{t("billing_plan_pro_yearly")}</Badge>}
+                {planType === "lifetime"    && <Badge tone="success">{t("billing_plan_lifetime")}</Badge>}
               </InlineStack>
 
               {planType === "trial" && (

@@ -50,11 +50,10 @@ export async function loader({ request }) {
   return json({ ...result, filters: { status, courier, method, search }, settings: settings || {} });
 }
 
-// ─── Per-courier service lists ────────────────────────────────────────────────
-const FAN_OBSERVATIONS = [
-  "Livrare urgentă", "Livrare luni", "De contactat telefonic",
-  "Atenție - FRAGIL", "Livrare personală cu BI/CI",
-  "Cu ștampilă și semnătură", "Livrare după ora 16:00", "Livrare interval 09:00-17:00",
+// ─── FAN observation keys (translated inside component) ───────────────────────
+const FAN_OBS_KEYS = [
+  "fan_obs_urgent", "fan_obs_monday", "fan_obs_contact_phone", "fan_obs_fragile",
+  "fan_obs_personal_id", "fan_obs_stamp", "fan_obs_after_16", "fan_obs_interval",
 ];
 
 const FULL_COURIER_SERVICES = {
@@ -150,6 +149,7 @@ export default function OrdersPage() {
   const { orders, total, totalPages, page, filters, settings } = useLoaderData();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const FAN_OBSERVATIONS = FAN_OBS_KEYS.map((k) => t(k));
 
   const [syncing, setSyncing]               = useState(false);
   const [syncError, setSyncError]           = useState(null);
@@ -522,10 +522,10 @@ export default function OrdersPage() {
 
   // ── Tab filtering ──────────────────────────────────────────────────────────
   const TABS = [
-    { content: "Comenzi noi",  id: "new"        },
-    { content: "În progres",   id: "progress"   },
-    { content: "Expediate",    id: "dispatched" },
-    { content: "Toate",        id: "all"        },
+    { content: t("orders_tab_new"),        id: "new"        },
+    { content: t("orders_tab_progress"),   id: "progress"   },
+    { content: t("orders_tab_dispatched"), id: "dispatched" },
+    { content: t("orders_tab_all"),        id: "all"        },
   ];
   const TAB_FILTER = [
     (o) => o.awbStatus === "pending",
@@ -559,12 +559,12 @@ export default function OrdersPage() {
               <Layout.Section>
                 <Banner
                   tone={left === 0 ? "critical" : "warning"}
-                  title={left === 0 ? "Trial expirat — nu mai poți genera AWB-uri" : `Atenție: îți mai rămân ${left} AWB-uri gratuite`}
-                  action={{ content: "Activează un plan", url: "/app/billing" }}
+                  title={left === 0 ? t("orders_trial_expired_title") : t("orders_trial_warning", { left })}
+                  action={{ content: t("orders_trial_activate"), url: "/app/billing" }}
                 >
                   {left === 0
-                    ? "Ai atins limita de 10 AWB-uri gratuite. Activează un plan Pro pentru a continua."
-                    : `Ai generat ${settings.awbCount} din 10 AWB-uri gratuite. Activează un plan înainte să rămâi fără.`}
+                    ? t("orders_trial_expired_desc")
+                    : t("orders_trial_warning_desc", { used: settings.awbCount || 0 })}
                 </Banner>
               </Layout.Section>
             );
@@ -1132,18 +1132,18 @@ export default function OrdersPage() {
         <Modal
           open={showWizard}
           onClose={() => setShowWizard(false)}
-          title={`Generează AWB — ${selectedOrders.length} ${selectedOrders.length === 1 ? "comandă" : "comenzi"}`}
+          title={`${t("wizard_generate_title")} — ${selectedOrders.length} ${selectedOrders.length === 1 ? t("order_singular") : t("order_plural")}`}
           primaryAction={{
-            content: "Generează",
+            content: t("generate_btn"),
             onAction: confirmGenerateAwbs,
             tone: "success",
           }}
-          secondaryActions={[{ content: "Anulează", onAction: () => setShowWizard(false) }]}
+          secondaryActions={[{ content: t("cancel"), onAction: () => setShowWizard(false) }]}
         >
           <Modal.Section>
             <BlockStack gap="400">
               <Select
-                label="Curier"
+                label={t("wizard_courier_label")}
                 value={wizardCourier}
                 onChange={(v) => {
                   setWizardCourier(v);
@@ -1156,7 +1156,6 @@ export default function OrdersPage() {
                   ...(settings?.cargusEnabled  ? [{ label: "Cargus",      value: "cargus"  }] : []),
                   ...(settings?.glsEnabled     ? [{ label: "GLS",         value: "gls"     }] : []),
                   ...(settings?.packetaEnabled ? [{ label: "Packeta",     value: "packeta" }] : []),
-                  // always include current courier even if not explicitly enabled
                   ...(!settings?.[`${wizardCourier}Enabled`] && wizardCourier
                     ? [{ label: COURIER_MAP[wizardCourier]?.label || wizardCourier, value: wizardCourier }]
                     : []),
@@ -1164,7 +1163,7 @@ export default function OrdersPage() {
               />
 
               <Select
-                label={loadingServices ? "Tip serviciu (se încarcă...)" : "Tip serviciu"}
+                label={loadingServices ? t("wizard_service_loading") : t("wizard_service_type")}
                 value={wizardService}
                 onChange={setWizardService}
                 disabled={loadingServices}
@@ -1174,29 +1173,28 @@ export default function OrdersPage() {
               />
 
               <TextField
-                label="Greutate (kg) — opțional"
+                label={t("wizard_weight_opt")}
                 type="number"
                 value={wizardWeight}
                 onChange={setWizardWeight}
                 min="0.1"
                 step="0.1"
                 suffix="kg"
-                placeholder="Lasă gol pentru greutatea din comandă"
+                placeholder={t("wizard_weight_ph")}
               />
 
               <TextField
-                label="Observații — opțional"
+                label={t("wizard_obs_opt")}
                 value={wizardObs}
                 onChange={setWizardObs}
                 multiline={2}
-                placeholder="Ex: Fragil, a nu se răsturna"
+                placeholder={t("wizard_obs_ph")}
               />
 
               {selectedOrders.length > 1 && (
                 <Banner tone="info">
                   <Text variant="bodySm">
-                    Curirul și serviciul selectat vor fi aplicate tuturor celor {selectedOrders.length} comenzi.
-                    Greutatea se va aplica individual doar dacă este specificată.
+                    {t("wizard_bulk_apply", { n: selectedOrders.length })}
                   </Text>
                 </Banner>
               )}
@@ -1263,7 +1261,7 @@ export default function OrdersPage() {
       {singleWizardOpen && activeOrder && (() => {
         const swShowPickup = needsPickupPoint(swCourier, swService, swGlsShop);
         const swServiceOpts = liveServices[swCourier] || FULL_COURIER_SERVICES[swCourier] || [{ label: "Standard", value: "standard" }];
-        const swSteps = ["Curier", "Destinatar", "Conținut", "Observații"];
+        const swSteps = [t("step_courier"), t("step_recipient"), t("step_content"), t("step_notes")];
 
         function SwStepIndicator() {
           if (isMobile) {
@@ -1283,7 +1281,7 @@ export default function OrdersPage() {
                 </div>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                   <span style={{ fontSize:13, fontWeight:600, color:"#008060" }}>
-                    Pasul {singleWizardStep} din {swSteps.length}: {swSteps[singleWizardStep - 1]}
+                    {t("wizard_step_of", { n: singleWizardStep, m: swSteps.length })} {swSteps[singleWizardStep - 1]}
                   </span>
                   <span style={{ fontSize:11, color:"#6d7175" }}>
                     {swSteps.filter((_, i) => i < singleWizardStep - 1).map((s) => s).join(" › ")}
@@ -1317,7 +1315,7 @@ export default function OrdersPage() {
             <BlockStack gap="400">
               <InlineStack gap="400" align="start">
                 <div style={{ flex:1 }}>
-                  <Select label="Curier" value={swCourier} helpText="Poți suprascrie curierul selectat."
+                  <Select label={t("wizard_courier_label")} value={swCourier} helpText={t("wizard_courier_help")}
                     onChange={(v) => {
                       setSwCourier(v);
                       const opts = liveServices[v] || FULL_COURIER_SERVICES[v] || [];
@@ -1336,7 +1334,7 @@ export default function OrdersPage() {
                   />
                 </div>
                 <div style={{ flex:1 }}>
-                  <Select label="Tip serviciu" value={swService} helpText="Selectează serviciul potrivit."
+                  <Select label={t("wizard_service_type")} value={swService} helpText={t("wizard_service_help")}
                     onChange={(v) => { setSwService(v); setSwPickupPoint(null); setSwPickupPoints([]);
                       if (needsPickupPoint(swCourier, v, swGlsShop)) loadSwPickupPoints(swCourier);
                     }}
@@ -1348,7 +1346,7 @@ export default function OrdersPage() {
               {swCourier === "fan" && (
                 <InlineStack gap="500" align="start" blockAlign="start">
                   <div style={{ flex:1 }}>
-                    <Text variant="bodyMd" fontWeight="semibold">Observații (max 3)</Text>
+                    <Text variant="bodyMd" fontWeight="semibold">{t("wizard_obs_label")}</Text>
                     <div style={{ marginTop:8 }}>
                       {FAN_OBSERVATIONS.map((obs) => (
                         <div key={obs} style={{ marginBottom:6 }}>
@@ -1360,11 +1358,11 @@ export default function OrdersPage() {
                     </div>
                   </div>
                   <div style={{ flex:1 }}>
-                    <Text variant="bodyMd" fontWeight="semibold">Opțiuni</Text>
+                    <Text variant="bodyMd" fontWeight="semibold">{t("wizard_options_label")}</Text>
                     <div style={{ marginTop:8 }}>
-                      <div style={{ marginBottom:8 }}><Checkbox label="Livrare sâmbătă" checked={swSaturday} onChange={setSwSaturday} /></div>
-                      <div style={{ marginBottom:8 }}><Checkbox label="Deschidere la livrare" checked={swOpenPackage} onChange={setSwOpenPackage} helpText="Destinatarul verifică înainte de a accepta" /></div>
-                      <div style={{ marginBottom:8 }}><Checkbox label="Serviciu Swap" checked={swSwap} onChange={setSwSwap} /></div>
+                      <div style={{ marginBottom:8 }}><Checkbox label={t("wizard_saturday")} checked={swSaturday} onChange={setSwSaturday} /></div>
+                      <div style={{ marginBottom:8 }}><Checkbox label={t("wizard_open_package")} checked={swOpenPackage} onChange={setSwOpenPackage} helpText={t("wizard_open_package_help")} /></div>
+                      <div style={{ marginBottom:8 }}><Checkbox label={t("wizard_swap")} checked={swSwap} onChange={setSwSwap} /></div>
                     </div>
                   </div>
                 </InlineStack>
@@ -1422,7 +1420,7 @@ export default function OrdersPage() {
                 <BlockStack gap="200">
                   <Text variant="headingSm" fontWeight="semibold">
                     {swCourier === "fan" ? "FANbox *" : swCourier === "gls" ? "GLS ParcelShop *" :
-                     swCourier === "cargus" ? "PUDO / Ship & Go *" : swCourier === "sameday" ? "Easybox *" : "Punct de ridicare *"}
+                     swCourier === "cargus" ? "PUDO / Ship & Go *" : swCourier === "sameday" ? "Easybox *" : t("pickup_point_required")}
                   </Text>
                   {swPickupPoint ? (
                     <InlineStack align="space-between" blockAlign="center" gap="200">

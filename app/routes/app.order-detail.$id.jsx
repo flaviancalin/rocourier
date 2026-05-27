@@ -76,15 +76,9 @@ const STATUS_CONFIG = {
   failed:           { tone: "critical",  icon: "❌", key: "status_failed" },
 };
 
-const FAN_OBSERVATIONS = [
-  "Livrare urgentă",
-  "Livrare luni",
-  "De contactat telefonic",
-  "Atenție - FRAGIL",
-  "Livrare personală cu BI/CI",
-  "Cu ștampilă și semnătură",
-  "Livrare după ora 16:00",
-  "Livrare interval 09:00-17:00",
+const FAN_OBS_KEYS = [
+  "fan_obs_urgent", "fan_obs_monday", "fan_obs_contact_phone", "fan_obs_fragile",
+  "fan_obs_personal_id", "fan_obs_stamp", "fan_obs_after_16", "fan_obs_interval",
 ];
 
 function needsPickupPoint(courier, service, glsParcelShop) {
@@ -111,6 +105,7 @@ export default function OrderDetail() {
   const { order, settings } = useLoaderData();
   const navigate = useNavigate();
   const { t }    = useTranslation();
+  const FAN_OBSERVATIONS = FAN_OBS_KEYS.map((k) => t(k));
 
   // ── Page-level state ───────────────────────────────────────────────────────
   const [generating, setGenerating]   = useState(false);
@@ -717,15 +712,15 @@ export default function OrderDetail() {
           <BlockStack gap="200">
             <Text variant="bodySm" fontWeight="semibold">{t("wizard_summary")}</Text>
             <Text variant="bodySm" tone="subdued">
-              Curier: <strong>{COURIER_LABELS[courier] || courier}</strong>
-              {" · "}Serviciu: <strong>{serviceOptions.find((o) => o.value === service)?.label || service}</strong>
+              {t("wizard_courier_label")}: <strong>{COURIER_LABELS[courier] || courier}</strong>
+              {" · "}{t("wizard_service_label")}: <strong>{serviceOptions.find((o) => o.value === service)?.label || service}</strong>
             </Text>
             <Text variant="bodySm" tone="subdued">
-              Destinatar: <strong>{recipientName}</strong> — {recipientPhone}
+              {t("wizard_recipient_label")}: <strong>{recipientName}</strong> — {recipientPhone}
             </Text>
             {showPickup && selectedPickupPoint ? (
               <Text variant="bodySm" tone="subdued">
-                📦 Punct fix: <strong>{selectedPickupPoint.name}</strong>
+                📦 {t("pickup_short")}: <strong>{selectedPickupPoint.name}</strong>
               </Text>
             ) : (
               <Text variant="bodySm" tone="subdued">
@@ -733,9 +728,9 @@ export default function OrderDetail() {
               </Text>
             )}
             <Text variant="bodySm" tone="subdued">
-              Ramburs: <strong>{parseFloat(codAmount) > 0 ? `${parseFloat(codAmount).toFixed(2)} RON` : "Nu"}</strong>
-              {" · "}Greutate: <strong>{weight} kg</strong>
-              {" · "}Colete: <strong>{packageCount}</strong>
+              {t("wizard_cod_short")}: <strong>{parseFloat(codAmount) > 0 ? `${parseFloat(codAmount).toFixed(2)} RON` : t("wizard_no")}</strong>
+              {" · "}{t("weight_label")}: <strong>{weight} kg</strong>
+              {" · "}{t("wizard_packages_short")}: <strong>{packageCount}</strong>
             </Text>
           </BlockStack>
         </Card>
@@ -759,7 +754,7 @@ export default function OrderDetail() {
     <Frame>
       <Page
         title={order.shopifyOrderName}
-        subtitle={`${order.customerName} · ${new Date(order.createdAt).toLocaleDateString("ro-RO")}`}
+        subtitle={`${order.customerName} · ${new Date(order.createdAt).toLocaleDateString()}`}
         backAction={{ content: t("back_orders"), onAction: () => navigate("/app/orders") }}
         primaryAction={
           !order.awbNumber
@@ -786,7 +781,7 @@ export default function OrderDetail() {
 
               {order.awbNumber ? (
                 <Banner title={`AWB: ${order.awbNumber}`} tone={order.awbStatus === "delivered" ? "success" : "info"}>
-                  <Text>Curier: {COURIER_LABELS[order.courierType] || order.courierType}</Text>
+                  <Text>{t("wizard_courier_label")}: {COURIER_LABELS[order.courierType] || order.courierType}</Text>
                 </Banner>
               ) : (
                 <Banner title={t("awb_not_generated")} tone="warning">

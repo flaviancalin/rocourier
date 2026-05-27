@@ -20,16 +20,7 @@ const COURIER_CONFIG = {
   packeta: { label: "Z-Box (Packeta)",     color: "#8e0000", badgeTone: "new",        badgeLabel: "Packeta"  },
 };
 
-const COUNTRY_NAMES = {
-  ro: "România", de: "Germania", fr: "Franța", it: "Italia", es: "Spania",
-  pl: "Polonia", hu: "Ungaria", cz: "Cehia", sk: "Slovacia", at: "Austria",
-  nl: "Olanda", be: "Belgia", se: "Suedia", no: "Norvegia", dk: "Danemarca",
-  fi: "Finlanda", ee: "Estonia", lv: "Letonia", lt: "Lituania", pt: "Portugalia",
-  gr: "Grecia", bg: "Bulgaria", hr: "Croația", si: "Slovenia", rs: "Serbia",
-  ba: "Bosnia", me: "Muntenegru", mk: "Macedonia de Nord", al: "Albania",
-  cy: "Cipru", mt: "Malta", lu: "Luxemburg", ch: "Elveția", gb: "Marea Britanie",
-  ie: "Irlanda",
-};
+const LOCALE_MAP = { ro: "ro-RO", en: "en-US", de: "de-DE", hu: "hu-HU", cs: "cs-CZ" };
 
 export async function loader({ request }) {
   const { session } = await authenticate.admin(request);
@@ -94,7 +85,17 @@ export default function PickupPointsPage() {
   const actionData = useActionData();
   const navigate   = useNavigate();
   const submit     = useSubmit();
-  const { t }      = useTranslation();
+  const { t, lang } = useTranslation();
+
+  const locale = LOCALE_MAP[lang] || "en-US";
+
+  const getCountryName = (code) => {
+    try {
+      return new Intl.DisplayNames([locale], { type: "region" }).of(code.toUpperCase()) || code.toUpperCase();
+    } catch (_) {
+      return code.toUpperCase();
+    }
+  };
 
   const [courierFilter, setCourierFilter] = useState(filters.courier);
   const [countyFilter,  setCountyFilter]  = useState(filters.county);
@@ -109,7 +110,7 @@ export default function PickupPointsPage() {
   const countryOptions = [
     { label: t("all_countries"), value: "" },
     ...availableCountries.map((c) => ({
-      label: COUNTRY_NAMES[c] ? `${COUNTRY_NAMES[c]} (${c.toUpperCase()})` : c.toUpperCase(),
+      label: `${getCountryName(c)} (${c.toUpperCase()})`,
       value: c,
     })),
   ];
@@ -126,7 +127,7 @@ export default function PickupPointsPage() {
       navigate("/app/pickup-points");
     }
     if (actionData?.error) {
-      setToast(`Eroare: ${actionData.error}`);
+      setToast(`${t("error")}: ${actionData.error}`);
       setRefreshing(false);
     }
   }, [actionData]);
@@ -156,9 +157,7 @@ export default function PickupPointsPage() {
 
   const rows = points.map((p) => {
     const cfg = COURIER_CONFIG[p.courier] || { badgeTone: "info", badgeLabel: p.courier };
-    const countryLabel = p.country
-      ? (COUNTRY_NAMES[p.country] || p.country.toUpperCase())
-      : "—";
+    const countryLabel = p.country ? getCountryName(p.country) : "—";
     return [
       <Badge tone={cfg.badgeTone}>{cfg.badgeLabel}</Badge>,
       p.name,
@@ -178,7 +177,7 @@ export default function PickupPointsPage() {
     <Frame>
       <Page
         title={t("pickup_points_title")}
-        subtitle={t("pickup_points_sub", { n: total.toLocaleString("ro-RO") }) + (filters.country ? ` (${COUNTRY_NAMES[filters.country] || filters.country.toUpperCase()})` : "")}
+        subtitle={t("pickup_points_sub", { n: total.toLocaleString(locale) }) + (filters.country ? ` (${getCountryName(filters.country)})` : "")}
         primaryAction={{
           content: refreshing ? t("refreshing") : t("refresh_now"),
           onAction: handleRefresh,
@@ -208,7 +207,7 @@ export default function PickupPointsPage() {
                   }}
                 >
                   <Text variant="headingXl" fontWeight="bold">
-                    {(countMap[key] ?? 0).toLocaleString("ro-RO")}
+                    {(countMap[key] ?? 0).toLocaleString(locale)}
                   </Text>
                   <Text variant="bodySm" tone="subdued">{cfg.label}</Text>
                 </div>
@@ -220,7 +219,7 @@ export default function PickupPointsPage() {
                 borderRadius: 12, padding: "14px 18px",
               }}>
                 <Text variant="headingXl" fontWeight="bold">
-                  {Object.values(countMap).reduce((a, b) => a + b, 0).toLocaleString("ro-RO")}
+                  {Object.values(countMap).reduce((a, b) => a + b, 0).toLocaleString(locale)}
                 </Text>
                 <Text variant="bodySm" tone="subdued">{t("total_active")}</Text>
               </div>
@@ -232,9 +231,9 @@ export default function PickupPointsPage() {
             <Layout.Section>
               <Banner tone="info">
                 <Text>
-                  Ultima actualizare:{" "}
+                  {t("last_update")}{" "}
                   <strong>
-                    {new Date(lastUpdate).toLocaleDateString("ro-RO", {
+                    {new Date(lastUpdate).toLocaleDateString(locale, {
                       day: "2-digit", month: "long", year: "numeric",
                       hour: "2-digit", minute: "2-digit",
                     })}
@@ -262,8 +261,8 @@ export default function PickupPointsPage() {
                 tabs={tabLabels.map((label, i) => ({
                   id: `tab-${i}`,
                   content: i === 0
-                    ? `${label} (${Object.values(countMap).reduce((a, b) => a + b, 0).toLocaleString("ro-RO")})`
-                    : `${label} (${(countMap[tabCouriers[i]] ?? 0).toLocaleString("ro-RO")})`,
+                    ? `${label} (${Object.values(countMap).reduce((a, b) => a + b, 0).toLocaleString(locale)})`
+                    : `${label} (${(countMap[tabCouriers[i]] ?? 0).toLocaleString(locale)})`,
                   panelID: `panel-${i}`,
                 }))}
                 selected={selectedTab}
@@ -330,7 +329,7 @@ export default function PickupPointsPage() {
                       rows={rows}
                       hasZebraStripingOnData
                       increasedTableDensity
-                      footerContent={t("showing_points", { n: points.length.toLocaleString("ro-RO"), t: total.toLocaleString("ro-RO") }) + (filters.country ? ` (${COUNTRY_NAMES[filters.country] || filters.country.toUpperCase()})` : "")}
+                      footerContent={t("showing_points", { n: points.length.toLocaleString(locale), t: total.toLocaleString(locale) }) + (filters.country ? ` (${getCountryName(filters.country)})` : "")}
                     />
                   )}
                 </BlockStack>
