@@ -1,8 +1,7 @@
 // app/routes/app._index.jsx
 // Main Dashboard — stats overview + recent orders
 
-import { useState, useEffect } from "react";
-import { json } from "@remix-run/node";
+import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
@@ -30,21 +29,16 @@ export async function loader({ request }) {
   const url  = new URL(request.url);
   const page = parseInt(url.searchParams.get("page") || "1");
 
-  const [{ orders, total, totalPages }, stats, settings] = await Promise.all([
+  // Redirect new installs to setup wizard
+  const settings = await prisma.shopSettings.findUnique({ where: { shop: session.shop } });
+  if (!settings?.onboardingCompleted) return redirect("/app/setup");
+
+  const [{ orders, total, totalPages }, stats] = await Promise.all([
     getOrders({ shop: session.shop, page, perPage: 20 }),
     getDashboardStats(session.shop),
-    prisma.shopSettings.findUnique({ where: { shop: session.shop } }),
   ]);
 
-  const isCourierConfigured = !!(
-    (settings?.fanClientId && settings?.fanUsername) ||
-    settings?.samedayUsername ||
-    (settings?.cargusSubscriptionKey && settings?.cargusUsername) ||
-    settings?.glsUsername ||
-    settings?.packetaApiKey
-  );
-
-  return json({ orders, total, totalPages, page, stats, isCourierConfigured });
+  return json({ orders, total, totalPages, page, stats });
 }
 
 // ─── Static courier config ───────────────────────────────────────────────────
@@ -67,7 +61,7 @@ const STATUS_TONES = {
   failed:            "critical",
 };
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── Sub-components ──────────────────────────────────────────────────────────
 function StatusBadge({ status }) {
   const { t } = useTranslation();
   const tone  = STATUS_TONES[status] || "default";
@@ -110,122 +104,9 @@ function StatCard({ label, value, sub, accent }) {
   );
 }
 
-// ─── Onboarding card ─────────────────────────────────────────────────────────
-function OnboardingCard({ isCourierConfigured, totalOrders, navigate, t }) {
-  const [dismissed, setDismissed] = useState(false);
-
-  useEffect(() => {
-    try {
-      if (localStorage.getItem("picklo_onboarding_v1") === "1") setDismissed(true);
-    } catch {}
-  }, []);
-
-  const step1Done = isCourierConfigured;
-  const step2Done = totalOrders > 0;
-
-  // Auto-dismiss once fully set up
-  if (step1Done && step2Done) return null;
-  if (dismissed) return null;
-
-  const handleDismiss = () => {
-    try { localStorage.setItem("picklo_onboarding_v1", "1"); } catch {}
-    setDismissed(true);
-  };
-
-  const StepDot = ({ n, done, active }) => (
-    <div style={{
-      width: 28, height: 28, borderRadius: "50%",
-      background: done ? "#008060" : active ? "#5c6ac4" : "#e1e3e5",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      flexShrink: 0,
-    }}>
-      <span style={{ color: done || active ? "#fff" : "#8c9196", fontSize: 13, fontWeight: 700 }}>
-        {done ? "✓" : n}
-      </span>
-    </div>
-  );
-
-  return (
-    <Layout.Section>
-      <Card>
-        <BlockStack gap="400">
-          <InlineStack align="space-between" blockAlign="start">
-            <BlockStack gap="050">
-              <Text variant="headingMd" fontWeight="semibold">{t("onboarding_title")}</Text>
-              <Text variant="bodySm" tone="subdued">{t("onboarding_subtitle")}</Text>
-            </BlockStack>
-            <Button variant="plain" onClick={handleDismiss}>{t("onboarding_dismiss")}</Button>
-          </InlineStack>
-          <Divider />
-
-          {/* Step 1 */}
-          <InlineStack align="space-between" blockAlign="center" wrap={false} gap="400">
-            <InlineStack gap="300" blockAlign="center">
-              <StepDot n="1" done={step1Done} active={!step1Done} />
-              <BlockStack gap="050">
-                <Text variant="bodySm" fontWeight="semibold"
-                  tone={step1Done ? "success" : undefined}>
-                  {t("onboarding_step1")}
-                </Text>
-                <Text variant="bodySm" tone="subdued">{t("onboarding_step1_desc")}</Text>
-              </BlockStack>
-            </InlineStack>
-            {!step1Done && (
-              <div style={{ flexShrink: 0 }}>
-                <Button size="slim" onClick={() => navigate("/app/settings")}>
-                  {t("onboarding_configure")}
-                </Button>
-              </div>
-            )}
-          </InlineStack>
-
-          {/* Step 2 */}
-          <InlineStack align="space-between" blockAlign="center" wrap={false} gap="400">
-            <InlineStack gap="300" blockAlign="center">
-              <StepDot n="2" done={step2Done} active={step1Done && !step2Done} />
-              <BlockStack gap="050">
-                <Text variant="bodySm" fontWeight="semibold"
-                  tone={step2Done ? "success" : undefined}>
-                  {t("onboarding_step2")}
-                </Text>
-                <Text variant="bodySm" tone="subdued">{t("onboarding_step2_desc")}</Text>
-              </BlockStack>
-            </InlineStack>
-            {step1Done && !step2Done && (
-              <div style={{ flexShrink: 0 }}>
-                <Button size="slim" onClick={() => navigate("/app/orders")}>
-                  {t("onboarding_go_orders")}
-                </Button>
-              </div>
-            )}
-          </InlineStack>
-
-          {/* Step 3 */}
-          <InlineStack align="space-between" blockAlign="center" wrap={false} gap="400">
-            <InlineStack gap="300" blockAlign="center">
-              <StepDot n="3" done={false} active={step1Done && step2Done} />
-              <BlockStack gap="050">
-                <Text variant="bodySm" fontWeight="semibold">{t("onboarding_step3")}</Text>
-                <Text variant="bodySm" tone="subdued">{t("onboarding_step3_desc")}</Text>
-              </BlockStack>
-            </InlineStack>
-            {step1Done && step2Done && (
-              <div style={{ flexShrink: 0 }}>
-                <Button size="slim" onClick={() => navigate("/app/orders")}>
-                  {t("onboarding_go_orders")}
-                </Button>
-              </div>
-            )}
-          </InlineStack>
-        </BlockStack>
-      </Card>
-    </Layout.Section>
-  );
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const { orders, stats, isCourierConfigured } = useLoaderData();
+  const { orders, stats } = useLoaderData();
   const navigate = useNavigate();
   const { t, lang } = useTranslation();
 
@@ -272,14 +153,6 @@ export default function Dashboard() {
       }]}
     >
       <Layout>
-
-        {/* ── Onboarding ────────────────────────────────────────────────── */}
-        <OnboardingCard
-          isCourierConfigured={isCourierConfigured}
-          totalOrders={totalOrders}
-          navigate={navigate}
-          t={t}
-        />
 
         {/* ── Stats row ─────────────────────────────────────────────────── */}
         <Layout.Section>

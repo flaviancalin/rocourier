@@ -98,6 +98,9 @@ model ShopSettings {
   senderEmail   String?
   senderCounty  String?  @default("Bucuresti")
 
+  // ── Onboarding ───────────────────────────────────────────────────────────────
+  onboardingCompleted Boolean  @default(false)
+
   // ── App Settings ─────────────────────────────────────────────────────────────
   defaultWeight      Float    @default(1.0)  // kg
   defaultCourier     String   @default("fan") // "fan" | "sameday"

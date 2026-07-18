@@ -9,6 +9,7 @@ import { AppProvider } from "@shopify/shopify-app-remix/react";
 import { NavMenu } from "@shopify/app-bridge-react";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import { authenticate } from "../shopify.server.js";
+import { prisma } from "../db.server.js";
 import { I18nProvider, useTranslation } from "../context/i18n.jsx";
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
@@ -16,11 +17,13 @@ export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 export async function loader({ request }) {
   const { session } = await authenticate.admin(request);
   const isAdmin = session.shop === (process.env.ADMIN_SHOP || "courier-store-2.myshopify.com");
-  return json({ apiKey: process.env.SHOPIFY_API_KEY ?? "", isAdmin });
+  const settings = await prisma.shopSettings.findUnique({ where: { shop: session.shop } });
+  const setupCompleted = settings?.onboardingCompleted ?? false;
+  return json({ apiKey: process.env.SHOPIFY_API_KEY ?? "", isAdmin, setupCompleted });
 }
 
 function AppLayout() {
-  const { apiKey, isAdmin } = useLoaderData();
+  const { apiKey, isAdmin, setupCompleted } = useLoaderData();
   const { t } = useTranslation();
 
   return (
@@ -28,6 +31,7 @@ function AppLayout() {
       {/* Shopify admin navigation sidebar */}
       <NavMenu>
         <Link to="/app" rel="home">{t("nav_dashboard")}</Link>
+        {!setupCompleted && <Link to="/app/setup">{t("nav_setup")}</Link>}
         <Link to="/app/orders">{t("nav_orders")}</Link>
         <Link to="/app/settings">{t("nav_settings")}</Link>
         <Link to="/app/pickup-points">{t("nav_pickup_points")}</Link>
