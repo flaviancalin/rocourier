@@ -17,10 +17,14 @@ export async function loader({ request }) {
   // App proxy requests are authenticated differently — using HMAC signature
   const { liquid } = await authenticate.public.appProxy(request);
 
-  const url = new URL(request.url);
-  const path     = url.searchParams.get("path_prefix") || "";
-  const shop     = url.searchParams.get("shop");
-  const logged_in_customer_id = url.searchParams.get("logged_in_customer_id");
+  const url  = new URL(request.url);
+  const shop = url.searchParams.get("shop");
+
+  // Route: /apps/rocourier/widget-config
+  if (url.pathname.includes("widget-config") || url.searchParams.get("resource") === "widget-config") {
+    const settings = await prisma.shopSettings.findUnique({ where: { shop } });
+    return json({ widgetLanguage: settings?.widgetLanguage || "auto" });
+  }
 
   // Route: /apps/rocourier/pickup-points
   if (url.pathname.includes("pickup-points") || url.searchParams.get("resource") === "pickup-points") {
@@ -30,12 +34,17 @@ export async function loader({ request }) {
     const settings = await prisma.shopSettings.findUnique({ where: { shop } });
     if (!settings) return json({ points: [] });
 
+    const ALL_COURIERS = ["fan", "sameday", "cargus", "gls", "packeta"];
+    const ENABLED_MAP  = {
+      fan:     settings.fanEnabled,
+      sameday: settings.samedayEnabled,
+      cargus:  settings.cargusEnabled,
+      gls:     settings.glsEnabled,
+      packeta: settings.packetaEnabled,
+    };
+
     const couriers = courier === "all"
-      ? ["fan", "sameday"].filter((c) => {
-          if (c === "fan")     return settings.fanEnabled;
-          if (c === "sameday") return settings.samedayEnabled;
-          return false;
-        })
+      ? ALL_COURIERS.filter((c) => ENABLED_MAP[c])
       : [courier];
 
     const points = await getPickupPoints({ settings, couriers });
@@ -43,16 +52,7 @@ export async function loader({ request }) {
       ? points.filter((p) => p.county?.toLowerCase().includes(county.toLowerCase()))
       : points;
 
-    return json(
-      { points: formatForWidget(filtered) },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          // Liquid header tells Shopify to serve this as Liquid template
-          // (we're returning JSON, so it's treated as-is)
-        },
-      }
-    );
+    return json({ points: formatForWidget(filtered) });
   }
 
   // Default: return shop info

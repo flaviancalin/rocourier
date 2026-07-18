@@ -13,7 +13,7 @@ import { useTranslation } from "../context/i18n.jsx";
 
 const TRIAL_LIMIT   = 10;
 const APP_URL       = process.env.SHOPIFY_APP_URL || "https://rocourier-production.up.railway.app";
-// Always test mode — Shopify reviewers must be able to approve without real charges
+// Production mode — real charges apply (development stores get test billing automatically)
 const BILLING_TEST  = false;
 
 const PLANS = {

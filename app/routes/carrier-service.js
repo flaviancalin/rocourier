@@ -5,7 +5,7 @@ import { createHmac } from "crypto";
 import { prisma } from "../db.server.js";
 
 function verifyHmac(body, hmacHeader) {
-  if (!hmacHeader) return true; // allow during dev if header missing
+  if (!hmacHeader) return false;
   const secret = process.env.SHOPIFY_API_SECRET || "";
   const hash = createHmac("sha256", secret).update(body, "utf8").digest("base64");
   return hash === hmacHeader;

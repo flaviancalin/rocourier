@@ -3,7 +3,7 @@
 // Accessible at: https://rocourier-production.up.railway.app/terms
 // Register this URL in: Shopify Partner Dashboard → App Setup → Terms of service URL
 
-export const meta = () => [{ title: "Terms of Service — Picklo" }];
+export const meta = () => [{ title: "Terms of Service — Picklo by Flash Stations" }];
 
 // No auth — fully public
 export async function loader() {
@@ -15,12 +15,12 @@ export default function TermsOfService() {
     <div style={styles.page}>
       <div style={styles.container}>
         <h1 style={styles.h1}>Terms of Service</h1>
-        <p style={styles.meta}>Last updated: April 2025</p>
+        <p style={styles.meta}>Last updated: July 2026</p>
 
         <p>
           Please read these Terms of Service (&ldquo;Terms&rdquo;) carefully before using the{" "}
           <strong>Picklo</strong> Shopify application (&ldquo;the App&rdquo;) operated by{" "}
-          <strong>TODO: Your Company Name</strong> (&ldquo;we&rdquo;, &ldquo;us&rdquo;,
+          <strong>Flash Stations</strong> (&ldquo;we&rdquo;, &ldquo;us&rdquo;,
           &ldquo;our&rdquo;).
         </p>
         <p>
@@ -75,7 +75,7 @@ export default function TermsOfService() {
         <h2 style={styles.h2}>5. Intellectual Property</h2>
         <p>
           All content, features, and functionality of the App are the exclusive property of
-          TODO: Your Company Name and are protected by applicable intellectual property laws. You
+          Flash Stations and are protected by applicable intellectual property laws. You
           may not copy, modify, distribute, or reverse-engineer any part of the App.
         </p>
 
@@ -90,7 +90,7 @@ export default function TermsOfService() {
 
         <h2 style={styles.h2}>7. Limitation of Liability</h2>
         <p>
-          To the fullest extent permitted by law, TODO: Your Company Name shall not be liable for
+          To the fullest extent permitted by law, Flash Stations shall not be liable for
           any indirect, incidental, special, consequential, or punitive damages, including lost
           profits or data, arising from your use of or inability to use the App, even if we have
           been advised of the possibility of such damages.
@@ -122,17 +122,17 @@ export default function TermsOfService() {
         <h2 style={styles.h2}>10. Governing Law</h2>
         <p>
           These Terms are governed by the laws of Romania. Any disputes shall be subject to the
-          exclusive jurisdiction of the courts of TODO: City, Romania.
+          exclusive jurisdiction of the courts of Craiova, Romania.
         </p>
 
         <h2 style={styles.h2}>11. Contact</h2>
         <p>
           For any questions about these Terms, contact us at{" "}
-          <a href="mailto:TODO@yourdomain.com">TODO@yourdomain.com</a>.
+          <a href="mailto:theflashstations@gmail.com">theflashstations@gmail.com</a>.
         </p>
 
         <p style={styles.footer}>
-          &copy; {new Date().getFullYear()} TODO: Your Company Name. All rights reserved.
+          &copy; {new Date().getFullYear()} Flash Stations. All rights reserved.
         </p>
       </div>
     </div>

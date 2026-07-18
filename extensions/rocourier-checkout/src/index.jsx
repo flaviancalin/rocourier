@@ -25,16 +25,7 @@ function RoCourierOptionDetails() {
   const pointName = attrVal(attributes, "_rc_point_name");
   const pointAddr = attrVal(attributes, "_rc_point_address");
 
-  // Debug: always show something under the selected rate so we know extension runs
-  if (!method) {
-    return (
-      <BlockStack spacing="extraTight">
-        <Text size="small" appearance="subdued">
-          RoCourier: nicio metodă selectată în coș
-        </Text>
-      </BlockStack>
-    );
-  }
+  if (!method) return null;
 
   const COURIER_LABELS = {
     fan:     { home: "FAN Courier",      pickup: "FANbox"            },
@@ -51,8 +42,7 @@ function RoCourierOptionDetails() {
       <BlockStack spacing="extraTight" padding={["none", "none", "base", "none"]}>
         <Divider />
         <InlineStack spacing="tight" blockAlignment="center">
-          <Text size="small" emphasis="bold">📦 Punct de ridicare:</Text>
-          <Text size="small" emphasis="bold">{labels.pickup} — {pointName}</Text>
+          <Text size="small" emphasis="bold">Pickup: {labels.pickup} — {pointName}</Text>
         </InlineStack>
         {pointAddr ? (
           <Text size="small" appearance="subdued">{pointAddr}</Text>
@@ -65,18 +55,12 @@ function RoCourierOptionDetails() {
     return (
       <BlockStack spacing="extraTight" padding={["none", "none", "base", "none"]}>
         <Divider />
-        <Text size="small" appearance="subdued">🚚 Livrare prin {labels.home}</Text>
+        <Text size="small" appearance="subdued">{labels.home}</Text>
       </BlockStack>
     );
   }
 
-  return (
-    <BlockStack spacing="extraTight">
-      <Text size="small" appearance="subdued">
-        RoCourier: metodă="{method}" curier="{courier}"
-      </Text>
-    </BlockStack>
-  );
+  return null;
 }
 
 function attrVal(attributes, key) {

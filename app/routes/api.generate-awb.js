@@ -43,7 +43,7 @@ export async function action({ request }) {
   const TRIAL_LIMIT = 10;
   if (settings.planType === "trial" && settings.awbCount >= TRIAL_LIMIT) {
     return json({
-      error: `Ai atins limita de ${TRIAL_LIMIT} AWB-uri gratuite. Activează un plan Pro pentru a continua.`,
+      error: `Trial limit reached (${TRIAL_LIMIT} free AWBs). Please upgrade to a Pro plan to continue.`,
       requiresUpgrade: true,
     }, { status: 402 });
   }
@@ -94,7 +94,7 @@ export async function action({ request }) {
     if (!orderData.shippingAddress1) orderData.shippingAddress1 = lockerPoint.address || "";
     if (!orderData.shippingZip)      orderData.shippingZip      = lockerPoint.zip     || "";
   }
-  console.error(`[AWB] locker county="${orderData.shippingCounty}" city="${orderData.shippingCity}" from lockerPoint.county="${lockerPoint?.county}" lockerPoint.city="${lockerPoint?.city}"`);
+  console.log(`[AWB] locker county="${orderData.shippingCounty}" city="${orderData.shippingCity}" from lockerPoint.county="${lockerPoint?.county}" lockerPoint.city="${lockerPoint?.city}"`);
 
   let awbResult;
 

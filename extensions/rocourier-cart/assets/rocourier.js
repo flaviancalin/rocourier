@@ -163,18 +163,16 @@
     }
     translateUI();
 
-    // Fetch language override from app settings (non-blocking — re-translates if override differs)
-    if (APP_URL && SHOP) {
-      fetch(`${APP_URL}/api/widget-config?shop=${encodeURIComponent(SHOP)}`)
-        .then((r) => r.json())
-        .then(({ widgetLanguage }) => {
-          if (widgetLanguage && widgetLanguage !== "auto" && STRINGS[widgetLanguage] && widgetLanguage !== lang) {
-            lang = widgetLanguage;
-            translateUI();
-          }
-        })
-        .catch(() => {});
-    }
+    // Fetch language override from app settings via App Proxy (same-origin, no CSP issues)
+    fetch("/apps/rocourier/widget-config")
+      .then((r) => r.json())
+      .then(({ widgetLanguage }) => {
+        if (widgetLanguage && widgetLanguage !== "auto" && STRINGS[widgetLanguage] && widgetLanguage !== lang) {
+          lang = widgetLanguage;
+          translateUI();
+        }
+      })
+      .catch(() => {});
 
     // Which couriers are enabled
     const ENABLED = {};
@@ -566,12 +564,6 @@
       if (pointsList)  pointsList.innerHTML       = "";
       if (listCount)   listCount.style.display    = "none";
 
-      if (!APP_URL || !SHOP) {
-        if (listLoading) listLoading.style.display = "none";
-        if (listEmpty) { listEmpty.textContent = t("config_error"); listEmpty.style.display = "block"; }
-        return;
-      }
-
       try {
         const enabledWithPickup = Object.keys(COURIERS).filter((c) => ENABLED[c]);
         const couriersParam = enabledWithPickup.join(",") || "all";
@@ -583,7 +575,8 @@
         const geoSuffix = hasCoords
           ? `&lat=${_userLat.toFixed(6)}&lng=${_userLng.toFixed(6)}`
           : "";
-        const url = `${APP_URL}/api/pickup-points?shop=${encodeURIComponent(SHOP)}&courier=${couriersParam}&country=${COUNTRY}${geoSuffix}`;
+        // Use App Proxy path — same-origin from the storefront, bypasses Shopify's CSP
+        const url = `/apps/rocourier/pickup-points?courier=${couriersParam}&country=${COUNTRY}${geoSuffix}`;
         const res = await fetch(url, { headers: { Accept: "application/json" } });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();

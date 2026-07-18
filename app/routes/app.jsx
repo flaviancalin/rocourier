@@ -14,12 +14,13 @@ import { I18nProvider, useTranslation } from "../context/i18n.jsx";
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
 export async function loader({ request }) {
-  await authenticate.admin(request);
-  return json({ apiKey: process.env.SHOPIFY_API_KEY ?? "" });
+  const { session } = await authenticate.admin(request);
+  const isAdmin = session.shop === (process.env.ADMIN_SHOP || "courier-store-2.myshopify.com");
+  return json({ apiKey: process.env.SHOPIFY_API_KEY ?? "", isAdmin });
 }
 
 function AppLayout() {
-  const { apiKey } = useLoaderData();
+  const { apiKey, isAdmin } = useLoaderData();
   const { t } = useTranslation();
 
   return (
@@ -32,7 +33,7 @@ function AppLayout() {
         <Link to="/app/pickup-points">{t("nav_pickup_points")}</Link>
         <Link to="/app/widget">{t("nav_widget")}</Link>
         <Link to="/app/billing">{t("nav_billing")}</Link>
-        <Link to="/app/admin-codes">{t("nav_admin_codes")}</Link>
+        {isAdmin && <Link to="/app/admin-codes">{t("nav_admin_codes")}</Link>}
       </NavMenu>
 
       <Outlet />

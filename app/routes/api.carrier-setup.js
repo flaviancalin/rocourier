@@ -12,7 +12,7 @@ import { authenticate } from "../shopify.server.js";
 
 const APP_URL = process.env.SHOPIFY_APP_URL || "https://rocourier-production.up.railway.app";
 const CALLBACK_URL = `${APP_URL.replace(/\/$/, "")}/carrier-service`;
-const API_VERSION = "2024-10";
+const API_VERSION = "2025-01";
 
 export async function action({ request }) {
   const { session } = await authenticate.admin(request);
