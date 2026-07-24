@@ -1,7 +1,8 @@
 // app/routes/app._index.jsx
 // Main Dashboard — stats overview + recent orders
 
-import { json, redirect } from "@remix-run/node";
+import { useEffect } from "react";
+import { json } from "@remix-run/node";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
@@ -29,16 +30,19 @@ export async function loader({ request }) {
   const url  = new URL(request.url);
   const page = parseInt(url.searchParams.get("page") || "1");
 
-  // Redirect new installs to setup wizard
   const settings = await prisma.shopSettings.findUnique({ where: { shop: session.shop } });
-  if (!settings?.onboardingCompleted) return redirect("/app/setup");
+
+  // If setup not done, still load dashboard data but flag for client-side navigation
+  if (!settings?.onboardingCompleted) {
+    return json({ orders: [], total: 0, totalPages: 0, page: 1, stats: { byStatus: {}, byCourier: {}, byMethod: {}, pendingCodTotal: 0, pendingCodCount: 0 }, setupRequired: true });
+  }
 
   const [{ orders, total, totalPages }, stats] = await Promise.all([
     getOrders({ shop: session.shop, page, perPage: 20 }),
     getDashboardStats(session.shop),
   ]);
 
-  return json({ orders, total, totalPages, page, stats });
+  return json({ orders, total, totalPages, page, stats, setupRequired: false });
 }
 
 // ─── Static courier config ───────────────────────────────────────────────────
@@ -106,9 +110,13 @@ function StatCard({ label, value, sub, accent }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const { orders, stats } = useLoaderData();
+  const { orders, stats, setupRequired } = useLoaderData();
   const navigate = useNavigate();
   const { t, lang } = useTranslation();
+
+  useEffect(() => {
+    if (setupRequired) navigate("/app/setup");
+  }, [setupRequired]);
 
   const locale = LOCALE_MAP[lang] || "en-US";
 

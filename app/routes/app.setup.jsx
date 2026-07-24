@@ -4,7 +4,8 @@
 // Step 2: carrier service registered with Shopify
 // Step 3: theme block added to cart page
 
-import { json, redirect } from "@remix-run/node";
+import { useEffect } from "react";
+import { json } from "@remix-run/node";
 import { useLoaderData, useNavigate, useSubmit, useNavigation } from "@remix-run/react";
 import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
@@ -35,8 +36,8 @@ export async function loader({ request }) {
 
   const settings = await prisma.shopSettings.findUnique({ where: { shop } });
 
-  // If onboarding already completed, go to dashboard
-  if (settings?.onboardingCompleted) return redirect("/app");
+  // If onboarding already completed, signal client to navigate to dashboard
+  if (settings?.onboardingCompleted) return json({ redirectTo: "/app", shop: shop || "", step1Done: true, step2Done: true, step3Done: true, carrierId: null });
 
   // Step 1: courier configured?
   const step1Done = !!(
@@ -85,10 +86,10 @@ export async function loader({ request }) {
   // Auto-complete if all steps done
   if (step1Done && step2Done && step3Done && settings) {
     await prisma.shopSettings.update({ where: { shop }, data: { onboardingCompleted: true } });
-    return redirect("/app");
+    return json({ redirectTo: "/app", shop, step1Done, step2Done, step3Done, carrierId });
   }
 
-  return json({ shop, step1Done, step2Done, step3Done, carrierId, lastAction: null, actionError: null });
+  return json({ redirectTo: null, shop, step1Done, step2Done, step3Done, carrierId });
 }
 
 // ─── Action ───────────────────────────────────────────────────────────────────
@@ -164,11 +165,15 @@ function StepBadge({ done, active, t }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function SetupWizard() {
-  const { shop, step1Done, step2Done, step3Done } = useLoaderData();
+  const { shop, step1Done, step2Done, step3Done, redirectTo } = useLoaderData();
   const { t } = useTranslation();
   const navigate  = useNavigate();
   const submit    = useSubmit();
   const navigation = useNavigation();
+
+  useEffect(() => {
+    if (redirectTo) navigate(redirectTo);
+  }, [redirectTo]);
 
   const isSubmitting = navigation.state === "submitting";
 
