@@ -6,7 +6,7 @@
 
 import { useEffect } from "react";
 import { json } from "@remix-run/node";
-import { useLoaderData, useNavigate, useSubmit, useNavigation } from "@remix-run/react";
+import { useLoaderData, useNavigate, useSubmit, useNavigation, useActionData } from "@remix-run/react";
 import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
 import {
@@ -107,7 +107,7 @@ export async function action({ request }) {
       const listRes  = await fetch(`https://${shop}/admin/api/${API_VERSION}/carrier_services.json`, { headers });
       const listData = await listRes.json();
       const ours     = (listData.carrier_services || []).find((cs) => cs.callback_url === CALLBACK_URL);
-      if (ours) return json({ success: true, alreadyRegistered: true });
+      if (ours) return json({ intent: "register-carrier", success: true, alreadyRegistered: true });
 
       const createRes  = await fetch(`https://${shop}/admin/api/${API_VERSION}/carrier_services.json`, {
         method: "POST",
@@ -115,10 +115,12 @@ export async function action({ request }) {
         body: JSON.stringify({ carrier_service: { name: "Picklo", callback_url: CALLBACK_URL, service_discovery: true } }),
       });
       const createData = await createRes.json();
-      if (createData.carrier_service?.id) return json({ success: true });
-      return json({ success: false, error: JSON.stringify(createData) });
+      if (createData.carrier_service?.id) return json({ intent: "register-carrier", success: true });
+      // Common case: store doesn't have carrier-calculated shipping enabled
+      const errMsg = createData.errors?.base?.[0] || JSON.stringify(createData);
+      return json({ intent: "register-carrier", success: false, error: errMsg });
     } catch (e) {
-      return json({ success: false, error: e.message });
+      return json({ intent: "register-carrier", success: false, error: e.message });
     }
   }
 
@@ -128,7 +130,7 @@ export async function action({ request }) {
       const themesRes   = await fetch(`https://${shop}/admin/api/${API_VERSION}/themes.json`, { headers });
       const themesData  = await themesRes.json();
       const activeTheme = (themesData.themes || []).find((t) => t.role === "main");
-      if (!activeTheme) return json({ found: false });
+      if (!activeTheme) return json({ intent: "check-theme", found: false });
 
       const assetRes  = await fetch(
         `https://${shop}/admin/api/${API_VERSION}/themes/${activeTheme.id}/assets.json?asset[key]=config/settings_data.json`,
@@ -138,9 +140,9 @@ export async function action({ request }) {
       const content   = assetData.asset?.value || "";
       const found     = content.includes(`shopify://apps/${BLOCK_HANDLE}`) ||
                         content.includes(`shopify://apps/rocourier`);
-      return json({ found });
+      return json({ intent: "check-theme", found });
     } catch (e) {
-      return json({ found: false, error: e.message });
+      return json({ intent: "check-theme", found: false, error: e.message });
     }
   }
 
@@ -166,16 +168,26 @@ function StepBadge({ done, active, t }) {
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function SetupWizard() {
   const { shop, step1Done, step2Done, step3Done, redirectTo } = useLoaderData();
+  const actionData = useActionData();
   const { t } = useTranslation();
-  const navigate  = useNavigate();
-  const submit    = useSubmit();
+  const navigate   = useNavigate();
+  const submit     = useSubmit();
   const navigation = useNavigation();
 
   useEffect(() => {
     if (redirectTo) navigate(redirectTo);
   }, [redirectTo]);
 
-  const isSubmitting = navigation.state === "submitting";
+  const isSubmitting  = navigation.state === "submitting";
+  const lastIntent    = navigation.formData ? JSON.parse(navigation.formData.get("body") || "{}").intent : null;
+  const isRegistering = isSubmitting && lastIntent === "register-carrier";
+  const isCheckingTheme = isSubmitting && lastIntent === "check-theme";
+
+  // Banner messages from the last action
+  const carrierError   = actionData?.intent === "register-carrier" && !actionData?.success ? actionData?.error : null;
+  const carrierSuccess = actionData?.intent === "register-carrier" && actionData?.success;
+  const themeFound     = actionData?.intent === "check-theme" && actionData?.found;
+  const themeNotFound  = actionData?.intent === "check-theme" && !actionData?.found;
 
   const stepsCompleted = [step1Done, step2Done, step3Done].filter(Boolean).length;
   const progressPct    = Math.round((stepsCompleted / 3) * 100);
@@ -288,22 +300,43 @@ export default function SetupWizard() {
                   <BlockStack gap="100">
                     <Text variant="headingSm" fontWeight="semibold">{t("setup_step2_title")}</Text>
                     <Text variant="bodySm" tone="subdued">{t("setup_step2_desc")}</Text>
+                    <Text variant="bodySm" tone="subdued">
+                      Necesită Shopify Advanced sau activarea "Calculated shipping at checkout". Poți sări peste dacă nu ai nevoie de tarife dinamice.
+                    </Text>
                   </BlockStack>
                 </InlineStack>
                 <StepBadge done={step2Done} active={step1Done && !step2Done} t={t} />
               </InlineStack>
 
+              {carrierSuccess && (
+                <Banner tone="success">
+                  <Text>{t("setup_carrier_success")}</Text>
+                </Banner>
+              )}
+              {carrierError && (
+                <Banner tone="warning">
+                  <BlockStack gap="100">
+                    <Text fontWeight="semibold">Nu s-a putut înregistra serviciul de curier.</Text>
+                    <Text variant="bodySm">{carrierError}</Text>
+                    <Text variant="bodySm">Dacă magazinul tău nu are Shopify Advanced, sari peste acest pas.</Text>
+                  </BlockStack>
+                </Banner>
+              )}
+
               {step1Done && !step2Done && (
                 <>
                   <Divider />
-                  <InlineStack>
+                  <InlineStack gap="300">
                     <Button
                       variant="primary"
                       onClick={handleRegister}
-                      loading={isSubmitting}
+                      loading={isRegistering}
                       disabled={isSubmitting}
                     >
                       {t("setup_action_register")}
+                    </Button>
+                    <Button variant="plain" onClick={handleSkip} disabled={isSubmitting}>
+                      Sari peste pasul 2
                     </Button>
                   </InlineStack>
                 </>
@@ -320,11 +353,11 @@ export default function SetupWizard() {
                 <InlineStack gap="300" blockAlign="center">
                   <div style={{
                     width: 36, height: 36, borderRadius: "50%",
-                    background: step3Done ? "#008060" : step2Done ? "#5c6ac4" : "#e1e3e5",
+                    background: step3Done ? "#008060" : step1Done ? "#5c6ac4" : "#e1e3e5",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     flexShrink: 0,
                   }}>
-                    <span style={{ color: step2Done || step3Done ? "#fff" : "#8c9196", fontSize: 14, fontWeight: 700 }}>
+                    <span style={{ color: step1Done || step3Done ? "#fff" : "#8c9196", fontSize: 14, fontWeight: 700 }}>
                       {step3Done ? "✓" : "3"}
                     </span>
                   </div>
@@ -333,10 +366,17 @@ export default function SetupWizard() {
                     <Text variant="bodySm" tone="subdued">{t("setup_step3_desc")}</Text>
                   </BlockStack>
                 </InlineStack>
-                <StepBadge done={step3Done} active={step2Done && !step3Done} t={t} />
+                <StepBadge done={step3Done} active={step1Done && !step3Done} t={t} />
               </InlineStack>
 
-              {step2Done && !step3Done && (
+              {themeFound && (
+                <Banner tone="success"><Text>{t("setup_theme_found")}</Text></Banner>
+              )}
+              {themeNotFound && (
+                <Banner tone="warning"><Text>{t("setup_theme_not_found")}</Text></Banner>
+              )}
+
+              {step1Done && !step3Done && (
                 <>
                   <Divider />
                   <InlineStack gap="300">
@@ -345,26 +385,26 @@ export default function SetupWizard() {
                     </Button>
                     <Button
                       onClick={handleCheckTheme}
-                      loading={isSubmitting}
+                      loading={isCheckingTheme}
                       disabled={isSubmitting}
                     >
-                      {isSubmitting ? t("setup_checking") : t("setup_action_check")}
+                      {isCheckingTheme ? t("setup_checking") : t("setup_action_check")}
                     </Button>
                   </InlineStack>
                 </>
               )}
 
-              {/* Show check button even after opening editor */}
-              {step2Done && step3Done && (
+              {/* Allow re-check even when done */}
+              {step1Done && step3Done && (
                 <>
                   <Divider />
                   <InlineStack>
                     <Button
                       onClick={handleCheckTheme}
-                      loading={isSubmitting}
+                      loading={isCheckingTheme}
                       disabled={isSubmitting}
                     >
-                      {isSubmitting ? t("setup_checking") : t("setup_action_check")}
+                      {isCheckingTheme ? t("setup_checking") : t("setup_action_check")}
                     </Button>
                   </InlineStack>
                 </>
