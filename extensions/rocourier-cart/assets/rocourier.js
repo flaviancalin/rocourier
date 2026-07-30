@@ -135,7 +135,6 @@
     if (!widget) return;
 
     const SHOP     = widget.dataset.shop    || "";
-    const APP_URL  = (widget.dataset.appUrl || "").replace(/\/$/, "");
     const CURRENCY = widget.dataset.currency || "RON";
     const COUNTRY  = (widget.dataset.country || "ro").toLowerCase();
 

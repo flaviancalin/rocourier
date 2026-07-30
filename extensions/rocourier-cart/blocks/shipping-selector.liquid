@@ -15,7 +15,7 @@
   class="rocourier-widget"
   style="padding: {{ rc_padding }};"
   data-shop="{{ shop.permanent_domain }}"
-  data-app-url="{{ block.settings.app_url }}"
+
   data-currency="{{ cart.currency.iso_code | default: 'RON' }}"
   data-lang="{{ request.locale.iso_code | slice: 0, 2 | downcase }}"
   data-country="{{ localization.country.iso_code | downcase | default: 'ro' }}"
@@ -214,7 +214,6 @@
   "name": "Picklo Shipping",
   "target": "section",
   "settings": [
-    { "type": "text",     "id": "app_url",            "label": "App URL",              "default": "https://rocourier-production.up.railway.app" },
     { "type": "header",   "content": "Aspect widget" },
     { "type": "color",    "id": "primary_color",      "label": "Culoare principală",   "default": "#222222" },
     { "type": "color",    "id": "widget_bg",          "label": "Fundal widget",        "default": "#ffffff" },
