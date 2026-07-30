@@ -87,40 +87,30 @@ export async function action({ request }) {
     const APP_URL = (process.env.SHOPIFY_APP_URL || "https://rocourier-production.up.railway.app").replace(/\/$/, "");
     const CALLBACK_URL = `${APP_URL}/carrier-service`;
     try {
-      // NOTE: carrier_services has no Admin GraphQL equivalent — REST is the only supported
-      // method for registering rate-calculation callback services. Documented Shopify exception:
-      // https://shopify.dev/docs/api/admin-rest/latest/resources/carrierservice
-      const shop = session.shop;
-      const token = session.accessToken;
-      const apiVersion = "2024-10";
-
-      // Check existing carrier services
-      const checkRes = await fetch(
-        `https://${shop}/admin/api/${apiVersion}/carrier_services.json`,
-        { headers: { "X-Shopify-Access-Token": token, "Content-Type": "application/json" } }
-      );
-      const checkData = await checkRes.json();
-      const existing = checkData.carrier_services || [];
-      const ours = existing.find((cs) => cs.callback_url === CALLBACK_URL);
+      const listRes  = await admin.graphql(`{ deliveryCarrierServices(first: 50) { nodes { id name callbackUrl } } }`);
+      const listData = await listRes.json();
+      const existing = listData.data?.deliveryCarrierServices?.nodes || [];
+      const ours     = existing.find((cs) => cs.callbackUrl === CALLBACK_URL);
       if (ours) {
         return json({ carrierResult: { success: true, alreadyRegistered: true, id: ours.id } });
       }
 
-      // Register new carrier service
-      const createRes = await fetch(
-        `https://${shop}/admin/api/${apiVersion}/carrier_services.json`,
-        {
-          method: "POST",
-          headers: { "X-Shopify-Access-Token": token, "Content-Type": "application/json" },
-          body: JSON.stringify({ carrier_service: { name: "Picklo", callback_url: CALLBACK_URL, service_discovery: true } }),
-        }
+      const createRes  = await admin.graphql(
+        `mutation deliveryCarrierServiceCreate($input: DeliveryCarrierServiceCreateInput!) {
+          deliveryCarrierServiceCreate(input: $input) {
+            carrierService { id name callbackUrl }
+            userErrors { field message }
+          }
+        }`,
+        { variables: { input: { name: "Picklo", callbackUrl: CALLBACK_URL, supportsServiceDiscovery: true } } }
       );
       const createData = await createRes.json();
-      const cs = createData.carrier_service;
+      const cs         = createData.data?.deliveryCarrierServiceCreate?.carrierService;
+      const errors     = createData.data?.deliveryCarrierServiceCreate?.userErrors || [];
       if (cs?.id) {
         return json({ carrierResult: { success: true, id: cs.id } });
       }
-      return json({ carrierResult: { success: false, error: JSON.stringify(createData) } });
+      return json({ carrierResult: { success: false, error: errors[0]?.message || JSON.stringify(createData) } });
     } catch (e) {
       return json({ carrierResult: { success: false, error: String(e) } });
     }

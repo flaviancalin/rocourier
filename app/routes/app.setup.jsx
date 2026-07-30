@@ -24,15 +24,14 @@ import {
 } from "@shopify/polaris";
 import { useTranslation } from "../context/i18n.jsx";
 
-const APP_URL      = process.env.SHOPIFY_APP_URL || "https://rocourier-production.up.railway.app";
-const API_VERSION  = "2025-01";
-const CLIENT_ID    = "ec62c461418f2a1ece3f6e5fccc99154";
+const APP_URL   = process.env.SHOPIFY_APP_URL || "https://rocourier-production.up.railway.app";
+const CLIENT_ID = "ec62c461418f2a1ece3f6e5fccc99154";
 const BLOCK_HANDLE = "rocourier-cart";
 
 // ─── Loader ──────────────────────────────────────────────────────────────────
 export async function loader({ request }) {
-  const { session } = await authenticate.admin(request);
-  const { shop, accessToken } = session;
+  const { admin, session } = await authenticate.admin(request);
+  const { shop } = session;
 
   const settings = await prisma.shopSettings.findUnique({ where: { shop } });
 
@@ -50,32 +49,34 @@ export async function loader({ request }) {
     settings?.packetaApiKey
   );
 
-  // Step 2: carrier service registered?
+  // Step 2: carrier service registered? (Admin GraphQL API)
   let step2Done = false;
   try {
     const CALLBACK_URL = `${APP_URL.replace(/\/$/, "")}/carrier-service`;
-    const res  = await fetch(`https://${shop}/admin/api/${API_VERSION}/carrier_services.json`, {
-      headers: { "X-Shopify-Access-Token": accessToken },
-    });
-    const data = await res.json();
-    step2Done  = !!(data.carrier_services || []).find((cs) => cs.callback_url === CALLBACK_URL);
+    const csRes  = await admin.graphql(`{ deliveryCarrierServices(first: 50) { nodes { callbackUrl } } }`);
+    const csData = await csRes.json();
+    step2Done    = !!(csData.data?.deliveryCarrierServices?.nodes || []).find((cs) => cs.callbackUrl === CALLBACK_URL);
   } catch (_) {}
 
-  // Step 3: Picklo block in active theme?
+  // Step 3: Picklo block in active theme? (Admin GraphQL API)
   let step3Done = false;
   try {
-    const themesRes   = await fetch(`https://${shop}/admin/api/${API_VERSION}/themes.json`, {
-      headers: { "X-Shopify-Access-Token": accessToken },
-    });
-    const themesData  = await themesRes.json();
-    const activeTheme = (themesData.themes || []).find((t) => t.role === "main");
+    const themesRes  = await admin.graphql(`{ themes(first: 25) { nodes { id role } } }`);
+    const themesData = await themesRes.json();
+    const activeTheme = (themesData.data?.themes?.nodes || []).find((t) => t.role === "MAIN");
     if (activeTheme) {
-      const assetRes  = await fetch(
-        `https://${shop}/admin/api/${API_VERSION}/themes/${activeTheme.id}/assets.json?asset[key]=config/settings_data.json`,
-        { headers: { "X-Shopify-Access-Token": accessToken } }
+      const fileRes  = await admin.graphql(
+        `query GetThemeFile($themeId: ID!) {
+          theme(id: $themeId) {
+            file(filename: "config/settings_data.json") {
+              body { ... on OnlineStoreThemeFileBodyText { content } }
+            }
+          }
+        }`,
+        { variables: { themeId: activeTheme.id } }
       );
-      const assetData = await assetRes.json();
-      const content   = assetData.asset?.value || "";
+      const fileData = await fileRes.json();
+      const content  = fileData.data?.theme?.file?.body?.content || "";
       step3Done = content.includes(`shopify://apps/${BLOCK_HANDLE}`) ||
                   content.includes("shopify://apps/rocourier");
     }
@@ -92,52 +93,61 @@ export async function loader({ request }) {
 
 // ─── Action ───────────────────────────────────────────────────────────────────
 export async function action({ request }) {
-  const { session } = await authenticate.admin(request);
-  const { shop, accessToken } = session;
+  const { admin, session } = await authenticate.admin(request);
+  const { shop } = session;
   const body   = await request.json().catch(() => ({}));
   const intent = body.intent;
 
-  // ── Register carrier service ──────────────────────────────────────────────
+  // ── Register carrier service (Admin GraphQL API) ──────────────────────────
   if (intent === "register-carrier") {
     const CALLBACK_URL = `${APP_URL.replace(/\/$/, "")}/carrier-service`;
-    const headers = { "X-Shopify-Access-Token": accessToken, "Content-Type": "application/json" };
     try {
-      const listRes  = await fetch(`https://${shop}/admin/api/${API_VERSION}/carrier_services.json`, { headers });
+      const listRes  = await admin.graphql(`{ deliveryCarrierServices(first: 50) { nodes { id callbackUrl } } }`);
       const listData = await listRes.json();
-      const ours     = (listData.carrier_services || []).find((cs) => cs.callback_url === CALLBACK_URL);
+      const ours     = (listData.data?.deliveryCarrierServices?.nodes || []).find((cs) => cs.callbackUrl === CALLBACK_URL);
       if (ours) return json({ intent, success: true, alreadyRegistered: true });
 
-      const createRes  = await fetch(`https://${shop}/admin/api/${API_VERSION}/carrier_services.json`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ carrier_service: { name: "Picklo", callback_url: CALLBACK_URL, service_discovery: true } }),
-      });
+      const createRes  = await admin.graphql(
+        `mutation deliveryCarrierServiceCreate($input: DeliveryCarrierServiceCreateInput!) {
+          deliveryCarrierServiceCreate(input: $input) {
+            carrierService { id name callbackUrl }
+            userErrors { field message }
+          }
+        }`,
+        { variables: { input: { name: "Picklo", callbackUrl: CALLBACK_URL, supportsServiceDiscovery: true } } }
+      );
       const createData = await createRes.json();
-      if (createData.carrier_service?.id) return json({ intent, success: true });
-      const errMsg = createData.errors?.base?.[0] || JSON.stringify(createData);
-      return json({ intent, success: false, error: errMsg });
+      const cs         = createData.data?.deliveryCarrierServiceCreate?.carrierService;
+      const errors     = createData.data?.deliveryCarrierServiceCreate?.userErrors || [];
+      if (cs?.id) return json({ intent, success: true });
+      return json({ intent, success: false, error: errors[0]?.message || JSON.stringify(createData) });
     } catch (e) {
       return json({ intent, success: false, error: e.message });
     }
   }
 
-  // ── Check theme block ─────────────────────────────────────────────────────
+  // ── Check theme block (Admin GraphQL API) ─────────────────────────────────
   if (intent === "check-theme") {
     try {
-      const headers     = { "X-Shopify-Access-Token": accessToken };
-      const themesRes   = await fetch(`https://${shop}/admin/api/${API_VERSION}/themes.json`, { headers });
-      const themesData  = await themesRes.json();
-      const activeTheme = (themesData.themes || []).find((t) => t.role === "main");
+      const themesRes  = await admin.graphql(`{ themes(first: 25) { nodes { id role } } }`);
+      const themesData = await themesRes.json();
+      const activeTheme = (themesData.data?.themes?.nodes || []).find((t) => t.role === "MAIN");
       if (!activeTheme) return json({ intent, found: false });
 
-      const assetRes  = await fetch(
-        `https://${shop}/admin/api/${API_VERSION}/themes/${activeTheme.id}/assets.json?asset[key]=config/settings_data.json`,
-        { headers }
+      const fileRes  = await admin.graphql(
+        `query GetThemeFile($themeId: ID!) {
+          theme(id: $themeId) {
+            file(filename: "config/settings_data.json") {
+              body { ... on OnlineStoreThemeFileBodyText { content } }
+            }
+          }
+        }`,
+        { variables: { themeId: activeTheme.id } }
       );
-      const assetData = await assetRes.json();
-      const content   = assetData.asset?.value || "";
-      const found     = content.includes(`shopify://apps/${BLOCK_HANDLE}`) ||
-                        content.includes("shopify://apps/rocourier");
+      const fileData = await fileRes.json();
+      const content  = fileData.data?.theme?.file?.body?.content || "";
+      const found    = content.includes(`shopify://apps/${BLOCK_HANDLE}`) ||
+                       content.includes("shopify://apps/rocourier");
       return json({ intent, found });
     } catch (e) {
       return json({ intent, found: false, error: e.message });

@@ -1,53 +1,61 @@
 // app/routes/api.carrier-setup.js
-// Registers (or checks) our carrier service with Shopify.
-// Called from the Settings page by the merchant.
-//
-// NOTE: Shopify's carrier_services resource has no equivalent in the Admin GraphQL API.
-// The REST endpoint is the only supported way to register callback-based carrier services
-// (rate-calculation callbacks). This is a documented Shopify exception — see:
-// https://shopify.dev/docs/api/admin-rest/latest/resources/carrierservice
+// Registers (or checks) our carrier service with Shopify via Admin GraphQL API.
 
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server.js";
 
 const APP_URL = process.env.SHOPIFY_APP_URL || "https://rocourier-production.up.railway.app";
 const CALLBACK_URL = `${APP_URL.replace(/\/$/, "")}/carrier-service`;
-const API_VERSION = "2025-01";
 
 export async function action({ request }) {
-  const { session } = await authenticate.admin(request);
-  const { shop, accessToken } = session;
+  const { admin } = await authenticate.admin(request);
   const body = await request.json().catch(() => ({}));
   const intent = body.intent || "register";
 
-  const headers = { "X-Shopify-Access-Token": accessToken, "Content-Type": "application/json" };
-
-  const listRes = await fetch(`https://${shop}/admin/api/${API_VERSION}/carrier_services.json`, { headers });
+  // List all carrier services via GraphQL
+  const listRes  = await admin.graphql(`{ deliveryCarrierServices(first: 50) { nodes { id name callbackUrl } } }`);
   const listData = await listRes.json();
-  const existing = listData.carrier_services || [];
-  const ours = existing.find((cs) => cs.callback_url === CALLBACK_URL);
+  const existing = listData.data?.deliveryCarrierServices?.nodes || [];
+  const ours     = existing.find((cs) => cs.callbackUrl === CALLBACK_URL);
 
   if (intent === "check") {
-    return json({ registered: !!ours, id: ours?.id || null, all: existing });
+    return json({ registered: !!ours, id: ours?.id || null });
   }
 
   if (intent === "register") {
     if (ours) return json({ success: true, alreadyRegistered: true, id: ours.id });
 
-    const createRes = await fetch(`https://${shop}/admin/api/${API_VERSION}/carrier_services.json`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ carrier_service: { name: "Picklo", callback_url: CALLBACK_URL, service_discovery: true } }),
-    });
+    const createRes  = await admin.graphql(
+      `mutation deliveryCarrierServiceCreate($input: DeliveryCarrierServiceCreateInput!) {
+        deliveryCarrierServiceCreate(input: $input) {
+          carrierService { id name callbackUrl }
+          userErrors { field message }
+        }
+      }`,
+      { variables: { input: { name: "Picklo", callbackUrl: CALLBACK_URL, supportsServiceDiscovery: true } } }
+    );
     const createData = await createRes.json();
-    const cs = createData.carrier_service;
+    const cs         = createData.data?.deliveryCarrierServiceCreate?.carrierService;
+    const errors     = createData.data?.deliveryCarrierServiceCreate?.userErrors || [];
     if (cs?.id) return json({ success: true, id: cs.id });
-    return json({ success: false, error: JSON.stringify(createData) }, { status: 500 });
+    return json({ success: false, error: errors[0]?.message || JSON.stringify(createData) }, { status: 500 });
   }
 
   if (intent === "unregister") {
     if (!ours) return json({ success: true, wasNotRegistered: true });
-    await fetch(`https://${shop}/admin/api/${API_VERSION}/carrier_services/${ours.id}.json`, { method: "DELETE", headers });
+
+    const delRes  = await admin.graphql(
+      `mutation deliveryCarrierServiceDelete($id: ID!) {
+        deliveryCarrierServiceDelete(id: $id) {
+          deletedId
+          userErrors { field message }
+        }
+      }`,
+      { variables: { id: ours.id } }
+    );
+    const delData = await delRes.json();
+    const delErrors = delData.data?.deliveryCarrierServiceDelete?.userErrors || [];
+    if (delErrors.length) return json({ success: false, error: delErrors[0]?.message }, { status: 500 });
     return json({ success: true });
   }
 
