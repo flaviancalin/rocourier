@@ -18,6 +18,37 @@ const shopify = shopifyApp({
   sessionStorage: new PrismaSessionStorage(prisma),
   distribution: AppDistribution.AppStore,
   future: {},
+  hooks: {
+    afterAuth: async ({ session, admin }) => {
+      // Requirement 1.2.3: on reinstall, cancel any active recurring subscription
+      // so the merchant must explicitly approve billing again.
+      // Lifetime (one-time) purchases are preserved — they are non-refundable and
+      // don't require re-approval.
+      const existing = await prisma.shopSettings.findUnique({ where: { shop: session.shop } });
+      if (!existing || !["pro_monthly", "pro_yearly"].includes(existing.planType) || !existing.shopifyChargeId) return;
+
+      const subId = existing.shopifyChargeId.startsWith("gid://")
+        ? existing.shopifyChargeId
+        : `gid://shopify/AppSubscription/${existing.shopifyChargeId}`;
+
+      try {
+        await admin.graphql(
+          `mutation appSubscriptionCancel($id: ID!) {
+            appSubscriptionCancel(id: $id) {
+              appSubscription { id status }
+              userErrors { field message }
+            }
+          }`,
+          { variables: { id: subId } }
+        );
+      } catch (_) {}
+
+      await prisma.shopSettings.update({
+        where: { shop: session.shop },
+        data: { planType: "trial", shopifyChargeId: null, planActivatedAt: null },
+      });
+    },
+  },
   ...(process.env.SHOP_CUSTOM_DOMAIN
     ? { customShopDomains: [process.env.SHOP_CUSTOM_DOMAIN] }
     : {}),
