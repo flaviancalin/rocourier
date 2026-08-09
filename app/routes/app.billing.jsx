@@ -23,16 +23,40 @@ const PLANS = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Loader — charge verification is handled by /auth/billing-callback
+// Loader — syncs subscription state with Shopify on every load
 // ─────────────────────────────────────────────────────────────────────────────
 export async function loader({ request }) {
-  const { session } = await authenticate.admin(request);
-  const { shop }    = session;
+  const { admin, session } = await authenticate.admin(request);
+  const { shop }           = session;
 
-  const url       = new URL(request.url);
+  const url          = new URL(request.url);
   const activated    = url.searchParams.get("activated")     === "1";
   const billingError = url.searchParams.get("billing_error") === "1";
-  const settings     = await prisma.shopSettings.findUnique({ where: { shop } });
+  let   settings     = await prisma.shopSettings.findUnique({ where: { shop } });
+
+  // Always sync with Shopify's authoritative subscription state for paid plans.
+  // This corrects stale DB state after reinstalls, scope upgrades, or missed webhooks.
+  if (settings && !["trial", "lifetime"].includes(settings.planType)) {
+    try {
+      const subsRes  = await admin.graphql(`{ currentAppInstallation { activeSubscriptions { id name status } } }`);
+      const subsData = await subsRes.json();
+      const active   = subsData.data?.currentAppInstallation?.activeSubscriptions || [];
+
+      if (active.length === 0) {
+        // Shopify has no active subscription — reset to trial (e.g. after reinstall)
+        settings = await prisma.shopSettings.update({
+          where: { shop },
+          data:  { planType: "trial", shopifyChargeId: null, planActivatedAt: null },
+        });
+      } else if (!settings.shopifyChargeId) {
+        // We're missing the charge ID — fill it in from Shopify
+        settings = await prisma.shopSettings.update({
+          where: { shop },
+          data:  { shopifyChargeId: active[0].id },
+        });
+      }
+    } catch (_) {}
+  }
 
   return json({
     shop,
@@ -194,6 +218,42 @@ export async function action({ request }) {
     }
   }
 
+  // ── Cancel active subscription ───────────────────────────────────────────────
+  if (intent === "cancel-plan") {
+    const settings = await prisma.shopSettings.findUnique({ where: { shop } });
+    if (!settings?.shopifyChargeId || settings.planType === "trial") {
+      return json({ cancelError: "No active subscription to cancel." });
+    }
+
+    const subId = settings.shopifyChargeId.startsWith("gid://")
+      ? settings.shopifyChargeId
+      : `gid://shopify/AppSubscription/${settings.shopifyChargeId}`;
+
+    try {
+      const res    = await admin.graphql(
+        `mutation appSubscriptionCancel($id: ID!) {
+          appSubscriptionCancel(id: $id) {
+            appSubscription { id status }
+            userErrors { field message }
+          }
+        }`,
+        { variables: { id: subId } }
+      );
+      const data   = await res.json();
+      const errors = data.data?.appSubscriptionCancel?.userErrors || [];
+      if (errors.length) return json({ cancelError: errors[0].message });
+    } catch (e) {
+      return json({ cancelError: e.message });
+    }
+
+    await prisma.shopSettings.update({
+      where: { shop },
+      data:  { planType: "trial", shopifyChargeId: null, planActivatedAt: null },
+    });
+
+    return json({ planCancelled: true });
+  }
+
   return json({ error: "error_intent_invalid" });
 }
 
@@ -246,11 +306,12 @@ export default function BillingPage() {
   const { t }       = useTranslation();
   const isSubmitting = navigation.state === "submitting";
 
-  const [giftCode,           setGiftCode]           = useState("");
-  const [discountCode,       setDiscountCode]       = useState("");
-  const [selectedPlan,       setSelectedPlan]       = useState(null);
-  const [toast,              setToast]              = useState(null);
+  const [giftCode,            setGiftCode]            = useState("");
+  const [discountCode,        setDiscountCode]        = useState("");
+  const [selectedPlan,        setSelectedPlan]        = useState(null);
+  const [toast,               setToast]               = useState(null);
   const [billingErrDismissed, setBillingErrDismissed] = useState(false);
+  const [cancelConfirming,    setCancelConfirming]    = useState(false);
 
   useEffect(() => {
     if (actionData?.confirmationUrl) {
@@ -261,7 +322,15 @@ export default function BillingPage() {
   useEffect(() => {
     if (activated) setToast(t("billing_activated_toast"));
     if (actionData?.giftActivated) setToast(t("billing_gift_activated_toast"));
+    if (actionData?.planCancelled) {
+      setToast("Subscription cancelled. You are now on the free trial.");
+      setCancelConfirming(false);
+    }
   }, [activated, actionData]);
+
+  const handleCancel = useCallback(() => {
+    submit({ intent: "cancel-plan" }, { method: "post" });
+  }, [submit]);
 
   const isActive   = planType !== "trial";
   const isLifetime = planType === "lifetime";
@@ -297,6 +366,11 @@ export default function BillingPage() {
       {actionData?.error && (
         <div style={{ marginBottom: 16 }}>
           <Banner tone="critical" title={t("error")}>{t(actionData.error) || actionData.error}</Banner>
+        </div>
+      )}
+      {actionData?.cancelError && (
+        <div style={{ marginBottom: 16 }}>
+          <Banner tone="critical" title="Cancellation failed">{actionData.cancelError}</Banner>
         </div>
       )}
 
@@ -336,10 +410,48 @@ export default function BillingPage() {
                 </BlockStack>
               )}
 
-              {isActive && (
+              {isActive && !isLifetime && (
                 <Banner tone="success">
                   {t("billing_active_banner")}
                 </Banner>
+              )}
+
+              {/* Cancel subscription — only for recurring plans, not lifetime */}
+              {isActive && !isLifetime && (
+                <>
+                  <Divider />
+                  {!cancelConfirming ? (
+                    <InlineStack>
+                      <Button
+                        tone="critical"
+                        variant="plain"
+                        onClick={() => setCancelConfirming(true)}
+                        disabled={isSubmitting}
+                      >
+                        Cancel subscription
+                      </Button>
+                    </InlineStack>
+                  ) : (
+                    <BlockStack gap="300">
+                      <Banner tone="warning" title="Cancel your subscription?">
+                        Your plan will be cancelled immediately and you'll be moved back to the free trial (10 AWB limit). This cannot be undone.
+                      </Banner>
+                      <InlineStack gap="300">
+                        <Button
+                          tone="critical"
+                          onClick={handleCancel}
+                          loading={isSubmitting}
+                          disabled={isSubmitting}
+                        >
+                          Yes, cancel my plan
+                        </Button>
+                        <Button variant="plain" onClick={() => setCancelConfirming(false)} disabled={isSubmitting}>
+                          Keep my plan
+                        </Button>
+                      </InlineStack>
+                    </BlockStack>
+                  )}
+                </>
               )}
             </BlockStack>
           </Card>
