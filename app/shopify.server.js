@@ -21,31 +21,33 @@ const shopify = shopifyApp({
   hooks: {
     afterAuth: async ({ session, admin }) => {
       // Requirement 1.2.3: on reinstall, cancel any active recurring subscription
-      // so the merchant must explicitly approve billing again.
-      // Lifetime (one-time) purchases are preserved — they are non-refundable and
-      // don't require re-approval.
+      // so the merchant must go through billing approval again.
+      // Lifetime purchases are never reset — they are non-refundable one-time charges.
       const existing = await prisma.shopSettings.findUnique({ where: { shop: session.shop } });
-      if (!existing || !["pro_monthly", "pro_yearly"].includes(existing.planType) || !existing.shopifyChargeId) return;
+      if (!existing || !["pro_monthly", "pro_yearly"].includes(existing.planType)) return;
 
-      const subId = existing.shopifyChargeId.startsWith("gid://")
-        ? existing.shopifyChargeId
-        : `gid://shopify/AppSubscription/${existing.shopifyChargeId}`;
-
+      // Query Shopify for live active subscriptions (more reliable than stored ID)
       try {
-        await admin.graphql(
-          `mutation appSubscriptionCancel($id: ID!) {
-            appSubscriptionCancel(id: $id) {
-              appSubscription { id status }
-              userErrors { field message }
-            }
-          }`,
-          { variables: { id: subId } }
-        );
+        const subsRes  = await admin.graphql(`{ currentAppInstallation { activeSubscriptions { id } } }`);
+        const subsData = await subsRes.json();
+        const active   = subsData.data?.currentAppInstallation?.activeSubscriptions || [];
+
+        for (const sub of active) {
+          await admin.graphql(
+            `mutation appSubscriptionCancel($id: ID!) {
+              appSubscriptionCancel(id: $id) {
+                appSubscription { id status }
+                userErrors { field message }
+              }
+            }`,
+            { variables: { id: sub.id } }
+          );
+        }
       } catch (_) {}
 
       await prisma.shopSettings.update({
         where: { shop: session.shop },
-        data: { planType: "trial", shopifyChargeId: null, planActivatedAt: null },
+        data:  { planType: "trial", shopifyChargeId: null, planActivatedAt: null },
       });
     },
   },

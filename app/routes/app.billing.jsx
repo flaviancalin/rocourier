@@ -34,22 +34,14 @@ export async function loader({ request }) {
   const billingError = url.searchParams.get("billing_error") === "1";
   let   settings     = await prisma.shopSettings.findUnique({ where: { shop } });
 
-  // Always sync with Shopify's authoritative subscription state for paid plans.
-  // This corrects stale DB state after reinstalls, scope upgrades, or missed webhooks.
-  if (settings && !["trial", "lifetime"].includes(settings.planType)) {
+  // If on a paid plan but missing the charge GID, fill it in from Shopify.
+  // We never reset planType here — that's only done via cancel action or afterAuth on reinstall.
+  if (settings && !["trial", "lifetime"].includes(settings.planType) && !settings.shopifyChargeId) {
     try {
-      const subsRes  = await admin.graphql(`{ currentAppInstallation { activeSubscriptions { id name status } } }`);
+      const subsRes  = await admin.graphql(`{ currentAppInstallation { activeSubscriptions { id } } }`);
       const subsData = await subsRes.json();
       const active   = subsData.data?.currentAppInstallation?.activeSubscriptions || [];
-
-      if (active.length === 0) {
-        // Shopify has no active subscription — reset to trial (e.g. after reinstall)
-        settings = await prisma.shopSettings.update({
-          where: { shop },
-          data:  { planType: "trial", shopifyChargeId: null, planActivatedAt: null },
-        });
-      } else if (!settings.shopifyChargeId) {
-        // We're missing the charge ID — fill it in from Shopify
+      if (active.length > 0) {
         settings = await prisma.shopSettings.update({
           where: { shop },
           data:  { shopifyChargeId: active[0].id },
@@ -221,31 +213,51 @@ export async function action({ request }) {
   // ── Cancel active subscription ───────────────────────────────────────────────
   if (intent === "cancel-plan") {
     const settings = await prisma.shopSettings.findUnique({ where: { shop } });
-    if (!settings?.shopifyChargeId || settings.planType === "trial") {
+    if (!settings || ["trial", "lifetime"].includes(settings.planType)) {
       return json({ cancelError: "No active subscription to cancel." });
     }
 
-    const subId = settings.shopifyChargeId.startsWith("gid://")
-      ? settings.shopifyChargeId
-      : `gid://shopify/AppSubscription/${settings.shopifyChargeId}`;
-
+    // Step 1: Get the live subscription ID directly from Shopify (most reliable)
+    let subId = null;
     try {
-      const res    = await admin.graphql(
-        `mutation appSubscriptionCancel($id: ID!) {
-          appSubscriptionCancel(id: $id) {
-            appSubscription { id status }
-            userErrors { field message }
-          }
-        }`,
-        { variables: { id: subId } }
-      );
-      const data   = await res.json();
-      const errors = data.data?.appSubscriptionCancel?.userErrors || [];
-      if (errors.length) return json({ cancelError: errors[0].message });
-    } catch (e) {
-      return json({ cancelError: e.message });
+      const subsRes  = await admin.graphql(`{ currentAppInstallation { activeSubscriptions { id status } } }`);
+      const subsData = await subsRes.json();
+      const active   = subsData.data?.currentAppInstallation?.activeSubscriptions || [];
+      if (active.length > 0) subId = active[0].id;
+    } catch (_) {}
+
+    // Step 2: Fall back to stored charge ID if Shopify query failed
+    if (!subId && settings.shopifyChargeId) {
+      subId = settings.shopifyChargeId.startsWith("gid://")
+        ? settings.shopifyChargeId
+        : `gid://shopify/AppSubscription/${settings.shopifyChargeId}`;
     }
 
+    // Step 3: Cancel via Shopify API (if we have an ID)
+    if (subId) {
+      try {
+        const res    = await admin.graphql(
+          `mutation appSubscriptionCancel($id: ID!) {
+            appSubscriptionCancel(id: $id) {
+              appSubscription { id status }
+              userErrors { field message }
+            }
+          }`,
+          { variables: { id: subId } }
+        );
+        const data   = await res.json();
+        const errors = data.data?.appSubscriptionCancel?.userErrors || [];
+        if (errors.length) {
+          // Log but don't block — still reset the plan in our DB
+          console.error("[cancel-plan] Shopify userErrors:", errors);
+        }
+      } catch (e) {
+        console.error("[cancel-plan] API error:", e.message);
+        // Continue to reset DB even if API call fails
+      }
+    }
+
+    // Step 4: Always reset to trial in our DB regardless of API outcome
     await prisma.shopSettings.update({
       where: { shop },
       data:  { planType: "trial", shopifyChargeId: null, planActivatedAt: null },
