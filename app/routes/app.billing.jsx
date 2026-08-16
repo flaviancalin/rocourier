@@ -276,7 +276,7 @@ export async function action({ request }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // UI
 // ─────────────────────────────────────────────────────────────────────────────
-function PlanCard({ planKey, current, onSelect, loading, isSwitch, t }) {
+function PlanCard({ planKey, current, onSelect, loading, disabled, isSwitch, t }) {
   const isCurrent = current === planKey ||
     (planKey === "monthly"  && current === "pro_monthly") ||
     (planKey === "yearly"   && current === "pro_yearly")  ||
@@ -305,7 +305,7 @@ function PlanCard({ planKey, current, onSelect, loading, isSwitch, t }) {
         {isCurrent ? (
           <Button disabled fullWidth>{t("billing_plan_active")}</Button>
         ) : (
-          <Button variant="primary" onClick={() => onSelect(planKey)} loading={loading} fullWidth>
+          <Button variant="primary" onClick={() => onSelect(planKey)} loading={loading} disabled={disabled} fullWidth>
             {btnLabel}
           </Button>
         )}
@@ -328,17 +328,8 @@ export default function BillingPage() {
   const [toast,               setToast]               = useState(null);
   const [billingErrDismissed, setBillingErrDismissed] = useState(false);
   const [cancelConfirming,    setCancelConfirming]    = useState(false);
-
-  useEffect(() => {
-    if (actionData?.confirmationUrl) {
-      console.log("[Billing] redirecting to confirmationUrl:", actionData.confirmationUrl);
-      try {
-        window.top.location.href = actionData.confirmationUrl;
-      } catch {
-        window.location.href = actionData.confirmationUrl;
-      }
-    }
-  }, [actionData]);
+  const [subscribeError,      setSubscribeError]      = useState(null);
+  const [isSubscribing,       setIsSubscribing]       = useState(false);
 
   useEffect(() => {
     if (activated) setToast(t("billing_activated_toast"));
@@ -358,10 +349,37 @@ export default function BillingPage() {
   const trialLeft  = Math.max(0, TRIAL_LIMIT - awbCount);
   const trialPct   = Math.min(100, (awbCount / TRIAL_LIMIT) * 100);
 
-  const handleSubscribe = useCallback((plan) => {
+  // Use fetch directly so the redirect happens within the same user-gesture async chain.
+  // useSubmit + useEffect breaks the user activation context and window.top navigation gets blocked.
+  const handleSubscribe = useCallback(async (plan) => {
     setSelectedPlan(plan);
-    submit({ intent: "subscribe", plan, discountCode }, { method: "post" });
-  }, [submit, discountCode]);
+    setIsSubscribing(true);
+    setSubscribeError(null);
+
+    const form = new FormData();
+    form.append("intent", "subscribe");
+    form.append("plan", plan);
+    if (discountCode) form.append("discountCode", discountCode);
+
+    try {
+      const res  = await fetch(window.location.pathname, { method: "POST", body: form });
+      const data = await res.json();
+
+      if (data.confirmationUrl) {
+        // Navigate the top frame to Shopify's billing confirmation page.
+        // Still within the user-activation window from the original click.
+        window.top.location.href = data.confirmationUrl;
+        return; // don't clear loading — page will navigate away
+      }
+
+      setSubscribeError(data.error || "error_subscription_failed");
+    } catch (e) {
+      setSubscribeError(e.message);
+    }
+
+    setIsSubscribing(false);
+    setSelectedPlan(null);
+  }, [discountCode]);
 
   const handleGift = useCallback(() => {
     submit({ intent: "apply-gift", code: giftCode }, { method: "post" });
@@ -384,9 +402,11 @@ export default function BillingPage() {
           </Banner>
         </div>
       )}
-      {actionData?.error && (
+      {(actionData?.error || subscribeError) && (
         <div style={{ marginBottom: 16 }}>
-          <Banner tone="critical" title={t("error")}>{t(actionData.error) || actionData.error}</Banner>
+          <Banner tone="critical" title={t("error")} onDismiss={() => setSubscribeError(null)}>
+            {t(subscribeError || actionData?.error) || subscribeError || actionData?.error}
+          </Banner>
         </div>
       )}
       {actionData?.cancelError && (
@@ -497,7 +517,8 @@ export default function BillingPage() {
                     planKey={key}
                     current={planType}
                     onSelect={handleSubscribe}
-                    loading={isSubmitting && selectedPlan === key}
+                    loading={isSubscribing && selectedPlan === key}
+                    disabled={isSubscribing}
                     isSwitch={isActive}
                     t={t}
                   />
