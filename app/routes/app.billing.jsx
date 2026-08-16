@@ -327,7 +327,9 @@ export default function BillingPage() {
 
   useEffect(() => {
     if (actionData?.confirmationUrl) {
-      window.open(actionData.confirmationUrl, "_top");
+      // window.open blocked by popup-blocker when called outside a user gesture.
+      // window.top.location.href is a top-frame navigation — allowed from iframes.
+      window.top.location.href = actionData.confirmationUrl;
     }
   }, [actionData]);
 
