@@ -201,7 +201,11 @@ export async function action({ request }) {
         confirmationUrl = result?.confirmationUrl;
       }
 
-      if (!confirmationUrl) return json({ error: "error_subscription_failed" });
+      if (!confirmationUrl) {
+        console.error("[Billing] subscribe: no confirmationUrl returned by Shopify");
+        return json({ error: "error_subscription_failed" });
+      }
+      console.log("[Billing] subscribe OK, confirmationUrl:", confirmationUrl);
       return json({ confirmationUrl });
 
     } catch (e) {
@@ -327,9 +331,12 @@ export default function BillingPage() {
 
   useEffect(() => {
     if (actionData?.confirmationUrl) {
-      // window.open blocked by popup-blocker when called outside a user gesture.
-      // window.top.location.href is a top-frame navigation — allowed from iframes.
-      window.top.location.href = actionData.confirmationUrl;
+      console.log("[Billing] redirecting to confirmationUrl:", actionData.confirmationUrl);
+      try {
+        window.top.location.href = actionData.confirmationUrl;
+      } catch {
+        window.location.href = actionData.confirmationUrl;
+      }
     }
   }, [actionData]);
 
