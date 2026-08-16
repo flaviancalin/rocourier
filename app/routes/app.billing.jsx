@@ -1,7 +1,7 @@
 // app/routes/app.billing.jsx
 // Plan management & billing page
 import { useState, useEffect, useCallback } from "react";
-import { json, redirect } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { useLoaderData, useActionData, useSubmit, useNavigation } from "@remix-run/react";
 import {
   Page, Layout, Card, BlockStack, InlineStack, Text, Badge, Button,
@@ -65,7 +65,7 @@ export async function loader({ request }) {
 // Action — subscribe (creates Shopify charge) OR apply gift code
 // ─────────────────────────────────────────────────────────────────────────────
 export async function action({ request }) {
-  const { session, admin } = await authenticate.admin(request);
+  const { session, admin, redirect } = await authenticate.admin(request);
   const { shop } = session;
 
   const formData = await request.formData();
@@ -206,9 +206,10 @@ export async function action({ request }) {
         return json({ error: "error_subscription_failed" });
       }
       console.log("[Billing] redirecting to:", confirmationUrl);
-      // Server-side redirect: Remix + AppProvider (shopify-app-remix) intercepts
-      // this and uses App Bridge to navigate the parent frame — the documented pattern.
-      return redirect(confirmationUrl);
+      // Use shopify-app-remix's redirect (not Remix's) with target: '_top'.
+      // This routes through App Bridge postMessage to navigate the parent
+      // Shopify Admin frame — the correct embedded-app billing pattern.
+      return redirect(confirmationUrl, { target: "_top" });
 
     } catch (e) {
       console.error("[Billing] subscribe error:", e);
