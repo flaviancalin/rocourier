@@ -13,8 +13,8 @@ import { useTranslation } from "../context/i18n.jsx";
 
 const TRIAL_LIMIT   = 10;
 const APP_URL       = process.env.SHOPIFY_APP_URL || "https://rocourier-production.up.railway.app";
-// Production mode — real charges apply (development stores get test billing automatically)
-const BILLING_TEST  = false;
+// true on dev/test stores, false on production
+const BILLING_TEST  = process.env.NODE_ENV !== "production";
 
 const PLANS = {
   monthly:  { name: "Pro Monthly",  price: 19.00,  interval: "EVERY_30_DAYS" },
