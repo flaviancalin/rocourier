@@ -1,8 +1,8 @@
 // app/routes/app.billing.jsx
 // Plan management & billing page
 import { useState, useEffect, useCallback } from "react";
-import { json } from "@remix-run/node";
-import { useLoaderData, useActionData, useSubmit, useNavigation, useFetcher } from "@remix-run/react";
+import { json, redirect } from "@remix-run/node";
+import { useLoaderData, useActionData, useSubmit, useNavigation } from "@remix-run/react";
 import {
   Page, Layout, Card, BlockStack, InlineStack, Text, Badge, Button,
   Banner, Divider, TextField, ProgressBar, Box, InlineGrid,
@@ -202,11 +202,13 @@ export async function action({ request }) {
       }
 
       if (!confirmationUrl) {
-        console.error("[Billing] subscribe: no confirmationUrl returned by Shopify");
+        console.error("[Billing] subscribe: no confirmationUrl from Shopify");
         return json({ error: "error_subscription_failed" });
       }
-      console.log("[Billing] subscribe OK, confirmationUrl:", confirmationUrl);
-      return json({ confirmationUrl });
+      console.log("[Billing] redirecting to:", confirmationUrl);
+      // Server-side redirect: Remix + AppProvider (shopify-app-remix) intercepts
+      // this and uses App Bridge to navigate the parent frame — the documented pattern.
+      return redirect(confirmationUrl);
 
     } catch (e) {
       console.error("[Billing] subscribe error:", e);
@@ -328,35 +330,6 @@ export default function BillingPage() {
   const [toast,               setToast]               = useState(null);
   const [billingErrDismissed, setBillingErrDismissed] = useState(false);
   const [cancelConfirming,    setCancelConfirming]    = useState(false);
-  const [subscribeError,      setSubscribeError]      = useState(null);
-  const [pendingUrl,          setPendingUrl]          = useState(null);
-
-  // useFetcher carries the Shopify session token (like useSubmit) but
-  // returns data without causing a page navigation, so we control the redirect.
-  const subscribeFetcher = useFetcher();
-  const isSubscribing    = subscribeFetcher.state !== "idle";
-
-  // When the fetcher gets back a confirmationUrl, navigate the top frame.
-  // window.top.location.href is always allowed from iframes per the HTML spec
-  // (it's a frame navigation, not a popup — no user-activation constraint).
-  useEffect(() => {
-    const data = subscribeFetcher.data;
-    if (!data) return;
-
-    if (data.confirmationUrl) {
-      console.log("[Billing] confirmationUrl:", data.confirmationUrl);
-      setPendingUrl(data.confirmationUrl);
-      try {
-        window.top.location.href = data.confirmationUrl;
-      } catch (e) {
-        console.error("[Billing] top navigation blocked:", e);
-        // fallback shown via pendingUrl button
-      }
-    } else if (data.error) {
-      setSubscribeError(data.error);
-      setSelectedPlan(null);
-    }
-  }, [subscribeFetcher.data]);
 
   useEffect(() => {
     if (activated) setToast(t("billing_activated_toast"));
@@ -376,15 +349,13 @@ export default function BillingPage() {
   const trialLeft  = Math.max(0, TRIAL_LIMIT - awbCount);
   const trialPct   = Math.min(100, (awbCount / TRIAL_LIMIT) * 100);
 
+  // Action returns redirect(confirmationUrl) server-side.
+  // Remix + shopify-app-remix AppProvider intercepts the redirect and
+  // uses App Bridge to navigate the parent Shopify Admin frame.
   const handleSubscribe = useCallback((plan) => {
     setSelectedPlan(plan);
-    setSubscribeError(null);
-    setPendingUrl(null);
-    subscribeFetcher.submit(
-      { intent: "subscribe", plan, discountCode },
-      { method: "post" }
-    );
-  }, [subscribeFetcher, discountCode]);
+    submit({ intent: "subscribe", plan, discountCode }, { method: "post" });
+  }, [submit, discountCode]);
 
   const handleGift = useCallback(() => {
     submit({ intent: "apply-gift", code: giftCode }, { method: "post" });
@@ -407,19 +378,10 @@ export default function BillingPage() {
           </Banner>
         </div>
       )}
-      {(actionData?.error || subscribeError) && (
+      {actionData?.error && (
         <div style={{ marginBottom: 16 }}>
-          <Banner tone="critical" title={t("error")} onDismiss={() => setSubscribeError(null)}>
-            {t(subscribeError || actionData?.error) || subscribeError || actionData?.error}
-          </Banner>
-        </div>
-      )}
-      {pendingUrl && (
-        <div style={{ marginBottom: 16 }}>
-          <Banner tone="info" title="One more step">
-            <Button onClick={() => { window.top.location.href = pendingUrl; }}>
-              Continue to billing approval →
-            </Button>
+          <Banner tone="critical" title={t("error")}>
+            {t(actionData.error) || actionData.error}
           </Banner>
         </div>
       )}
@@ -531,8 +493,8 @@ export default function BillingPage() {
                     planKey={key}
                     current={planType}
                     onSelect={handleSubscribe}
-                    loading={isSubscribing && selectedPlan === key}
-                    disabled={isSubscribing}
+                    loading={isSubmitting && selectedPlan === key}
+                    disabled={isSubmitting}
                     isSwitch={isActive}
                     t={t}
                   />
