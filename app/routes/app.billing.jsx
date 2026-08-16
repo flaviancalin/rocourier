@@ -2,7 +2,7 @@
 // Plan management & billing page
 import { useState, useEffect, useCallback } from "react";
 import { json } from "@remix-run/node";
-import { useLoaderData, useActionData, useSubmit, useNavigation } from "@remix-run/react";
+import { useLoaderData, useActionData, useSubmit, useNavigation, useFetcher } from "@remix-run/react";
 import {
   Page, Layout, Card, BlockStack, InlineStack, Text, Badge, Button,
   Banner, Divider, TextField, ProgressBar, Box, InlineGrid,
@@ -329,7 +329,34 @@ export default function BillingPage() {
   const [billingErrDismissed, setBillingErrDismissed] = useState(false);
   const [cancelConfirming,    setCancelConfirming]    = useState(false);
   const [subscribeError,      setSubscribeError]      = useState(null);
-  const [isSubscribing,       setIsSubscribing]       = useState(false);
+  const [pendingUrl,          setPendingUrl]          = useState(null);
+
+  // useFetcher carries the Shopify session token (like useSubmit) but
+  // returns data without causing a page navigation, so we control the redirect.
+  const subscribeFetcher = useFetcher();
+  const isSubscribing    = subscribeFetcher.state !== "idle";
+
+  // When the fetcher gets back a confirmationUrl, navigate the top frame.
+  // window.top.location.href is always allowed from iframes per the HTML spec
+  // (it's a frame navigation, not a popup — no user-activation constraint).
+  useEffect(() => {
+    const data = subscribeFetcher.data;
+    if (!data) return;
+
+    if (data.confirmationUrl) {
+      console.log("[Billing] confirmationUrl:", data.confirmationUrl);
+      setPendingUrl(data.confirmationUrl);
+      try {
+        window.top.location.href = data.confirmationUrl;
+      } catch (e) {
+        console.error("[Billing] top navigation blocked:", e);
+        // fallback shown via pendingUrl button
+      }
+    } else if (data.error) {
+      setSubscribeError(data.error);
+      setSelectedPlan(null);
+    }
+  }, [subscribeFetcher.data]);
 
   useEffect(() => {
     if (activated) setToast(t("billing_activated_toast"));
@@ -349,37 +376,15 @@ export default function BillingPage() {
   const trialLeft  = Math.max(0, TRIAL_LIMIT - awbCount);
   const trialPct   = Math.min(100, (awbCount / TRIAL_LIMIT) * 100);
 
-  // Use fetch directly so the redirect happens within the same user-gesture async chain.
-  // useSubmit + useEffect breaks the user activation context and window.top navigation gets blocked.
-  const handleSubscribe = useCallback(async (plan) => {
+  const handleSubscribe = useCallback((plan) => {
     setSelectedPlan(plan);
-    setIsSubscribing(true);
     setSubscribeError(null);
-
-    const form = new FormData();
-    form.append("intent", "subscribe");
-    form.append("plan", plan);
-    if (discountCode) form.append("discountCode", discountCode);
-
-    try {
-      const res  = await fetch(window.location.pathname, { method: "POST", body: form });
-      const data = await res.json();
-
-      if (data.confirmationUrl) {
-        // Navigate the top frame to Shopify's billing confirmation page.
-        // Still within the user-activation window from the original click.
-        window.top.location.href = data.confirmationUrl;
-        return; // don't clear loading — page will navigate away
-      }
-
-      setSubscribeError(data.error || "error_subscription_failed");
-    } catch (e) {
-      setSubscribeError(e.message);
-    }
-
-    setIsSubscribing(false);
-    setSelectedPlan(null);
-  }, [discountCode]);
+    setPendingUrl(null);
+    subscribeFetcher.submit(
+      { intent: "subscribe", plan, discountCode },
+      { method: "post" }
+    );
+  }, [subscribeFetcher, discountCode]);
 
   const handleGift = useCallback(() => {
     submit({ intent: "apply-gift", code: giftCode }, { method: "post" });
@@ -406,6 +411,15 @@ export default function BillingPage() {
         <div style={{ marginBottom: 16 }}>
           <Banner tone="critical" title={t("error")} onDismiss={() => setSubscribeError(null)}>
             {t(subscribeError || actionData?.error) || subscribeError || actionData?.error}
+          </Banner>
+        </div>
+      )}
+      {pendingUrl && (
+        <div style={{ marginBottom: 16 }}>
+          <Banner tone="info" title="One more step">
+            <Button onClick={() => { window.top.location.href = pendingUrl; }}>
+              Continue to billing approval →
+            </Button>
           </Banner>
         </div>
       )}
