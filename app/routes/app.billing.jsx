@@ -1,7 +1,7 @@
 // app/routes/app.billing.jsx
 // Plan management & billing page
 import { useState, useEffect, useCallback } from "react";
-import { json } from "@remix-run/node";
+import { json } from "@remix-run/node"; // redirect not used — billing uses exit-iframe on client
 import { useLoaderData, useActionData, useSubmit, useNavigation } from "@remix-run/react";
 import {
   Page, Layout, Card, BlockStack, InlineStack, Text, Badge, Button,
@@ -65,7 +65,7 @@ export async function loader({ request }) {
 // Action — subscribe (creates Shopify charge) OR apply gift code
 // ─────────────────────────────────────────────────────────────────────────────
 export async function action({ request }) {
-  const { session, admin, redirect } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const { shop } = session;
 
   const formData = await request.formData();
@@ -205,11 +205,10 @@ export async function action({ request }) {
         console.error("[Billing] subscribe: no confirmationUrl from Shopify");
         return json({ error: "error_subscription_failed" });
       }
-      console.log("[Billing] redirecting to:", confirmationUrl);
-      // Use shopify-app-remix's redirect (not Remix's) with target: '_top'.
-      // This routes through App Bridge postMessage to navigate the parent
-      // Shopify Admin frame — the correct embedded-app billing pattern.
-      return redirect(confirmationUrl, { target: "_top" });
+      // Return the URL as JSON — the client navigates the iframe to /auth/exit-iframe
+      // which renders window.open(url, '_top') during page load (never blocked).
+      // The 401+header approach (shopify-app-remix redirect for XHR) is broken in Remix.
+      return json({ confirmationUrl });
 
     } catch (e) {
       console.error("[Billing] subscribe error:", e);
@@ -340,6 +339,22 @@ export default function BillingPage() {
       setCancelConfirming(false);
     }
   }, [activated, actionData]);
+
+  // Exit-iframe navigation for billing redirect.
+  // useSubmit POSTs carry an Authorization header, making shopify-app-remix's
+  // redirect() return a 401 that Remix never follows. Instead we navigate the
+  // iframe itself to /auth/exit-iframe, which renders window.open(url,'_top')
+  // in a page-load script — that's never blocked.
+  useEffect(() => {
+    if (!actionData?.confirmationUrl) return;
+    const params = new URLSearchParams(window.location.search);
+    const shop = params.get("shop");
+    const host = params.get("host");
+    const qs = new URLSearchParams({ exitIframe: actionData.confirmationUrl });
+    if (shop) qs.set("shop", shop);
+    if (host) qs.set("host", host);
+    window.location.href = `/auth/exit-iframe?${qs.toString()}`;
+  }, [actionData?.confirmationUrl]);
 
   const handleCancel = useCallback(() => {
     submit({ intent: "cancel-plan" }, { method: "post" });
