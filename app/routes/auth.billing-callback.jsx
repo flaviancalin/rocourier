@@ -44,7 +44,8 @@ export async function loader({ request }) {
 
   if (!shop) return redirect("/app/billing");
 
-  const base = `https://${shop}/admin/apps/${APP_HANDLE}/billing`;
+  // Shopify Admin maps apps/HANDLE/X → iframe at /X, so we need /app/billing not /billing
+  const base = `https://${shop}/admin/apps/${APP_HANDLE}/app/billing`;
   return redirect(activationSucceeded ? `${base}?activated=1` : `${base}?billing_error=1`);
 }
 
