@@ -90,9 +90,10 @@ export async function action({ request }) {
     if (already) return json({ error: "error_code_already_used" });
 
     await prisma.$transaction([
-      prisma.shopSettings.update({
-        where: { shop },
-        data: { planType: "lifetime", shopifyChargeId: null, planActivatedAt: new Date() },
+      prisma.shopSettings.upsert({
+        where:  { shop },
+        create: { shop, planType: "lifetime", shopifyChargeId: null, planActivatedAt: new Date() },
+        update: { planType: "lifetime", shopifyChargeId: null, planActivatedAt: new Date() },
       }),
       prisma.discountCode.update({
         where: { code },
