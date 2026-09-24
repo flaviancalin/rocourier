@@ -15,7 +15,7 @@ export default function PrivacyPolicy() {
     <div style={styles.page}>
       <div style={styles.container}>
         <h1 style={styles.h1}>Privacy Policy</h1>
-        <p style={styles.meta}>Last updated: May 2026</p>
+        <p style={styles.meta}>Last updated: September 2026</p>
 
         <p>
           This Privacy Policy explains how <strong>Flash Stations</strong>{" "}

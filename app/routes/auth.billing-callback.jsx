@@ -6,7 +6,7 @@
 import { redirect } from "@remix-run/node";
 import { prisma } from "../db.server.js";
 
-const API_VERSION = "2025-01";
+const API_VERSION = process.env.SHOPIFY_API_VERSION || "2025-07";
 // Use SHOPIFY_APP_HANDLE (the "rocourier" handle), not SHOPIFY_API_KEY (hex client ID).
 // Set SHOPIFY_APP_HANDLE=rocourier in Railway env vars.
 const APP_HANDLE  = process.env.SHOPIFY_APP_HANDLE || "rocourier";

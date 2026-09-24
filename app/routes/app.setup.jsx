@@ -26,7 +26,7 @@ import {
 import { useTranslation } from "../context/i18n.jsx";
 
 const APP_URL   = process.env.SHOPIFY_APP_URL || "https://rocourier-production.up.railway.app";
-const CLIENT_ID = "ec62c461418f2a1ece3f6e5fccc99154";
+const CLIENT_ID = process.env.SHOPIFY_API_KEY || "";
 const BLOCK_HANDLE = "rocourier-cart";
 
 // ─── Loader ──────────────────────────────────────────────────────────────────
