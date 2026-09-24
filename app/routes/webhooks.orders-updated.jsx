@@ -5,6 +5,7 @@
 import { authenticate } from "../shopify.server.js";
 import { logError } from "../utils/log.server.js";
 import { prisma } from "../db.server.js";
+import { generateInvoiceForOrder } from "../services/invoice.server.js";
 
 export const loader = async () => new Response("Method Not Allowed", { status: 405 });
 
@@ -58,6 +59,17 @@ export const action = async ({ request }) => {
     }
 
     await prisma.order.update({ where: { id: existing.id }, data: updates });
+
+    // Auto-invoice on fulfillment
+    const settings = await prisma.shopSettings.findUnique({ where: { shop } });
+    const justFulfilled = order.fulfillment_status === "fulfilled" && existing.awbStatus !== "delivered";
+    if (settings?.autoInvoiceOnFulfill && settings?.invoiceProvider && justFulfilled) {
+      try {
+        await generateInvoiceForOrder(shop, order);
+      } catch (invoiceErr) {
+        logError("auto-invoice (fulfill)", invoiceErr, { shopifyOrderId: String(order.id) });
+      }
+    }
 
   } catch (err) {
     logError("Webhook ORDERS_UPDATED", err);

@@ -82,6 +82,31 @@ model ShopSettings {
   shopifyChargeId   String?                       // active Shopify subscription/charge GID
   planActivatedAt   DateTime?
 
+  // ── SmartBill ────────────────────────────────────────────────────────────────
+  // Get from: app.smartbill.ro → Configurare → Tokenuri API
+  smartbillEmail      String?
+  smartbillToken      String?
+  smartbillCompanyCIF String?  // CIF-ul firmei (ex: "RO12345678")
+  smartbillSeries     String?  // Seria facturii (ex: "FACT")
+  smartbillTVA        String?  @default("19")  // cota TVA implicita (%)
+  smartbillCurrency   String?  @default("RON")
+  smartbillEnabled    Boolean  @default(false)
+
+  // ── Oblio ─────────────────────────────────────────────────────────────────────
+  // Get from: app.oblio.eu → Setari → API
+  oblioEmail          String?
+  oblioSecret         String?  // client_secret din Oblio API
+  oblioCIF            String?  // CIF-ul firmei
+  oblioSeries         String?  // Seria facturii
+  oblioTVA            String?  @default("19")
+  oblioCurrency       String?  @default("RON")
+  oblioEnabled        Boolean  @default(false)
+
+  // ── Invoicing Settings (common) ──────────────────────────────────────────────
+  invoiceProvider        String?  // "smartbill" | "oblio" | null
+  autoSendInvoice        Boolean  @default(false)  // trimite factura dupa creare comanda
+  autoInvoiceOnFulfill   Boolean  @default(false)  // trimite factura la fulfillment
+
   // ── xConnector Note ──────────────────────────────────────────────────────────
   // xConnector is a separate Shopify App (by InfoQuest, apps.shopify.com/xconnector)
   // Your app can PUSH order data to xConnector via Shopify Order metafields/notes,

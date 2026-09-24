@@ -7,6 +7,7 @@ import { logError } from "../utils/log.server.js";
 import { upsertOrderFromWebhook } from "../models/order.server.js";
 import { updateOrderAwb } from "../models/order.server.js";
 import { prisma } from "../db.server.js";
+import { generateInvoiceForOrder } from "../services/invoice.server.js";
 import { fanCreateAwb } from "../services/fan-courier.server.js";
 import { cargusCreateAwb, cargusGetSenderLocations } from "../services/cargus.server.js";
 import { glsCreateAwb } from "../services/gls.server.js";
@@ -93,6 +94,15 @@ export const action = async ({ request }) => {
 
       } catch (awbErr) {
         logError("auto-awb", awbErr, { order: order.shopifyOrderName });
+      }
+    }
+
+    // Auto-invoice on new order
+    if (settings?.autoSendInvoice && settings?.invoiceProvider) {
+      try {
+        await generateInvoiceForOrder(shop, payload);
+      } catch (invoiceErr) {
+        logError("auto-invoice (order create)", invoiceErr, { order: order?.shopifyOrderName });
       }
     }
 

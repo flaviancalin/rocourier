@@ -9,6 +9,8 @@ import { samedayAuthenticate } from "../services/sameday.server.js";
 import { cargusAuthenticate } from "../services/cargus.server.js";
 import { glsTestConnection } from "../services/gls.server.js";
 import { packetaTestConnection } from "../services/packeta.server.js";
+import { smartbillTestConnection } from "../services/smartbill.server.js";
+import { oblioTestConnection } from "../services/oblio.server.js";
 import { refreshPickupPointsCache } from "../models/pickup-points.server.js";
 import { useState, useCallback, useEffect } from "react";
 import {
@@ -84,6 +86,26 @@ export async function action({ request }) {
     }
   }
 
+  if (intent === "test-smartbill") {
+    const settings = await prisma.shopSettings.findUnique({ where: { shop: session.shop } });
+    try {
+      await smartbillTestConnection({ email: settings.smartbillEmail, token: settings.smartbillToken, cif: settings.smartbillCompanyCIF });
+      return json({ testResult: { courier: "smartbill", success: true } });
+    } catch (e) {
+      return json({ testResult: { courier: "smartbill", success: false, error: e.message } });
+    }
+  }
+
+  if (intent === "test-oblio") {
+    const settings = await prisma.shopSettings.findUnique({ where: { shop: session.shop } });
+    try {
+      await oblioTestConnection({ email: settings.oblioEmail, secret: settings.oblioSecret, cif: settings.oblioCIF });
+      return json({ testResult: { courier: "oblio", success: true } });
+    } catch (e) {
+      return json({ testResult: { courier: "oblio", success: false, error: e.message } });
+    }
+  }
+
   if (intent === "carrier-register") {
     const APP_URL = (process.env.SHOPIFY_APP_URL || "https://rocourier-production.up.railway.app").replace(/\/$/, "");
     const CALLBACK_URL = `${APP_URL}/carrier-service`;
@@ -152,6 +174,21 @@ export async function action({ request }) {
       packetaEnabled:     get("packetaEnabled") === "true",
       packetaLabelFormat: get("packetaLabelFormat") || "A6 on A4",
       xconnectorEnabled: get("xconnectorEnabled") === "true",
+      smartbillEmail:      get("smartbillEmail")      || "",
+      smartbillCompanyCIF: get("smartbillCompanyCIF") || "",
+      smartbillSeries:     get("smartbillSeries")     || "",
+      smartbillTVA:        get("smartbillTVA")        || "19",
+      smartbillCurrency:   get("smartbillCurrency")   || "RON",
+      smartbillEnabled:    get("smartbillEnabled") === "true",
+      oblioEmail:    get("oblioEmail")    || "",
+      oblioCIF:      get("oblioCIF")      || "",
+      oblioSeries:   get("oblioSeries")   || "",
+      oblioTVA:      get("oblioTVA")      || "19",
+      oblioCurrency: get("oblioCurrency") || "RON",
+      oblioEnabled:  get("oblioEnabled") === "true",
+      invoiceProvider:      get("invoiceProvider")      || null,
+      autoSendInvoice:      get("autoSendInvoice")      === "true",
+      autoInvoiceOnFulfill: get("autoInvoiceOnFulfill") === "true",
       defaultCourier:  get("defaultCourier") || "fan",
       defaultWeight:   parseFloat(get("defaultWeight")) || 1,
       autoGenerateAwb: get("autoGenerateAwb") === "true",
@@ -180,6 +217,10 @@ export async function action({ request }) {
     if (packetaKey) data.packetaApiKey = packetaKey;
     const xPw = get("xconnectorApiKey");
     if (xPw) data.xconnectorApiKey = xPw;
+    const smartbillToken = get("smartbillToken");
+    if (smartbillToken) data.smartbillToken = smartbillToken;
+    const oblioSecret = get("oblioSecret");
+    if (oblioSecret) data.oblioSecret = oblioSecret;
 
     await prisma.shopSettings.upsert({
       where:  { shop: session.shop },
@@ -239,6 +280,26 @@ export default function Settings() {
 
   const [xconnectorEnabled, setXconnectorEnabled] = useState(!!settings.xconnectorEnabled);
   const [xconnectorApiKey,  setXconnectorApiKey]  = useState("");
+
+  const [smartbillEnabled,    setSmartbillEnabled]    = useState(!!settings.smartbillEnabled);
+  const [smartbillEmail,      setSmartbillEmail]      = useState(settings.smartbillEmail      || "");
+  const [smartbillToken,      setSmartbillToken]      = useState("");
+  const [smartbillCompanyCIF, setSmartbillCompanyCIF] = useState(settings.smartbillCompanyCIF || "");
+  const [smartbillSeries,     setSmartbillSeries]     = useState(settings.smartbillSeries     || "");
+  const [smartbillTVA,        setSmartbillTVA]        = useState(settings.smartbillTVA        || "19");
+  const [smartbillCurrency,   setSmartbillCurrency]   = useState(settings.smartbillCurrency   || "RON");
+
+  const [oblioEnabled,  setOblioEnabled]  = useState(!!settings.oblioEnabled);
+  const [oblioEmail,    setOblioEmail]    = useState(settings.oblioEmail    || "");
+  const [oblioSecret,   setOblioSecret]   = useState("");
+  const [oblioCIF,      setOblioCIF]      = useState(settings.oblioCIF      || "");
+  const [oblioSeries,   setOblioSeries]   = useState(settings.oblioSeries   || "");
+  const [oblioTVA,      setOblioTVA]      = useState(settings.oblioTVA      || "19");
+  const [oblioCurrency, setOblioCurrency] = useState(settings.oblioCurrency || "RON");
+
+  const [invoiceProvider,      setInvoiceProvider]      = useState(settings.invoiceProvider      || "");
+  const [autoSendInvoice,      setAutoSendInvoice]      = useState(!!settings.autoSendInvoice);
+  const [autoInvoiceOnFulfill, setAutoInvoiceOnFulfill] = useState(!!settings.autoInvoiceOnFulfill);
 
   const [defaultCourier,  setDefaultCourier]  = useState(settings.defaultCourier  || "fan");
   const [defaultWeight,   setDefaultWeight]   = useState(String(settings.defaultWeight || 1));
@@ -301,6 +362,11 @@ export default function Settings() {
       packetaEnabled: String(packetaEnabled),
       packetaLabelFormat,
       xconnectorEnabled: String(xconnectorEnabled),
+      smartbillEnabled: String(smartbillEnabled), smartbillEmail, smartbillCompanyCIF, smartbillSeries, smartbillTVA, smartbillCurrency,
+      oblioEnabled: String(oblioEnabled), oblioEmail, oblioCIF, oblioSeries, oblioTVA, oblioCurrency,
+      invoiceProvider:      invoiceProvider || "",
+      autoSendInvoice:      String(autoSendInvoice),
+      autoInvoiceOnFulfill: String(autoInvoiceOnFulfill),
       defaultCourier, defaultWeight,
       showPickupMap: String(showPickupMap),
       autoGenerateAwb: String(autoGenerateAwb),
@@ -315,6 +381,8 @@ export default function Settings() {
     if (glsPassword) data.glsPassword = glsPassword;
     if (packetaApiKey) data.packetaApiKey = packetaApiKey;
     if (xconnectorApiKey) data.xconnectorApiKey = xconnectorApiKey;
+    if (smartbillToken) data.smartbillToken = smartbillToken;
+    if (oblioSecret)    data.oblioSecret    = oblioSecret;
     submit(data, { method: "post" });
   }, [senderName, senderCounty, senderCity, senderZip, senderAddress, senderPhone, senderEmail,
       fanEnabled, fanClientId, fanUsername, fanPassword,
@@ -326,7 +394,10 @@ export default function Settings() {
       showPickupMap, autoGenerateAwb, widgetLanguage,
       fanHomeDeliveryFee, fanPickupFee, samedayHomeDeliveryFee, samedayPickupFee,
       cargusHomeDeliveryFee, cargusPickupFee, glsHomeDeliveryFee, glsPickupFee,
-      packetaHomeDeliveryFee, packetaPickupFee, submit]);
+      packetaHomeDeliveryFee, packetaPickupFee,
+      smartbillEnabled, smartbillEmail, smartbillToken, smartbillCompanyCIF, smartbillSeries, smartbillTVA, smartbillCurrency,
+      oblioEnabled, oblioEmail, oblioSecret, oblioCIF, oblioSeries, oblioTVA, oblioCurrency,
+      invoiceProvider, autoSendInvoice, autoInvoiceOnFulfill, submit]);
 
   const handleTest = useCallback((courier) => {
     submit({ intent: `test-${courier}` }, { method: "post" });
@@ -350,6 +421,7 @@ export default function Settings() {
     { id: "packeta",    content: "📮 Packeta"                   },
     { id: "xconnector", content: "🔗 xConnector"               },
     { id: "widget",     content: `🛒 ${t("tab_widget")}`       },
+    { id: "facturare",  content: "🧾 Facturare"                 },
   ];
 
   return (
@@ -767,6 +839,119 @@ export default function Settings() {
                   </BlockStack>
                 )}
 
+                {/* ── TAB 8: Facturare ─────────────────────────────────── */}
+                {tab === 8 && (
+                  <BlockStack gap="400">
+
+                    {/* Provider selector */}
+                    <Card>
+                      <BlockStack gap="400">
+                        <Text variant="headingMd" fontWeight="semibold">Facturare automata</Text>
+                        <Banner tone="info" title="Cum functioneaza?">
+                          <BlockStack gap="100">
+                            <Text>1. Alege furnizorul de facturare (SmartBill sau Oblio).</Text>
+                            <Text>2. Introdu credentialele API si CIF-ul firmei.</Text>
+                            <Text>3. Activeaza generarea automata la comanda noua sau la fulfillment.</Text>
+                          </BlockStack>
+                        </Banner>
+                        <Divider />
+                        <FormLayout>
+                          <Select
+                            label="Furnizor facturare activ"
+                            value={invoiceProvider || ""}
+                            onChange={setInvoiceProvider}
+                            options={[
+                              { label: "— Dezactivat —",   value: ""         },
+                              { label: "SmartBill",         value: "smartbill" },
+                              { label: "Oblio",             value: "oblio"     },
+                            ]}
+                            helpText="Selecteaza furnizorul cu care doresti sa emiti facturile."
+                          />
+                          <Checkbox
+                            label="Genereaza factura automat la comanda noua"
+                            checked={autoSendInvoice}
+                            onChange={setAutoSendInvoice}
+                            helpText="Factura va fi emisa imediat dupa plasarea comenzii."
+                          />
+                          <Checkbox
+                            label="Genereaza factura la fulfillment (expediere)"
+                            checked={autoInvoiceOnFulfill}
+                            onChange={setAutoInvoiceOnFulfill}
+                            helpText="Factura va fi emisa cand comanda este marcata ca expediata."
+                          />
+                        </FormLayout>
+                      </BlockStack>
+                    </Card>
+
+                    {/* SmartBill config */}
+                    <Card>
+                      <BlockStack gap="400">
+                        <InlineStack align="space-between" blockAlign="center">
+                          <Text variant="headingMd" fontWeight="semibold">SmartBill</Text>
+                          <Checkbox label="Activat" checked={smartbillEnabled} onChange={setSmartbillEnabled} />
+                        </InlineStack>
+                        <Text tone="subdued">Obtine credentialele din app.smartbill.ro &rarr; Configurare &rarr; Tokenuri API</Text>
+                        <Divider />
+                        <FormLayout>
+                          <TextField label="Email SmartBill" value={smartbillEmail} onChange={setSmartbillEmail} type="email" autoComplete="off" />
+                          <TextField label="Token API" value={smartbillToken} onChange={setSmartbillToken} type="password" placeholder="Lasa gol pentru a pastra token-ul existent" autoComplete="new-password" />
+                          <FormLayout.Group>
+                            <TextField label="CIF firma (ex: RO12345678)" value={smartbillCompanyCIF} onChange={setSmartbillCompanyCIF} autoComplete="off" />
+                            <TextField label="Serie factura (ex: FACT)" value={smartbillSeries} onChange={setSmartbillSeries} autoComplete="off" />
+                          </FormLayout.Group>
+                          <FormLayout.Group>
+                            <TextField label="TVA (%)" value={smartbillTVA} onChange={setSmartbillTVA} type="number" min="0" max="30" autoComplete="off" />
+                            <Select
+                              label="Moneda"
+                              value={smartbillCurrency}
+                              onChange={setSmartbillCurrency}
+                              options={[
+                                { label: "RON", value: "RON" },
+                                { label: "EUR", value: "EUR" },
+                                { label: "USD", value: "USD" },
+                              ]}
+                            />
+                          </FormLayout.Group>
+                        </FormLayout>
+                      </BlockStack>
+                    </Card>
+
+                    {/* Oblio config */}
+                    <Card>
+                      <BlockStack gap="400">
+                        <InlineStack align="space-between" blockAlign="center">
+                          <Text variant="headingMd" fontWeight="semibold">Oblio</Text>
+                          <Checkbox label="Activat" checked={oblioEnabled} onChange={setOblioEnabled} />
+                        </InlineStack>
+                        <Text tone="subdued">Obtine credentialele din app.oblio.eu &rarr; Setari &rarr; API</Text>
+                        <Divider />
+                        <FormLayout>
+                          <TextField label="Email Oblio" value={oblioEmail} onChange={setOblioEmail} type="email" autoComplete="off" />
+                          <TextField label="Client Secret" value={oblioSecret} onChange={setOblioSecret} type="password" placeholder="Lasa gol pentru a pastra secretul existent" autoComplete="new-password" />
+                          <FormLayout.Group>
+                            <TextField label="CIF firma (ex: RO12345678)" value={oblioCIF} onChange={setOblioCIF} autoComplete="off" />
+                            <TextField label="Serie factura (ex: FCT)" value={oblioSeries} onChange={setOblioSeries} autoComplete="off" />
+                          </FormLayout.Group>
+                          <FormLayout.Group>
+                            <TextField label="TVA (%)" value={oblioTVA} onChange={setOblioTVA} type="number" min="0" max="30" autoComplete="off" />
+                            <Select
+                              label="Moneda"
+                              value={oblioCurrency}
+                              onChange={setOblioCurrency}
+                              options={[
+                                { label: "RON", value: "RON" },
+                                { label: "EUR", value: "EUR" },
+                                { label: "USD", value: "USD" },
+                              ]}
+                            />
+                          </FormLayout.Group>
+                        </FormLayout>
+                      </BlockStack>
+                    </Card>
+
+                  </BlockStack>
+                )}
+
               </Box>
             </Tabs>
           </Layout.Section>
@@ -801,6 +986,16 @@ export default function Settings() {
                 {tab === 5 && (
                   <Button onClick={() => handleTest("packeta")} loading={saving}>
                     🔌 {t("test_connection")} Packeta
+                  </Button>
+                )}
+                {tab === 8 && smartbillEnabled && (
+                  <Button onClick={() => handleTest("smartbill")} loading={saving}>
+                    🔌 Test SmartBill
+                  </Button>
+                )}
+                {tab === 8 && oblioEnabled && (
+                  <Button onClick={() => handleTest("oblio")} loading={saving}>
+                    🔌 Test Oblio
                   </Button>
                 )}
               </InlineStack>
