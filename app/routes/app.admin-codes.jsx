@@ -2,6 +2,7 @@
 // Admin-only page for creating and managing discount codes.
 // Protected: only accessible from the ADMIN_SHOP store (set via env var).
 import { useState, useCallback } from "react";
+import { boundary } from "@shopify/shopify-app-remix/server";
 import { json } from "@remix-run/node";
 import { useLoaderData, useActionData, useSubmit, useNavigation } from "@remix-run/react";
 import {
@@ -11,7 +12,7 @@ import {
 import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
 
-const ADMIN_SHOP = process.env.ADMIN_SHOP || "courier-store-2.myshopify.com";
+const ADMIN_SHOP = process.env.ADMIN_SHOP || null;
 
 export async function loader({ request }) {
   const { session } = await authenticate.admin(request);
@@ -231,3 +232,6 @@ export default function AdminCodesPage() {
     </Page>
   );
 }
+
+export const ErrorBoundary = boundary.error;
+export const headers = boundary.headers;

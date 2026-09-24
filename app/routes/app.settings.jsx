@@ -1,5 +1,6 @@
 // app/routes/app.settings.jsx
 import { json } from "@remix-run/node";
+import { boundary } from "@shopify/shopify-app-remix/server";
 import { useLoaderData, useActionData, useNavigation, useSubmit } from "@remix-run/react";
 import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
@@ -812,3 +813,6 @@ export default function Settings() {
     </Frame>
   );
 }
+
+export const ErrorBoundary = boundary.error;
+export const headers = boundary.headers;

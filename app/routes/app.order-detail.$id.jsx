@@ -1,5 +1,6 @@
 // app/routes/app.orders.$id.jsx
 import { json } from "@remix-run/node";
+import { boundary } from "@shopify/shopify-app-remix/server";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import { authenticate } from "../shopify.server.js";
 import { getOrder } from "../models/order.server.js";
@@ -960,3 +961,6 @@ export default function OrderDetail() {
     </Frame>
   );
 }
+
+export const ErrorBoundary = boundary.error;
+export const headers = boundary.headers;

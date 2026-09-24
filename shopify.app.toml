@@ -25,6 +25,14 @@ api_version = "2025-01"
   topics = [ "orders/updated" ]
   uri = "/webhooks/orders-updated"
 
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks/app-uninstalled"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app_subscriptions/update" ]
+  uri = "/webhooks/app-subscriptions-update"
+
   [webhooks.privacy_compliance]
   customer_data_request_url = "/webhooks/customers-data-request"
   customer_deletion_url     = "/webhooks/customers-redact"

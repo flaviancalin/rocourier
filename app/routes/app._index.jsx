@@ -2,6 +2,7 @@
 // Main Dashboard — stats overview + recent orders
 
 import { useEffect } from "react";
+import { boundary } from "@shopify/shopify-app-remix/server";
 import { json } from "@remix-run/node";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import { authenticate } from "../shopify.server.js";
@@ -280,3 +281,6 @@ export default function Dashboard() {
     </Page>
   );
 }
+
+export const ErrorBoundary = boundary.error;
+export const headers = boundary.headers;

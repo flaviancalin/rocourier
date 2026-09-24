@@ -4,6 +4,8 @@ import { authenticate } from "../shopify.server.js";
 import { logError } from "../utils/log.server.js";
 import { prisma } from "../db.server.js";
 
+export const loader = async () => new Response("Method Not Allowed", { status: 405 });
+
 export const action = async ({ request }) => {
   const { topic, shop } = await authenticate.webhook(request);
 

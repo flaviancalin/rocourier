@@ -1,6 +1,7 @@
 // app/routes/app.billing.jsx
 // Plan management & billing page
 import { useState, useEffect, useCallback } from "react";
+import { boundary } from "@shopify/shopify-app-remix/server";
 import { json } from "@remix-run/node"; // redirect not used — billing uses exit-iframe on client
 import { useLoaderData, useActionData, useSubmit, useNavigation } from "@remix-run/react";
 import {
@@ -597,3 +598,6 @@ export default function BillingPage() {
     </Page>
   );
 }
+
+export const ErrorBoundary = boundary.error;
+export const headers = boundary.headers;

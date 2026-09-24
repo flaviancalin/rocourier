@@ -1,5 +1,6 @@
 // app/routes/app.pickup-points.jsx
 import { json } from "@remix-run/node";
+import { boundary } from "@shopify/shopify-app-remix/server";
 import { useLoaderData, useNavigate, useSubmit, useActionData } from "@remix-run/react";
 import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
@@ -344,3 +345,6 @@ export default function PickupPointsPage() {
     </Frame>
   );
 }
+
+export const ErrorBoundary = boundary.error;
+export const headers = boundary.headers;

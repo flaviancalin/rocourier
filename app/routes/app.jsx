@@ -16,7 +16,7 @@ export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
 export async function loader({ request }) {
   const { session } = await authenticate.admin(request);
-  const isAdmin = session.shop === (process.env.ADMIN_SHOP || "courier-store-2.myshopify.com");
+  const isAdmin = process.env.ADMIN_SHOP ? session.shop === process.env.ADMIN_SHOP : false;
   const settings = await prisma.shopSettings.findUnique({ where: { shop: session.shop } });
   const setupCompleted = settings?.onboardingCompleted ?? false;
   return json({ apiKey: process.env.SHOPIFY_API_KEY ?? "", isAdmin, setupCompleted });

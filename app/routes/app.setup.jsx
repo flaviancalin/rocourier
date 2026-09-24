@@ -5,6 +5,7 @@
 // Step 3: theme block added to cart page
 
 import { useEffect, useState } from "react";
+import { boundary } from "@shopify/shopify-app-remix/server";
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useNavigate, useSubmit, useNavigation, useActionData } from "@remix-run/react";
 import { authenticate } from "../shopify.server.js";
@@ -399,3 +400,6 @@ export default function SetupWizard() {
     </Page>
   );
 }
+
+export const ErrorBoundary = boundary.error;
+export const headers = boundary.headers;

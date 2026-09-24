@@ -2,6 +2,7 @@
 // Full orders page — filterable, searchable, with bulk AWB generation
 
 import { json } from "@remix-run/node";
+import { boundary } from "@shopify/shopify-app-remix/server";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import { authenticate } from "../shopify.server.js";
 import { getOrders } from "../models/order.server.js";
@@ -1609,3 +1610,6 @@ export default function OrdersPage() {
     </Frame>
   );
 }
+
+export const ErrorBoundary = boundary.error;
+export const headers = boundary.headers;

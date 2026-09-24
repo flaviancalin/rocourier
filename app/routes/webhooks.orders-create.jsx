@@ -13,6 +13,8 @@ import { glsCreateAwb } from "../services/gls.server.js";
 import { packetaCreatePacket } from "../services/packeta.server.js";
 // Sameday auto-AWB not supported: requires county/city geo ID lookup
 
+export const loader = async () => new Response("Method Not Allowed", { status: 405 });
+
 export const action = async ({ request }) => {
   const { topic, shop, payload } = await authenticate.webhook(request);
 
@@ -24,7 +26,11 @@ export const action = async ({ request }) => {
     const order = await upsertOrderFromWebhook(shop, payload);
     const settings = await prisma.shopSettings.findUnique({ where: { shop } });
 
-    if (settings?.autoGenerateAwb) {
+    const TRIAL_LIMIT = 10;
+    const onTrial = !settings?.planType || settings.planType === "trial";
+    const trialExhausted = onTrial && (settings?.awbCount || 0) >= TRIAL_LIMIT;
+
+    if (settings?.autoGenerateAwb && !trialExhausted) {
       const courier = order.courierType || settings.defaultCourier || "fan";
       const orderData = { ...order, weight: order.weight || settings.defaultWeight || 1 };
       let awbResult = null;

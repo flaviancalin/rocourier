@@ -38,7 +38,7 @@ export default function PrivacyPolicy() {
           <li><strong>Customer shipping data:</strong> recipient name, phone number, email address, shipping address (street, city, county, postal code, country).</li>
           <li><strong>Shipping preference:</strong> selected courier, selected delivery method (home delivery or pickup point), selected pickup point name and address.</li>
           <li><strong>AWB data:</strong> generated shipping label numbers (AWB), shipping status.</li>
-          <li><strong>Merchant settings:</strong> API credentials for courier services (FAN Courier, Sameday, Cargus, GLS, Packeta), sender address, default shipping preferences. Credentials are stored encrypted at rest.</li>
+          <li><strong>Merchant settings:</strong> API credentials for courier services (FAN Courier, Sameday, Cargus, GLS, Packeta), sender address, default shipping preferences. Credentials are stored in a secured database accessible only to the App.</li>
         </ul>
         <p>We do <strong>not</strong> collect payment card data, bank details, or any sensitive financial information.</p>
 
@@ -96,9 +96,9 @@ export default function PrivacyPolicy() {
 
         <h2 style={styles.h2}>7. Security</h2>
         <p>
-          Data is stored in a hosted PostgreSQL database with encrypted connections (TLS). API
-          credentials provided by merchants are stored encrypted at rest. We apply
-          industry-standard security practices to prevent unauthorised access.
+          Data is stored in a hosted PostgreSQL database with encrypted connections (TLS).
+          Access to merchant API credentials is restricted to the App server only.
+          We apply industry-standard security practices to prevent unauthorised access.
         </p>
 
         <h2 style={styles.h2}>8. Changes to This Policy</h2>
