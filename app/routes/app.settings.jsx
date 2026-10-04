@@ -1,4 +1,5 @@
 // app/routes/app.settings.jsx
+import { setupCheckout, resyncManualRatesIfNeeded } from "../services/checkout-setup.server.js";
 import { json } from "@remix-run/node";
 import { boundary } from "@shopify/shopify-app-remix/server";
 import { useLoaderData, useActionData, useNavigation, useSubmit } from "@remix-run/react";
@@ -23,11 +24,17 @@ import { LanguageSwitcher } from "../components/LanguageSwitcher.jsx";
 
 // ─── Loader ───────────────────────────────────────────────────────────────────
 export async function loader({ request }) {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const settings = await prisma.shopSettings.findUnique({
     where: { shop: session.shop },
   });
-  return json({ settings: settings || {}, shop: session.shop });
+  // Fees are stored in the shop's main currency
+  let currency = "RON";
+  try {
+    const res = await admin.graphql(`{ shop { currencyCode } }`);
+    currency = (await res.json()).data?.shop?.currencyCode || currency;
+  } catch (_) {}
+  return json({ settings: settings || {}, shop: session.shop, currency });
 }
 
 // ─── Action ───────────────────────────────────────────────────────────────────
@@ -107,35 +114,13 @@ export async function action({ request }) {
   }
 
   if (intent === "carrier-register") {
-    const APP_URL = (process.env.SHOPIFY_APP_URL || "https://rocourier-production.up.railway.app").replace(/\/$/, "");
-    const CALLBACK_URL = `${APP_URL}/carrier-service`;
+    // Detects carrier-calculated shipping and puts Picklo's options into checkout:
+    // CCS → nearest lockers as live rates · no CCS → fixed rates from Picklo's fees
     try {
-      const listRes  = await admin.graphql(`{ carrierServices(first: 50) { nodes { id name callbackUrl } } }`);
-      const listData = await listRes.json();
-      const existing = listData.data?.carrierServices?.nodes || [];
-      const ours     = existing.find((cs) => cs.callbackUrl === CALLBACK_URL);
-      if (ours) {
-        return json({ carrierResult: { success: true, alreadyRegistered: true, id: ours.id } });
-      }
-
-      const createRes  = await admin.graphql(
-        `mutation carrierServiceCreate($input: DeliveryCarrierServiceCreateInput!) {
-          carrierServiceCreate(input: $input) {
-            carrierService { id name callbackUrl }
-            userErrors { field message }
-          }
-        }`,
-        { variables: { input: { name: "Picklo", callbackUrl: CALLBACK_URL, supportsServiceDiscovery: true } } }
-      );
-      const createData = await createRes.json();
-      const cs         = createData.data?.carrierServiceCreate?.carrierService;
-      const errors     = createData.data?.carrierServiceCreate?.userErrors || [];
-      if (cs?.id) {
-        return json({ carrierResult: { success: true, id: cs.id } });
-      }
-      return json({ carrierResult: { success: false, error: errors[0]?.message || JSON.stringify(createData) } });
+      const r = await setupCheckout(admin, session.shop);
+      return json({ carrierResult: { success: true, ...r } });
     } catch (e) {
-      return json({ carrierResult: { success: false, error: String(e) } });
+      return json({ carrierResult: { success: false, error: e.message } });
     }
   }
 
@@ -204,6 +189,7 @@ export async function action({ request }) {
       glsPickupFee:            parseFloat(get("glsPickupFee"))            || 0,
       packetaHomeDeliveryFee:  parseFloat(get("packetaHomeDeliveryFee"))  || 0,
       packetaPickupFee:        parseFloat(get("packetaPickupFee"))        || 0,
+      checkoutLockerCount:     Math.min(10, Math.max(1, parseInt(get("checkoutLockerCount"), 10) || 5)),
     };
     const fanPw = get("fanPassword");
     if (fanPw) data.fanPassword = fanPw;
@@ -227,7 +213,14 @@ export async function action({ request }) {
       update: data,
       create: { shop: session.shop, ...data },
     });
-    return json({ saved: true });
+    // Stores without carrier-calculated shipping: keep the checkout rates priced like the dashboard
+    let ratesSynced = null;
+    try {
+      ratesSynced = await resyncManualRatesIfNeeded(admin, session.shop);
+    } catch (e) {
+      console.error("[settings] rate resync failed:", e.message);
+    }
+    return json({ saved: true, ratesSynced: !!ratesSynced });
   }
 
   return json({ error: "Unknown intent" }, { status: 400 });
@@ -235,7 +228,7 @@ export async function action({ request }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function Settings() {
-  const { settings, shop } = useLoaderData();
+  const { settings, shop, currency } = useLoaderData();
   const actionData = useActionData();
   const nav = useNavigation();
   const submit = useSubmit();
@@ -319,6 +312,8 @@ export default function Settings() {
   const [packetaPickupFee,       setPacketaPickupFee]       = useState(String(settings.packetaPickupFee       ?? 0));
 
   const [carrierStatus, setCarrierStatus] = useState(null); // null | "loading" | "registered" | "error"
+  const [checkoutMode,  setCheckoutMode]  = useState(settings.checkoutMode || null);
+  const [lockerCount,   setLockerCount]   = useState(String(settings.checkoutLockerCount ?? 5));
   const [carrierMsg,    setCarrierMsg]    = useState("");
 
   const { t } = useTranslation();
@@ -332,7 +327,8 @@ export default function Settings() {
       const r = actionData.carrierResult;
       if (r.success) {
         setCarrierStatus("registered");
-        setCarrierMsg(r.alreadyRegistered ? t("carrier_already_registered") : t("carrier_service_success"));
+        setCheckoutMode(r.mode);
+        setCarrierMsg((r.zones || []).join(", ") || "—");
       } else {
         setCarrierStatus("error");
         setCarrierMsg(r.error || t("carrier_service_error"));
@@ -374,6 +370,7 @@ export default function Settings() {
       fanHomeDeliveryFee, fanPickupFee, samedayHomeDeliveryFee, samedayPickupFee,
       cargusHomeDeliveryFee, cargusPickupFee, glsHomeDeliveryFee, glsPickupFee,
       packetaHomeDeliveryFee, packetaPickupFee,
+      checkoutLockerCount: lockerCount,
     };
     if (fanPassword) data.fanPassword = fanPassword;
     if (samedayPassword) data.samedayPassword = samedayPassword;
@@ -394,7 +391,7 @@ export default function Settings() {
       showPickupMap, autoGenerateAwb, widgetLanguage,
       fanHomeDeliveryFee, fanPickupFee, samedayHomeDeliveryFee, samedayPickupFee,
       cargusHomeDeliveryFee, cargusPickupFee, glsHomeDeliveryFee, glsPickupFee,
-      packetaHomeDeliveryFee, packetaPickupFee,
+      packetaHomeDeliveryFee, packetaPickupFee, lockerCount,
       smartbillEnabled, smartbillEmail, smartbillToken, smartbillCompanyCIF, smartbillSeries, smartbillTVA, smartbillCurrency,
       oblioEnabled, oblioEmail, oblioSecret, oblioCIF, oblioSeries, oblioTVA, oblioCurrency,
       invoiceProvider, autoSendInvoice, autoInvoiceOnFulfill, submit]);
@@ -777,23 +774,32 @@ export default function Settings() {
 
                     <Card>
                       <BlockStack gap="300">
-                        <Text variant="headingMd" fontWeight="semibold">{t("carrier_service_title")}</Text>
-                        <Text tone="subdued">{t("carrier_service_desc")}</Text>
-                        {carrierStatus === "registered" && (
-                          <Banner tone="success" title={t("carrier_service_success")}>
-                            <Text>{carrierMsg}</Text>
+                        <Text variant="headingMd" fontWeight="semibold">{t("checkout_setup_title")}</Text>
+                        <Text tone="subdued">{t("checkout_setup_desc")}</Text>
+                        {checkoutMode === "ccs" && (
+                          <Banner tone="success">
+                            <Text>{t("checkout_mode_ccs", { n: lockerCount, zones: carrierMsg || "—" })}</Text>
                           </Banner>
+                        )}
+                        {checkoutMode === "manual" && (
+                          <Banner tone="info">
+                            <Text>{t("checkout_mode_manual", { zones: carrierMsg || "—" })}</Text>
+                          </Banner>
+                        )}
+                        {!checkoutMode && carrierStatus !== "error" && (
+                          <Text tone="subdued">{t("checkout_mode_none")}</Text>
                         )}
                         {carrierStatus === "error" && (
                           <Banner tone="critical" title={t("carrier_service_error")}>
                             <Text>{carrierMsg}</Text>
                           </Banner>
                         )}
-                        <Button
-                          onClick={handleCarrierRegister}
-                          loading={carrierStatus === "loading"}
-                        >
-                          {t("carrier_service_btn")}
+                        {checkoutMode === "ccs" && (
+                          <TextField label={t("checkout_locker_count")} value={lockerCount} onChange={setLockerCount}
+                            type="number" min="1" max="10" autoComplete="off" />
+                        )}
+                        <Button variant="primary" onClick={handleCarrierRegister} loading={carrierStatus === "loading"}>
+                          {t("checkout_setup_btn")}
                         </Button>
                       </BlockStack>
                     </Card>
@@ -811,28 +817,28 @@ export default function Settings() {
                         <Divider />
                         <FormLayout>
                           <FormLayout.Group>
-                            <TextField label={t("fee_fan_home")} value={fanHomeDeliveryFee} onChange={setFanHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" helpText={t("fee_free_help")} autoComplete="off" />
-                            <TextField label={t("fee_fan_pickup")} value={fanPickupFee} onChange={setFanPickupFee} type="number" min="0" step="0.5" suffix="RON" helpText={t("fee_free_help")} autoComplete="off" />
+                            <TextField label={t("fee_fan_home")} value={fanHomeDeliveryFee} onChange={setFanHomeDeliveryFee} type="number" min="0" step="0.5" suffix={currency} helpText={t("fee_free_help")} autoComplete="off" />
+                            <TextField label={t("fee_fan_pickup")} value={fanPickupFee} onChange={setFanPickupFee} type="number" min="0" step="0.5" suffix={currency} helpText={t("fee_free_help")} autoComplete="off" />
                           </FormLayout.Group>
                           <FormLayout.Group>
-                            <TextField label={t("fee_sameday_home")} value={samedayHomeDeliveryFee} onChange={setSamedayHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" helpText={t("fee_free_help")} autoComplete="off" />
-                            <TextField label={t("fee_sameday_pickup")} value={samedayPickupFee} onChange={setSamedayPickupFee} type="number" min="0" step="0.5" suffix="RON" helpText={t("fee_free_help")} autoComplete="off" />
+                            <TextField label={t("fee_sameday_home")} value={samedayHomeDeliveryFee} onChange={setSamedayHomeDeliveryFee} type="number" min="0" step="0.5" suffix={currency} helpText={t("fee_free_help")} autoComplete="off" />
+                            <TextField label={t("fee_sameday_pickup")} value={samedayPickupFee} onChange={setSamedayPickupFee} type="number" min="0" step="0.5" suffix={currency} helpText={t("fee_free_help")} autoComplete="off" />
                           </FormLayout.Group>
                           <FormLayout.Group>
-                            <TextField label={t("fee_cargus_home")} value={cargusHomeDeliveryFee} onChange={setCargusHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" helpText={t("fee_free_help")} autoComplete="off" />
-                            <TextField label={t("fee_cargus_pickup")} value={cargusPickupFee} onChange={setCargusPickupFee} type="number" min="0" step="0.5" suffix="RON" helpText={t("fee_free_help")} autoComplete="off" />
+                            <TextField label={t("fee_cargus_home")} value={cargusHomeDeliveryFee} onChange={setCargusHomeDeliveryFee} type="number" min="0" step="0.5" suffix={currency} helpText={t("fee_free_help")} autoComplete="off" />
+                            <TextField label={t("fee_cargus_pickup")} value={cargusPickupFee} onChange={setCargusPickupFee} type="number" min="0" step="0.5" suffix={currency} helpText={t("fee_free_help")} autoComplete="off" />
                           </FormLayout.Group>
                           <FormLayout.Group>
-                            <TextField label={t("fee_gls_home")} value={glsHomeDeliveryFee} onChange={setGlsHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" helpText={t("fee_free_help")} autoComplete="off" />
-                            <TextField label={t("fee_gls_pickup")} value={glsPickupFee} onChange={setGlsPickupFee} type="number" min="0" step="0.5" suffix="RON" helpText={t("fee_free_help")} autoComplete="off" />
+                            <TextField label={t("fee_gls_home")} value={glsHomeDeliveryFee} onChange={setGlsHomeDeliveryFee} type="number" min="0" step="0.5" suffix={currency} helpText={t("fee_free_help")} autoComplete="off" />
+                            <TextField label={t("fee_gls_pickup")} value={glsPickupFee} onChange={setGlsPickupFee} type="number" min="0" step="0.5" suffix={currency} helpText={t("fee_free_help")} autoComplete="off" />
                           </FormLayout.Group>
                           <FormLayout.Group>
-                            <TextField label={t("fee_packeta_home")} value={packetaHomeDeliveryFee} onChange={setPacketaHomeDeliveryFee} type="number" min="0" step="0.5" suffix="RON" helpText={t("fee_free_help")} autoComplete="off" />
-                            <TextField label={t("fee_packeta_pickup")} value={packetaPickupFee} onChange={setPacketaPickupFee} type="number" min="0" step="0.5" suffix="RON" helpText={t("fee_free_help")} autoComplete="off" />
+                            <TextField label={t("fee_packeta_home")} value={packetaHomeDeliveryFee} onChange={setPacketaHomeDeliveryFee} type="number" min="0" step="0.5" suffix={currency} helpText={t("fee_free_help")} autoComplete="off" />
+                            <TextField label={t("fee_packeta_pickup")} value={packetaPickupFee} onChange={setPacketaPickupFee} type="number" min="0" step="0.5" suffix={currency} helpText={t("fee_free_help")} autoComplete="off" />
                           </FormLayout.Group>
                         </FormLayout>
                         <Banner tone="warning" title={t("fees_note_title")}>
-                          <Text>{t("fees_note")}</Text>
+                          <Text>{t("fees_note", { currency })}</Text>
                         </Banner>
                       </BlockStack>
                     </Card>

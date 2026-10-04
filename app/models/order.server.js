@@ -11,11 +11,31 @@ export async function upsertOrderFromWebhook(shop, shopifyOrder) {
   }, {});
 
   // Support both _rc_ (current widget) and _rocourier_ (legacy) attribute prefixes
-  const rcMethod      = attrs["_rc_method"]        || attrs["_rocourier_method"]        || "home_delivery";
-  const rcCourier     = attrs["_rc_courier"]       || attrs["_rocourier_courier"]       || "fan";
-  const rcPointId     = attrs["_rc_point_id"]      || attrs["_rocourier_point_id"]      || null;
-  const rcPointName   = attrs["_rc_point_name"]    || attrs["_rocourier_point_name"]    || null;
-  const rcPointAddr   = attrs["_rc_point_address"] || attrs["_rocourier_point_address"] || null;
+  let rcMethod      = attrs["_rc_method"]        || attrs["_rocourier_method"]        || null;
+  let rcCourier     = attrs["_rc_courier"]       || attrs["_rocourier_courier"]       || null;
+  let rcPointId     = attrs["_rc_point_id"]      || attrs["_rocourier_point_id"]      || null;
+  let rcPointName   = attrs["_rc_point_name"]    || attrs["_rocourier_point_name"]    || null;
+  let rcPointAddr   = attrs["_rc_point_address"] || attrs["_rocourier_point_address"] || null;
+
+  // The rate the shopper picked at checkout wins over the cart widget: with
+  // carrier-calculated shipping they can choose a different locker in checkout.
+  const fromRate = parseShippingCode(shopifyOrder.shipping_lines?.[0]?.code);
+  if (fromRate) {
+    rcMethod  = fromRate.method;
+    rcCourier = fromRate.courier;
+    if (fromRate.pointId && fromRate.pointId !== rcPointId) {
+      const point = await prisma.pickupPoint.findFirst({
+        where: { courier: fromRate.courier, externalId: fromRate.pointId },
+        select: { name: true, address: true },
+      });
+      rcPointId   = fromRate.pointId;
+      rcPointName = point?.name || shopifyOrder.shipping_lines[0].title || fromRate.pointId;
+      rcPointAddr = point?.address || null;
+    }
+    if (fromRate.method === "home_delivery") rcPointId = rcPointName = rcPointAddr = null;
+  }
+  rcMethod  = rcMethod  || "home_delivery";
+  rcCourier = rcCourier || "fan";
 
   const weightKg = (shopifyOrder.line_items || []).reduce(
     (sum, item) => sum + (item.grams || 0) * (item.quantity || 1), 0
@@ -184,4 +204,22 @@ export async function getOrder(shop, id) {
     where: { shop, id },
     include: { events: { orderBy: { eventDate: "desc" } } },
   });
+}
+
+// RC_PP_<courier>_<pointId> → pickup point · RC_<COURIER>_HOME → home delivery
+// RC_<COURIER>_POINT / legacy RC_FANBOX… → pickup point without a specific point
+const LEGACY_POINT_CODES = {
+  RC_FANBOX: "fan", RC_EASYBOX: "sameday", RC_CARGUS_PUDO: "cargus",
+  RC_GLS_PARCELSHOP: "gls", RC_PACKETA_POINT: "packeta",
+};
+export function parseShippingCode(code) {
+  if (!code || !String(code).startsWith("RC_")) return null;
+  const pp = /^RC_PP_([a-z]+)_(.+)$/.exec(code);
+  if (pp) return { method: "pickup_point", courier: pp[1], pointId: pp[2] };
+  const home = /^RC_([A-Z]+)_HOME$/.exec(code);
+  if (home) return { method: "home_delivery", courier: home[1].toLowerCase() };
+  const point = /^RC_([A-Z]+)_POINT$/.exec(code);
+  if (point) return { method: "pickup_point", courier: point[1].toLowerCase() };
+  if (LEGACY_POINT_CODES[code]) return { method: "pickup_point", courier: LEGACY_POINT_CODES[code] };
+  return null;
 }

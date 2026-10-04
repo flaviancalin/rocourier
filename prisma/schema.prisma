@@ -149,6 +149,12 @@ model ShopSettings {
   packetaHomeDeliveryFee   Float  @default(0)
   packetaPickupFee         Float  @default(0)
 
+  // ── Checkout delivery options ────────────────────────────────────────────
+  // "ccs" = Shopify asks Picklo for rates (carrier-calculated shipping available)
+  // "manual" = store has no CCS; Picklo-created fixed rates + cart widget
+  checkoutMode        String?  // null until detected
+  checkoutLockerCount Int      @default(5) // nearest lockers offered as rates in CCS mode
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -248,6 +254,8 @@ model PickupPoint {
   @@index([courier])
   @@index([county])
   @@index([country])
+  @@index([country, lat, lng])
+  @@index([country, zip])
 }
 
 // ─── Discount Codes ───────────────────────────────────────────────────────────
