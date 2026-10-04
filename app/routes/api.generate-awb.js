@@ -261,6 +261,8 @@ export async function action({ request }) {
         courierType: courier,
         pickupPointName: order.pickupPointName,
         pickupPointAddress: order.pickupPointAddress,
+        markAsDispatched:   markAsDispatched === true || markAsDispatched === "true",
+        notifyCustomer:     notifyCustomer === true || notifyCustomer === "true",
       });
 
       await writeOrderMetafields({

@@ -35,11 +35,16 @@ export async function syncAwbToShopify({
   courierType,            // "fan" | "sameday" | "cargus" | "gls" | "packeta"
   pickupPointName = null,
   pickupPointAddress = null,
+  markAsDispatched = false, // merchant opted in to fulfilling the order in Shopify
+  notifyCustomer = false,   // merchant opted in to Shopify's shipping email
 }) {
-  const result = await fulfillOrderWithTracking(adminApiClient, {
-    shopifyOrderId, courierType, awbNumber, notifyCustomer: true,
-  });
-  if (result.error) console.warn(`Fulfillment for order ${shopifyOrderId} skipped: ${result.error}`);
+  let result = { skipped: true };
+  if (markAsDispatched) {
+    result = await fulfillOrderWithTracking(adminApiClient, {
+      shopifyOrderId, courierType, awbNumber, notifyCustomer,
+    });
+    if (result.error) console.warn(`Fulfillment for order ${shopifyOrderId} skipped: ${result.error}`);
+  }
 
   // Pickup point info on the order's attributes (xConnector reads these)
   if (pickupPointName) {
