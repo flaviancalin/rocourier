@@ -147,6 +147,29 @@ async function syncManualRates(admin, settings, enabled) {
   return { zones: done, currency };
 }
 
+// Turns on Picklo's delivery customization function (renames the pickup rate to the
+// locker chosen in the cart widget). Only needed without CCS; with CCS it's a no-op.
+async function ensureDeliveryCustomization(admin) {
+  const data = await gql(admin, `{
+    shopifyFunctions(first: 25, apiType: "delivery_customization") { nodes { id title } }
+    deliveryCustomizations(first: 25) { nodes { id enabled functionId } }
+  }`);
+  const fn = data.shopifyFunctions.nodes[0]; // only this app's functions are returned
+  if (!fn) return false;
+  const existing = data.deliveryCustomizations.nodes.find((d) => d.functionId === fn.id || d.functionId?.endsWith(fn.id));
+  if (existing?.enabled) return true;
+  const res = existing
+    ? await gql(admin, `mutation u($id: ID!, $c: DeliveryCustomizationInput!) {
+        deliveryCustomizationUpdate(id: $id, deliveryCustomization: $c) { userErrors { message } } }`,
+        { id: existing.id, c: { enabled: true } })
+    : await gql(admin, `mutation c($c: DeliveryCustomizationInput!) {
+        deliveryCustomizationCreate(deliveryCustomization: $c) { userErrors { message } } }`,
+        { c: { functionId: fn.id, title: "Picklo — locker ales în coș", enabled: true } });
+  const errors = (res.deliveryCustomizationUpdate || res.deliveryCustomizationCreate).userErrors;
+  if (errors.length) throw new Error(errors.map((e) => e.message).join("; "));
+  return true;
+}
+
 // Detects the mode and sets checkout up. Safe to run repeatedly.
 export async function setupCheckout(admin, shop) {
   const settings = await prisma.shopSettings.findUnique({ where: { shop } });
@@ -158,7 +181,10 @@ export async function setupCheckout(admin, shop) {
   let zones;
   let currency = null;
   if (carrier.mode === "ccs") zones = await attachCarrier(admin, carrier.carrierServiceId, enabled);
-  else ({ zones, currency } = await syncManualRates(admin, settings, enabled));
+  else {
+    ({ zones, currency } = await syncManualRates(admin, settings, enabled));
+    await ensureDeliveryCustomization(admin);
+  }
 
   await prisma.shopSettings.update({ where: { shop }, data: { checkoutMode: carrier.mode } });
   return { mode: carrier.mode, zones, currency, reason: carrier.reason };

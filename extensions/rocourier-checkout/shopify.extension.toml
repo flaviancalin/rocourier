@@ -9,3 +9,7 @@ handle = "rocourier-checkout"
 [[extensions.targeting]]
 module = "./src/index.jsx"
 target = "purchase.checkout.shipping-option-item.render-after"
+
+[[extensions.targeting]]
+module = "./src/ThankYou.jsx"
+target = "purchase.thank-you.customer-information.render-after"

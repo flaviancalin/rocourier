@@ -8,5 +8,5 @@
     "moduleResolution": "node",
     "esModuleInterop": true
   },
-  "include": ["./src", "./node_modules/@shopify/ui-extensions/build/ts/surfaces/checkout/targets/purchase.checkout.shipping-option-item.render-after.d.ts"]
+  "include": ["./src"]
 }

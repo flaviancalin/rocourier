@@ -1,0 +1,15 @@
+query CartDeliveryOptionsTransformRunInput {
+  cart {
+    method: attribute(key: "_rc_method") { value }
+    courier: attribute(key: "_rc_courier") { value }
+    pointName: attribute(key: "_rc_point_name") { value }
+    deliveryGroups {
+      deliveryOptions {
+        handle
+        title
+        code
+        cost { amount }
+      }
+    }
+  }
+}
