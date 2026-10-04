@@ -749,7 +749,7 @@ export default function OrderDetail() {
     );
   }
 
-  const statusCfg = STATUS_MAP[order.awbStatus] || { label: order.awbStatus, tone: "default", icon: "📦" };
+  const statusCfg = STATUS_CONFIG[order.awbStatus] || { tone: "default", icon: "📦" };
 
   return (
     <Frame>

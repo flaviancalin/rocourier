@@ -127,7 +127,7 @@ export default function Dashboard() {
   const generated   = stats.byStatus.generated || 0;
 
   const rows = orders.map((o) => [
-    <Button variant="plain" onClick={() => navigate(`/app/orders/${o.id}`)}>
+    <Button variant="plain" onClick={() => navigate(`/app/order-detail/${o.id}`)}>
       {o.shopifyOrderName}
     </Button>,
     o.customerName || "—",
