@@ -749,6 +749,17 @@ export default function OrderDetail() {
     );
   }
 
+  // fetch() is authenticated by App Bridge; a new tab would have no session token
+  async function downloadAwb() {
+    const res = await fetch(`/api/print-awb?orderId=${order.id}`);
+    if (!res.ok) { setToast((await res.text()).slice(0, 120)); return; }
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement("a");
+    a.href = url; a.download = `AWB_${order.awbNumber}.pdf`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   const statusCfg = STATUS_CONFIG[order.awbStatus] || { tone: "default", icon: "📦" };
 
   return (
@@ -765,7 +776,7 @@ export default function OrderDetail() {
         secondaryActions={[
           ...(order.awbNumber ? [
             { content: tracking ? t("checking_tracking") : t("update_tracking"), onAction: handleTrackAwb, loading: tracking },
-            { content: t("print_awb"), onAction: () => window.open(`/api/print-awb?orderId=${order.id}`, "_blank") },
+            { content: t("print_awb"), onAction: downloadAwb },
             { content: t("delete_awb"), onAction: () => setDeleteOpen(true), tone: "critical" },
           ] : []),
           { content: t("view_shopify"), onAction: () => window.open(`https://${order.shop}/admin/orders/${order.shopifyOrderId}`, "_blank") },

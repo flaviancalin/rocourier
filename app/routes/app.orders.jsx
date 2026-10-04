@@ -332,9 +332,16 @@ export default function OrdersPage() {
     }
   }
 
-  function handlePackingSlip() {
+  async function handlePackingSlip() {
     if (!selectedOrders.length) return;
-    window.open(`/api/packing-slip?orderIds=${selectedOrders.join(",")}`, "_blank");
+    // Open synchronously (keeps the click's popup permission), then fill it with the
+    // HTML fetched through App Bridge — a direct URL in a new tab has no session token.
+    const win = window.open("", "_blank");
+    const res = await fetch(`/api/packing-slip?orderIds=${selectedOrders.join(",")}`);
+    const html = await res.text();
+    if (!res.ok) { win?.close(); setToastMsg(`Eroare: ${html.slice(0, 120)}`); return; }
+    if (!win) return;
+    win.document.open(); win.document.write(html); win.document.close();
   }
 
   async function openAwbWizard() {
