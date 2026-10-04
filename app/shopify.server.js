@@ -7,11 +7,12 @@ import {
 } from "@shopify/shopify-app-remix/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import { prisma } from "./db.server.js";
+import { syncPlanWithShopify } from "./services/billing.server.js";
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
-  apiVersion: ApiVersion.January25,
+  apiVersion: ApiVersion.October26,
   scopes: process.env.SCOPES?.split(","),
   appUrl: process.env.SHOPIFY_APP_URL || "https://rocourier-production.up.railway.app",
   authPathPrefix: "/auth",
@@ -20,35 +21,14 @@ const shopify = shopifyApp({
   future: {},
   hooks: {
     afterAuth: async ({ session, admin }) => {
-      // Requirement 1.2.3: on reinstall, cancel any active recurring subscription
-      // so the merchant must go through billing approval again.
-      // Lifetime purchases are never reset — they are non-refundable one-time charges.
-      const existing = await prisma.shopSettings.findUnique({ where: { shop: session.shop } });
-      if (!existing || !["pro_monthly", "pro_yearly"].includes(existing.planType)) return;
-
-      // Query Shopify for live active subscriptions (more reliable than stored ID)
+      // Sync our plan with Shopify's live billing state (install, reinstall, re-auth).
+      // Shopify cancels recurring subscriptions on uninstall, so a reinstalling
+      // merchant lands back on trial and must approve a new charge. Nothing is cancelled here.
       try {
-        const subsRes  = await admin.graphql(`{ currentAppInstallation { activeSubscriptions { id } } }`);
-        const subsData = await subsRes.json();
-        const active   = subsData.data?.currentAppInstallation?.activeSubscriptions || [];
-
-        for (const sub of active) {
-          await admin.graphql(
-            `mutation appSubscriptionCancel($id: ID!) {
-              appSubscriptionCancel(id: $id) {
-                appSubscription { id status }
-                userErrors { field message }
-              }
-            }`,
-            { variables: { id: sub.id } }
-          );
-        }
-      } catch (_) {}
-
-      await prisma.shopSettings.update({
-        where: { shop: session.shop },
-        data:  { planType: "trial", shopifyChargeId: null, planActivatedAt: null },
-      });
+        await syncPlanWithShopify(session.shop, async (q, variables) => (await admin.graphql(q, { variables })).json());
+      } catch (e) {
+        console.error("[afterAuth] plan sync failed:", e.message);
+      }
     },
   },
   ...(process.env.SHOP_CUSTOM_DOMAIN
@@ -57,7 +37,7 @@ const shopify = shopifyApp({
 });
 
 export default shopify;
-export const apiVersion = ApiVersion.January25;
+export const apiVersion = ApiVersion.October26;
 export const addDocumentResponseHeaders = shopify.addDocumentResponseHeaders;
 export const authenticate = shopify.authenticate;
 export const unauthenticated = shopify.unauthenticated;

@@ -15,11 +15,16 @@ export const action = async ({ request }) => {
   }
 
   try {
-    const email = payload.customer?.email || "";
+    const email    = payload.customer?.email || "";
+    const orderIds = (payload.orders_to_redact || []).map(String);
+    const match    = [
+      ...(email ? [{ customerEmail: email }] : []),
+      ...(orderIds.length ? [{ shopifyOrderId: { in: orderIds } }] : []),
+    ];
 
     // Anonymise PII — keep AWB numbers and order records for accounting/legal
-    await prisma.order.updateMany({
-      where: { shop, customerEmail: email },
+    if (match.length) await prisma.order.updateMany({
+      where: { shop, OR: match },
       data: {
         customerName:     "[redacted]",
         customerPhone:    "[redacted]",

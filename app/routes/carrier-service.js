@@ -1,14 +1,16 @@
 // app/routes/carrier-service.js
 // Shopify Carrier Service callback — called by Shopify checkout to get shipping rates.
 
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
+import { json } from "@remix-run/node";
 import { prisma } from "../db.server.js";
 
 function verifyHmac(body, hmacHeader) {
   if (!hmacHeader) return false;
   const secret = process.env.SHOPIFY_API_SECRET || "";
-  const hash = createHmac("sha256", secret).update(body, "utf8").digest("base64");
-  return hash === hmacHeader;
+  const hash = Buffer.from(createHmac("sha256", secret).update(body, "utf8").digest("base64"));
+  const given = Buffer.from(hmacHeader);
+  return hash.length === given.length && timingSafeEqual(hash, given);
 }
 
 export async function action({ request }) {
@@ -51,9 +53,11 @@ export async function action({ request }) {
   const pointName = attrs["_rc_point_name"]    || attrs["_rocourier_point_name"]    || "";
   const pointAddr = attrs["_rc_point_address"] || attrs["_rocourier_point_address"] || "";
 
-  const rates = buildRates({ method, courier, pointName, pointAddr, currency, settings });
+  // Cheapest first, so the default checkout option is always the cheapest (App Store rule 1.1.10)
+  const rates = buildRates({ method, courier, pointName, pointAddr, currency, settings })
+    .sort((a, b) => Number(a.total_price) - Number(b.total_price));
 
-  return Response.json({ rates });
+  return json({ rates });
 }
 
 // Convert RON float → cents string (Shopify expects price in subunits)

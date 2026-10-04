@@ -11,18 +11,25 @@ import {
 import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
 import { useTranslation } from "../context/i18n.jsx";
+import { PLANS } from "../utils/plans.js";
+import { syncPlanWithShopify } from "../services/billing.server.js";
 
 const TRIAL_LIMIT   = 10;
 const APP_URL       = process.env.SHOPIFY_APP_URL || "https://rocourier-production.up.railway.app";
-// Set BILLING_TEST=true in Railway env vars to approve test subscriptions without a payment method.
-// Remove (or set false) when going live.
-const BILLING_TEST = process.env.BILLING_TEST === "true" || process.env.NODE_ENV !== "production";
+// Test charges: always on development stores (incl. Shopify App Review stores, which
+// can't be billed for real), or everywhere when BILLING_TEST=true / outside production.
+const BILLING_TEST_FORCED = process.env.BILLING_TEST === "true" || process.env.NODE_ENV !== "production";
 
-const PLANS = {
-  monthly:  { name: "Pro Monthly",  price: 19.00,  interval: "EVERY_30_DAYS" },
-  yearly:   { name: "Pro Yearly",   price: 149.00, interval: "ANNUAL" },
-  lifetime: { name: "Pro Lifetime", price: 299.00, interval: null },
-};
+async function isTestCharge(admin) {
+  if (BILLING_TEST_FORCED) return true;
+  try {
+    const res  = await admin.graphql(`{ shop { plan { partnerDevelopment } } }`);
+    const body = await res.json();
+    return body?.data?.shop?.plan?.partnerDevelopment === true;
+  } catch (_) {
+    return false;
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Loader — syncs subscription state with Shopify on every load
@@ -34,23 +41,15 @@ export async function loader({ request }) {
   const url          = new URL(request.url);
   const activated    = url.searchParams.get("activated")     === "1";
   const billingError = url.searchParams.get("billing_error") === "1";
-  let   settings     = await prisma.shopSettings.findUnique({ where: { shop } });
-
-  // If on a paid plan but missing the charge GID, fill it in from Shopify.
-  // We never reset planType here — that's only done via cancel action or afterAuth on reinstall.
-  if (settings && !["trial", "lifetime"].includes(settings.planType) && !settings.shopifyChargeId) {
-    try {
-      const subsRes  = await admin.graphql(`{ currentAppInstallation { activeSubscriptions { id } } }`);
-      const subsData = await subsRes.json();
-      const active   = subsData.data?.currentAppInstallation?.activeSubscriptions || [];
-      if (active.length > 0) {
-        settings = await prisma.shopSettings.update({
-          where: { shop },
-          data:  { shopifyChargeId: active[0].id },
-        });
-      }
-    } catch (_) {}
+  // Source of truth is Shopify: picks up approvals we missed and cancellations
+  // made from the Shopify admin. Lifetime plans are left untouched.
+  let settings = null;
+  try {
+    settings = await syncPlanWithShopify(shop, async (q, variables) => (await admin.graphql(q, { variables })).json());
+  } catch (e) {
+    console.error("[Billing] sync failed:", e.message);
   }
+  if (!settings) settings = await prisma.shopSettings.findUnique({ where: { shop } });
 
   return json({
     shop,
@@ -134,19 +133,18 @@ export async function action({ request }) {
       }
 
       price = parseFloat((price * (1 - dc.percentOff / 100)).toFixed(2));
-
-      await prisma.$transaction([
-        prisma.discountCode.update({ where: { code: discountCode }, data: { usedCount: { increment: 1 } } }),
-        prisma.discountCodeUsage.create({ data: { code: discountCode, shop } }),
-      ]);
+      // Usage is recorded in the billing callback, only once the merchant approves
     }
 
     // Callback route handles charge verification without needing embedded app context.
     // Using the Shopify admin URL causes "To install" page for unpublished apps.
-    const returnUrl = `${APP_URL}/auth/billing-callback?shop=${shop}`;
+    const returnParams = new URLSearchParams({ shop });
+    if (discountCode) returnParams.set("dc", discountCode);
+    const returnUrl = `${APP_URL}/auth/billing-callback?${returnParams}`;
 
     try {
       let confirmationUrl;
+      const test = await isTestCharge(admin);
 
       if (plan === "lifetime") {
         const res = await admin.graphql(`
@@ -162,7 +160,7 @@ export async function action({ request }) {
             name:      planConfig.name,
             price:     { amount: price, currencyCode: "USD" },
             returnUrl,
-            test:      BILLING_TEST,
+            test,
           },
         });
         const body = await res.json();
@@ -185,7 +183,7 @@ export async function action({ request }) {
           variables: {
             name:      planConfig.name,
             returnUrl,
-            test:      BILLING_TEST,
+            test,
             lineItems: [{
               plan: {
                 appRecurringPricingDetails: {

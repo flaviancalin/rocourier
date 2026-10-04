@@ -1,6 +1,6 @@
 // app/routes/webhooks.app-uninstalled.jsx
 // Fires when a merchant uninstalls Picklo.
-// Cancels any active Shopify subscription and resets plan to trial.
+// Resets recurring plans to trial (Lifetime purchases are kept).
 // Shopify auto-cancels the subscription too, but we reset our DB immediately
 // so the merchant's data is clean on potential reinstall.
 
@@ -17,10 +17,11 @@ export const action = async ({ request }) => {
   }
 
   try {
-    // Reset plan to trial — Shopify cancels the billing subscription on their end automatically.
-    // We sync our DB so there's no stale paid plan if the merchant reinstalls later.
+    // Reset recurring plans to trial — Shopify cancels the subscription automatically,
+    // so a reinstall must go through charge approval again. Lifetime is a one-time
+    // purchase the merchant already paid for, so it survives a reinstall.
     await prisma.shopSettings.updateMany({
-      where: { shop },
+      where: { shop, NOT: { planType: "lifetime" } },
       data:  { planType: "trial", shopifyChargeId: null, planActivatedAt: null },
     });
 

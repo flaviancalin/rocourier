@@ -22,85 +22,36 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { prisma } from "../db.server.js";
+import { fulfillOrderWithTracking, mergeOrderAttributes, setOrderMetafields } from "./fulfillment.server.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Push AWB to Shopify fulfillment (this makes your order xConnector-readable)
-// Uses Shopify Admin API → Orders → Fulfillments
+// GraphQL Admin API: fulfillmentCreate + orderUpdate (custom attributes)
 // ─────────────────────────────────────────────────────────────────────────────
 export async function syncAwbToShopify({
   adminApiClient,         // from authenticate.admin(request)
   shopifyOrderId,         // numeric Shopify order ID
   awbNumber,
-  courierType,            // "fan" | "sameday"
-  trackingUrl,
+  courierType,            // "fan" | "sameday" | "cargus" | "gls" | "packeta"
   pickupPointName = null,
   pickupPointAddress = null,
 }) {
-  const trackingCompany = courierType === "fan" ? "FAN Courier" : "Sameday Courier";
-  const defaultTrackingUrl = courierType === "fan"
-    ? `https://www.fancourier.ro/awb-tracking/?awb=${awbNumber}`
-    : `https://sameday.ro/awb/?awb=${awbNumber}`;
-
-  // Step 1: Get fulfillment orders for this Shopify order
-  const fulfillmentOrdersResp = await adminApiClient.rest.get({
-    path: `orders/${shopifyOrderId}/fulfillment_orders`,
+  const result = await fulfillOrderWithTracking(adminApiClient, {
+    shopifyOrderId, courierType, awbNumber, notifyCustomer: true,
   });
+  if (result.error) console.warn(`Fulfillment for order ${shopifyOrderId} skipped: ${result.error}`);
 
-  const fulfillmentOrders = fulfillmentOrdersResp.body?.fulfillment_orders || [];
-  if (fulfillmentOrders.length === 0) {
-    console.warn(`No fulfillment orders found for Shopify order ${shopifyOrderId}`);
-    return null;
-  }
-
-  // Step 2: Create fulfillment with tracking info
-  const lineItems = fulfillmentOrders.flatMap((fo) =>
-    fo.line_items.map((li) => ({
-      fulfillment_order_id: fo.id,
-      fulfillment_order_line_item_id: li.id,
-      quantity: li.fulfillable_quantity,
-    }))
-  );
-
-  const fulfillmentPayload = {
-    fulfillment: {
-      line_items_by_fulfillment_order: lineItems,
-      tracking_info: {
-        number: awbNumber,
-        company: trackingCompany,
-        url: trackingUrl || defaultTrackingUrl,
-      },
-      notify_customer: true,
-    },
-  };
-
-  const fulfillmentResp = await adminApiClient.rest.post({
-    path: "fulfillments",
-    data: fulfillmentPayload,
-    type: adminApiClient.rest.DataType.JSON,
-  });
-
-  const fulfillment = fulfillmentResp.body?.fulfillment;
-
-  // Step 3: Write pickup point info to order note_attributes (xConnector reads these)
+  // Pickup point info on the order's attributes (xConnector reads these)
   if (pickupPointName) {
-    await adminApiClient.rest.put({
-      path: `orders/${shopifyOrderId}`,
-      data: {
-        order: {
-          id: shopifyOrderId,
-          note_attributes: [
-            { name: "rocourier_awb", value: awbNumber },
-            { name: "rocourier_courier", value: courierType },
-            { name: "rocourier_pickup_name", value: pickupPointName || "" },
-            { name: "rocourier_pickup_address", value: pickupPointAddress || "" },
-          ],
-        },
-      },
-      type: adminApiClient.rest.DataType.JSON,
+    await mergeOrderAttributes(adminApiClient, shopifyOrderId, {
+      rocourier_awb:            awbNumber,
+      rocourier_courier:        courierType,
+      rocourier_pickup_name:    pickupPointName,
+      rocourier_pickup_address: pickupPointAddress || "",
     });
   }
 
-  return fulfillment;
+  return result;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -115,28 +66,15 @@ export async function writeOrderMetafields({
   pickupPointId,
   pickupPointName,
 }) {
-  const metafields = [
-    { key: "awb_number", value: awbNumber, type: "single_line_text_field" },
-    { key: "courier_type", value: courierType, type: "single_line_text_field" },
-    { key: "pickup_point_id", value: pickupPointId || "", type: "single_line_text_field" },
-    { key: "pickup_point_name", value: pickupPointName || "", type: "single_line_text_field" },
-  ];
-
-  for (const mf of metafields) {
-    try {
-      await adminApiClient.rest.post({
-        path: `orders/${shopifyOrderId}/metafields`,
-        data: {
-          metafield: {
-            namespace: "rocourier",
-            ...mf,
-          },
-        },
-        type: adminApiClient.rest.DataType.JSON,
-      });
-    } catch (e) {
-      console.error(`Metafield write failed for ${mf.key}:`, e.message);
-    }
+  try {
+    await setOrderMetafields(adminApiClient, shopifyOrderId, "rocourier", {
+      awb_number:        awbNumber,
+      courier_type:      courierType,
+      pickup_point_id:   pickupPointId,
+      pickup_point_name: pickupPointName,
+    });
+  } catch (e) {
+    console.error("Metafield write failed:", e.message);
   }
 }
 

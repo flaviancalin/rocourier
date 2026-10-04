@@ -165,10 +165,21 @@
     // Fetch language override from app settings via App Proxy (same-origin, no CSP issues)
     fetch("/apps/rocourier/widget-config")
       .then((r) => r.json())
-      .then(({ widgetLanguage }) => {
+      .then(({ widgetLanguage, fees }) => {
         if (widgetLanguage && widgetLanguage !== "auto" && STRINGS[widgetLanguage] && widgetLanguage !== lang) {
           lang = widgetLanguage;
           translateUI();
+        }
+        // App settings are what checkout actually charges — they override the block settings
+        if (fees) {
+          Object.keys(fees).forEach((c) => {
+            if (FEES[c]) FEES[c] = { home: Number(fees[c].home) || 0, pickup: Number(fees[c].pickup) || 0 };
+          });
+          const wasDefault = _method === "home_delivery" && _courier === defaultCourier;
+          defaultCourier = cheapestHomeCourier();
+          if (wasDefault) onHomeSelected();
+          else if (_method === "home_delivery" && homeFeeEl) homeFeeEl.textContent = feeLabel(FEES[_courier]?.home || 0);
+          else if (_method === "pickup_point" && pickupFeeEl) pickupFeeEl.textContent = feeLabel(FEES[_courier]?.pickup || 0);
         }
       })
       .catch(() => {});
@@ -263,9 +274,11 @@
     let _pointsFetchedWithCoords = false; // whether current allPoints were fetched with lat/lng
     let _userMarker      = null;
 
-    // Default courier: first enabled courier (used for home delivery)
+    // Default courier for home delivery: the cheapest enabled one (App Store rule 1.1.10)
     const enabledCouriers  = Object.keys(COURIERS).filter((c) => ENABLED[c]);
-    const defaultCourier   = enabledCouriers[0] || null;
+    const cheapestHomeCourier = () => enabledCouriers.reduce(
+      (best, c) => (best === null || FEES[c].home < FEES[best].home ? c : best), null);
+    let defaultCourier = cheapestHomeCourier();
 
     // JS-only state — no DOM inputs, nothing Shopify can intercept
     let _method  = "";

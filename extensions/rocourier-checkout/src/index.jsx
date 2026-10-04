@@ -1,70 +1,47 @@
-import {
-  reactExtension,
-  useAttributes,
-  useShippingOptionTarget,
-  BlockStack,
-  InlineStack,
-  Text,
-  Divider,
-} from "@shopify/ui-extensions-react/checkout";
+import "@shopify/ui-extensions/preact";
+import { render } from "preact";
+import { useAttributeValues } from "@shopify/ui-extensions/checkout/preact";
 
-export default reactExtension(
-  "purchase.checkout.shipping-option-item.render-after",
-  () => <RoCourierOptionDetails />
-);
+const COURIER_LABELS = {
+  fan:     { home: "FAN Courier",     pickup: "FANbox"           },
+  sameday: { home: "Sameday Courier", pickup: "Sameday easybox"  },
+  cargus:  { home: "Cargus",          pickup: "Cargus Ship & Go" },
+  gls:     { home: "GLS",             pickup: "GLS ParcelShop"   },
+  packeta: { home: "Packeta",         pickup: "Packeta / Z-BOX"  },
+};
 
-function RoCourierOptionDetails() {
-  const { shippingOptionTarget, isTargetSelected } = useShippingOptionTarget();
-  const attributes = useAttributes();
+export default function extension() {
+  render(<PickloOptionDetails />, document.body);
+}
+
+function PickloOptionDetails() {
+  const [method, courier, pointName, pointAddr] = useAttributeValues([
+    "_rc_method", "_rc_courier", "_rc_point_name", "_rc_point_address",
+  ]);
 
   // Only render under the selected rate
-  if (!isTargetSelected) return null;
-
-  const method    = attrVal(attributes, "_rc_method");
-  const courier   = attrVal(attributes, "_rc_courier");
-  const pointName = attrVal(attributes, "_rc_point_name");
-  const pointAddr = attrVal(attributes, "_rc_point_address");
-
-  if (!method) return null;
-
-  const COURIER_LABELS = {
-    fan:     { home: "FAN Courier",      pickup: "FANbox"            },
-    sameday: { home: "Sameday Courier",  pickup: "Sameday easybox"   },
-    cargus:  { home: "Cargus",           pickup: "Cargus Ship & Go"  },
-    gls:     { home: "GLS",              pickup: "GLS ParcelShop"    },
-    packeta: { home: "Packeta",          pickup: "Packeta / Z-BOX"   },
-  };
+  if (!shopify.isTargetSelected.value || !method) return null;
 
   const labels = COURIER_LABELS[courier] || { home: courier, pickup: courier };
 
   if (method === "pickup_point" && pointName) {
     return (
-      <BlockStack spacing="extraTight" padding={["none", "none", "base", "none"]}>
-        <Divider />
-        <InlineStack spacing="tight" blockAlignment="center">
-          <Text size="small" emphasis="bold">Pickup: {labels.pickup} — {pointName}</Text>
-        </InlineStack>
-        {pointAddr ? (
-          <Text size="small" appearance="subdued">{pointAddr}</Text>
-        ) : null}
-      </BlockStack>
+      <s-stack gap="small-500" paddingBlockEnd="base">
+        <s-divider></s-divider>
+        <s-text type="strong">Pickup: {labels.pickup} — {pointName}</s-text>
+        {pointAddr ? <s-text color="subdued">{pointAddr}</s-text> : null}
+      </s-stack>
     );
   }
 
   if (method === "home_delivery" && courier) {
     return (
-      <BlockStack spacing="extraTight" padding={["none", "none", "base", "none"]}>
-        <Divider />
-        <Text size="small" appearance="subdued">{labels.home}</Text>
-      </BlockStack>
+      <s-stack gap="small-500" paddingBlockEnd="base">
+        <s-divider></s-divider>
+        <s-text color="subdued">{labels.home}</s-text>
+      </s-stack>
     );
   }
 
   return null;
-}
-
-function attrVal(attributes, key) {
-  if (!Array.isArray(attributes)) return "";
-  const attr = attributes.find((a) => a.key === key);
-  return attr?.value || "";
 }
