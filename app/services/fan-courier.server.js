@@ -155,39 +155,32 @@ export async function fanGetPickupPoints({ clientId, username, password }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Get available services for your contract
-// GET /services
+// GET /reports/services
 // ─────────────────────────────────────────────────────────────────────────────
 export async function fanGetServices({ clientId, username, password }) {
   const token = await fanAuthenticate({ clientId, username, password });
-  const data = await fanRequest("/services", { token });
+  const data = await fanRequest("/reports/services", { token });
   return data.data || [];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Calculate shipping price
-// POST /price
+// GET /reports/awb/internal-tariff (nested params as query string)
 // ─────────────────────────────────────────────────────────────────────────────
 export async function fanCalculatePrice({ clientId, username, password, params }) {
   const token = await fanAuthenticate({ clientId, username, password });
-  const data = await fanRequest("/price", {
-    method: "POST",
-    token,
-    body: {
-      clientId,
-      modality: params.service || "Standard",
-      recipient: {
-        judCode: params.recipientCounty,
-        locCode: params.recipientCity,
-      },
-      packages: {
-        weight: params.weight || 1,
-        type: 1, // colete
-        number: params.packageCount || 1,
-      },
-      payment: "destinatar",
-      cod: params.codAmount || 0,
-    },
+  const qs = new URLSearchParams({
+    clientId:                   String(clientId),
+    "info[service]":            params.service || "Standard",
+    "info[payment]":            "destinatar",
+    "info[weight]":             String(params.weight || 1),
+    "info[packages][parcel]":   String(params.packageCount || 1),
+    "info[packages][envelope]": "0",
+    "recipient[locality]":      params.recipientCity || "",
+    "recipient[county]":        params.recipientCounty || "",
   });
+  if (params.codAmount) qs.set("info[cod]", String(params.codAmount));
+  const data = await fanRequest(`/reports/awb/internal-tariff?${qs}`, { token });
   return data.data;
 }
 
@@ -369,26 +362,29 @@ export async function fanPrintAwb({ clientId, username, password, awbNumber }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Track AWB – returns list of events
-// GET /awb-events?awb=XXXXX
+// GET /reports/awb/tracking?clientId=X&awb[]=XXXXX&language=ro
+// (Romanian event names — status mapping matches on "livrat", "tranzit", ...)
 // ─────────────────────────────────────────────────────────────────────────────
 export async function fanTrackAwb({ clientId, username, password, awbNumber }) {
   const token = await fanAuthenticate({ clientId, username, password });
-  const data = await fanRequest(`/awb-events?awb=${awbNumber}`, { token });
+  const qs = new URLSearchParams({ clientId: String(clientId), "awb[]": String(awbNumber), language: "ro" });
+  const data = await fanRequest(`/reports/awb/tracking?${qs}`, { token });
 
-  const events = data.data || [];
+  const events = data.data?.[0]?.events || [];
   return events.map((e) => ({
-    code: e.eventCode || e.cod,
-    description: e.eventDescription || e.descriere || e.description,
-    date: new Date(e.date || e.data),
-    location: e.location || e.localitate || null,
+    code: e.id,
+    description: (e.name || "").trim(),
+    date: new Date(String(e.date).replace(" ", "T")),
+    location: e.location || null,
   }));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Delete AWB (before courier pickup only)
-// DELETE /intern-awb?awb=XXXXX
+// DELETE /awb?clientId=X&awb=XXXXX  (FAN API 2.0, Aug 2025 — /intern-awb no longer accepts DELETE)
 // ─────────────────────────────────────────────────────────────────────────────
 export async function fanDeleteAwb({ clientId, username, password, awbNumber }) {
   const token = await fanAuthenticate({ clientId, username, password });
-  return fanRequest(`/intern-awb?awb=${awbNumber}`, { method: "DELETE", token });
+  const qs = new URLSearchParams({ clientId: String(clientId), awb: String(awbNumber) });
+  return fanRequest(`/awb?${qs}`, { method: "DELETE", token });
 }
