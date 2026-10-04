@@ -217,9 +217,14 @@
       PINS[c] = widget.dataset[c + "Pin"] || "";
     });
 
+    // Fees are configured in the shop's base currency. When the shopper browses in another
+    // currency, convert like Shopify does for shipping rates (rate, then round up to a whole unit)
+    // so the widget shows the same amount as checkout.
+    const FX_RATE = Number(window.Shopify?.currency?.rate) || 1;
     function feeLabel(amount) {
       if (!amount) return t("free");
-      return amount.toLocaleString("ro-RO", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + " " + CURRENCY;
+      const shown = FX_RATE === 1 ? amount : Math.ceil(amount * FX_RATE);
+      return shown.toLocaleString("ro-RO", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + " " + CURRENCY;
     }
 
     // ── Build pickup sub-text dynamically from enabled couriers ───────────────
