@@ -13,9 +13,9 @@ export async function action({ request }) {
   const intent = body.intent || "register";
 
   // List all carrier services via GraphQL
-  const listRes  = await admin.graphql(`{ deliveryCarrierServices(first: 50) { nodes { id name callbackUrl } } }`);
+  const listRes  = await admin.graphql(`{ carrierServices(first: 50) { nodes { id name callbackUrl } } }`);
   const listData = await listRes.json();
-  const existing = listData.data?.deliveryCarrierServices?.nodes || [];
+  const existing = listData.data?.carrierServices?.nodes || [];
   const ours     = existing.find((cs) => cs.callbackUrl === CALLBACK_URL);
 
   if (intent === "check") {
@@ -26,8 +26,8 @@ export async function action({ request }) {
     if (ours) return json({ success: true, alreadyRegistered: true, id: ours.id });
 
     const createRes  = await admin.graphql(
-      `mutation deliveryCarrierServiceCreate($input: DeliveryCarrierServiceCreateInput!) {
-        deliveryCarrierServiceCreate(input: $input) {
+      `mutation carrierServiceCreate($input: DeliveryCarrierServiceCreateInput!) {
+        carrierServiceCreate(input: $input) {
           carrierService { id name callbackUrl }
           userErrors { field message }
         }
@@ -35,8 +35,8 @@ export async function action({ request }) {
       { variables: { input: { name: "Picklo", callbackUrl: CALLBACK_URL, supportsServiceDiscovery: true } } }
     );
     const createData = await createRes.json();
-    const cs         = createData.data?.deliveryCarrierServiceCreate?.carrierService;
-    const errors     = createData.data?.deliveryCarrierServiceCreate?.userErrors || [];
+    const cs         = createData.data?.carrierServiceCreate?.carrierService;
+    const errors     = createData.data?.carrierServiceCreate?.userErrors || [];
     if (cs?.id) return json({ success: true, id: cs.id });
     return json({ success: false, error: errors[0]?.message || JSON.stringify(createData) }, { status: 500 });
   }
@@ -45,8 +45,8 @@ export async function action({ request }) {
     if (!ours) return json({ success: true, wasNotRegistered: true });
 
     const delRes  = await admin.graphql(
-      `mutation deliveryCarrierServiceDelete($id: ID!) {
-        deliveryCarrierServiceDelete(id: $id) {
+      `mutation carrierServiceDelete($id: ID!) {
+        carrierServiceDelete(id: $id) {
           deletedId
           userErrors { field message }
         }
@@ -54,7 +54,7 @@ export async function action({ request }) {
       { variables: { id: ours.id } }
     );
     const delData = await delRes.json();
-    const delErrors = delData.data?.deliveryCarrierServiceDelete?.userErrors || [];
+    const delErrors = delData.data?.carrierServiceDelete?.userErrors || [];
     if (delErrors.length) return json({ success: false, error: delErrors[0]?.message }, { status: 500 });
     return json({ success: true });
   }

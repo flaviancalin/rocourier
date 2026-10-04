@@ -1023,7 +1023,7 @@
 
     // ── Sync cart attributes — only called at checkout, never during browsing ──
     function syncCart() {
-      fetch("/cart/update.js", {
+      return fetch("/cart/update.js", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1055,10 +1055,16 @@
         return false;
       }
 
-      // Only sync to cart at checkout — prevents Shopify section re-renders during browsing
-      syncCart();
-      return true;
+      // Only sync to cart at checkout — prevents Shopify section re-renders during browsing.
+      // Wait for the cart update before leaving: a fire-and-forget request can be cancelled
+      // by the navigation, and the carrier service would then see no selection.
+      e.preventDefault(); e.stopPropagation();
+      if (_checkoutPending) return false;
+      _checkoutPending = true;
+      syncCart().finally(() => { window.location.href = "/checkout"; });
+      return false;
     }
+    let _checkoutPending = false;
 
     function attachCheckoutGuard() {
       const intercept = (el) => {

@@ -54,9 +54,9 @@ export async function loader({ request }) {
   let step2Done = false;
   try {
     const CALLBACK_URL = `${APP_URL.replace(/\/$/, "")}/carrier-service`;
-    const csRes  = await admin.graphql(`{ deliveryCarrierServices(first: 50) { nodes { callbackUrl } } }`);
+    const csRes  = await admin.graphql(`{ carrierServices(first: 50) { nodes { callbackUrl } } }`);
     const csData = await csRes.json();
-    step2Done    = !!(csData.data?.deliveryCarrierServices?.nodes || []).find((cs) => cs.callbackUrl === CALLBACK_URL);
+    step2Done    = !!(csData.data?.carrierServices?.nodes || []).find((cs) => cs.callbackUrl === CALLBACK_URL);
   } catch (_) {}
 
   // Step 3: Picklo block in active theme? (Admin GraphQL API)
@@ -69,15 +69,15 @@ export async function loader({ request }) {
       const fileRes  = await admin.graphql(
         `query GetThemeFile($themeId: ID!) {
           theme(id: $themeId) {
-            file(filename: "config/settings_data.json") {
-              body { ... on OnlineStoreThemeFileBodyText { content } }
+            files(filenames: ["config/settings_data.json"], first: 1) {
+              nodes { body { ... on OnlineStoreThemeFileBodyText { content } } }
             }
           }
         }`,
         { variables: { themeId: activeTheme.id } }
       );
       const fileData = await fileRes.json();
-      const content  = fileData.data?.theme?.file?.body?.content || "";
+      const content  = fileData.data?.theme?.files?.nodes?.[0]?.body?.content || "";
       step3Done = content.includes(`shopify://apps/${BLOCK_HANDLE}`) ||
                   content.includes("shopify://apps/rocourier");
     }
@@ -103,14 +103,14 @@ export async function action({ request }) {
   if (intent === "register-carrier") {
     const CALLBACK_URL = `${APP_URL.replace(/\/$/, "")}/carrier-service`;
     try {
-      const listRes  = await admin.graphql(`{ deliveryCarrierServices(first: 50) { nodes { id callbackUrl } } }`);
+      const listRes  = await admin.graphql(`{ carrierServices(first: 50) { nodes { id callbackUrl } } }`);
       const listData = await listRes.json();
-      const ours     = (listData.data?.deliveryCarrierServices?.nodes || []).find((cs) => cs.callbackUrl === CALLBACK_URL);
+      const ours     = (listData.data?.carrierServices?.nodes || []).find((cs) => cs.callbackUrl === CALLBACK_URL);
       if (ours) return json({ intent, success: true, alreadyRegistered: true });
 
       const createRes  = await admin.graphql(
-        `mutation deliveryCarrierServiceCreate($input: DeliveryCarrierServiceCreateInput!) {
-          deliveryCarrierServiceCreate(input: $input) {
+        `mutation carrierServiceCreate($input: DeliveryCarrierServiceCreateInput!) {
+          carrierServiceCreate(input: $input) {
             carrierService { id name callbackUrl }
             userErrors { field message }
           }
@@ -118,8 +118,8 @@ export async function action({ request }) {
         { variables: { input: { name: "Picklo", callbackUrl: CALLBACK_URL, supportsServiceDiscovery: true } } }
       );
       const createData = await createRes.json();
-      const cs         = createData.data?.deliveryCarrierServiceCreate?.carrierService;
-      const errors     = createData.data?.deliveryCarrierServiceCreate?.userErrors || [];
+      const cs         = createData.data?.carrierServiceCreate?.carrierService;
+      const errors     = createData.data?.carrierServiceCreate?.userErrors || [];
       if (cs?.id) return json({ intent, success: true });
       return json({ intent, success: false, error: errors[0]?.message || JSON.stringify(createData) });
     } catch (e) {
@@ -138,15 +138,15 @@ export async function action({ request }) {
       const fileRes  = await admin.graphql(
         `query GetThemeFile($themeId: ID!) {
           theme(id: $themeId) {
-            file(filename: "config/settings_data.json") {
-              body { ... on OnlineStoreThemeFileBodyText { content } }
+            files(filenames: ["config/settings_data.json"], first: 1) {
+              nodes { body { ... on OnlineStoreThemeFileBodyText { content } } }
             }
           }
         }`,
         { variables: { themeId: activeTheme.id } }
       );
       const fileData = await fileRes.json();
-      const content  = fileData.data?.theme?.file?.body?.content || "";
+      const content  = fileData.data?.theme?.files?.nodes?.[0]?.body?.content || "";
       const found    = content.includes(`shopify://apps/${BLOCK_HANDLE}`) ||
                        content.includes("shopify://apps/rocourier");
       return json({ intent, found });

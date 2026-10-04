@@ -17,17 +17,17 @@ const ORDERS_QUERY = `
           customer { email phone firstName lastName }
           shippingAddress {
             firstName lastName phone address1
-            city province zip countryCode
+            city province zip countryCode: countryCodeV2
           }
           lineItems(first: 50) {
             edges {
               node {
                 quantity
-                variant { weight weightUnit }
               }
             }
           }
           customAttributes { key value }
+          totalWeight
         }
       }
     }
@@ -92,14 +92,7 @@ export async function action({ request }) {
 
       const sa = o.shippingAddress || {};
 
-      const weightKg = (o.lineItems?.edges || []).reduce((sum, { node: item }) => {
-        const w    = item.variant?.weight || 0;
-        const unit = item.variant?.weightUnit || "KILOGRAMS";
-        const kg   = unit === "GRAMS" ? w / 1000 :
-                     unit === "POUNDS" ? w * 0.453592 :
-                     unit === "OUNCES" ? w * 0.028350 : w;
-        return sum + kg * (item.quantity || 1);
-      }, 0);
+      const weightKg = (Number(o.totalWeight) || 0) / 1000; // Shopify reports grams
 
       const shopifyOrderId = o.id.replace("gid://shopify/Order/", "");
 

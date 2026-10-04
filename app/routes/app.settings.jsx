@@ -110,17 +110,17 @@ export async function action({ request }) {
     const APP_URL = (process.env.SHOPIFY_APP_URL || "https://rocourier-production.up.railway.app").replace(/\/$/, "");
     const CALLBACK_URL = `${APP_URL}/carrier-service`;
     try {
-      const listRes  = await admin.graphql(`{ deliveryCarrierServices(first: 50) { nodes { id name callbackUrl } } }`);
+      const listRes  = await admin.graphql(`{ carrierServices(first: 50) { nodes { id name callbackUrl } } }`);
       const listData = await listRes.json();
-      const existing = listData.data?.deliveryCarrierServices?.nodes || [];
+      const existing = listData.data?.carrierServices?.nodes || [];
       const ours     = existing.find((cs) => cs.callbackUrl === CALLBACK_URL);
       if (ours) {
         return json({ carrierResult: { success: true, alreadyRegistered: true, id: ours.id } });
       }
 
       const createRes  = await admin.graphql(
-        `mutation deliveryCarrierServiceCreate($input: DeliveryCarrierServiceCreateInput!) {
-          deliveryCarrierServiceCreate(input: $input) {
+        `mutation carrierServiceCreate($input: DeliveryCarrierServiceCreateInput!) {
+          carrierServiceCreate(input: $input) {
             carrierService { id name callbackUrl }
             userErrors { field message }
           }
@@ -128,8 +128,8 @@ export async function action({ request }) {
         { variables: { input: { name: "Picklo", callbackUrl: CALLBACK_URL, supportsServiceDiscovery: true } } }
       );
       const createData = await createRes.json();
-      const cs         = createData.data?.deliveryCarrierServiceCreate?.carrierService;
-      const errors     = createData.data?.deliveryCarrierServiceCreate?.userErrors || [];
+      const cs         = createData.data?.carrierServiceCreate?.carrierService;
+      const errors     = createData.data?.carrierServiceCreate?.userErrors || [];
       if (cs?.id) {
         return json({ carrierResult: { success: true, id: cs.id } });
       }
