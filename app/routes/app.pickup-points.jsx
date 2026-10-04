@@ -236,7 +236,7 @@ export default function PickupPointsPage() {
                   <strong>
                     {new Date(lastUpdate).toLocaleDateString(locale, {
                       day: "2-digit", month: "long", year: "numeric",
-                      hour: "2-digit", minute: "2-digit",
+                      hour: "2-digit", minute: "2-digit", timeZone: "Europe/Bucharest",
                     })}
                   </strong>
                   {" "}— {t("auto_refresh_extended")}

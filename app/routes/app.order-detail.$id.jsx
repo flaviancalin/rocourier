@@ -755,7 +755,7 @@ export default function OrderDetail() {
     <Frame>
       <Page
         title={order.shopifyOrderName}
-        subtitle={`${order.customerName} · ${new Date(order.createdAt).toLocaleDateString()}`}
+        subtitle={`${order.customerName} · ${new Date(order.createdAt).toLocaleDateString("ro-RO", { timeZone: "Europe/Bucharest" })}`}
         backAction={{ content: t("back_orders"), onAction: () => navigate("/app/orders") }}
         primaryAction={
           !order.awbNumber
@@ -873,7 +873,7 @@ export default function OrderDetail() {
                             </Text>
                             {ev.location && <Text variant="bodySm" tone="subdued">📍 {ev.location}</Text>}
                             <Text variant="bodySm" tone="subdued">
-                              {new Date(ev.eventDate).toLocaleString("ro-RO")}
+                              {new Date(ev.eventDate).toLocaleString("ro-RO", { timeZone: "Europe/Bucharest" })}
                             </Text>
                           </div>
                         </div>

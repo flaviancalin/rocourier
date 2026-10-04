@@ -730,7 +730,7 @@ export default function OrdersPage() {
                     const isExpanded = expandedRows.includes(o.id);
                     const isPickup   = o.shippingMethod === "pickup_point";
                     const hasCod     = o.codAmount > 0;
-                    const date       = new Date(o.createdAt).toLocaleDateString("ro-RO", { day:"2-digit", month:"2-digit", year:"numeric" });
+                    const date       = new Date(o.createdAt).toLocaleDateString("ro-RO", { day:"2-digit", month:"2-digit", year:"numeric", timeZone:"Europe/Bucharest" });
 
                     // ── Mobile card ────────────────────────────────────────────
                     if (isMobile) {
