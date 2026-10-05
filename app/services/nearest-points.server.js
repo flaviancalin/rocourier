@@ -19,13 +19,28 @@ export function normalizePlace(s = "") {
   return String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
 }
 
+// Median rather than mean: courier data has wrong postal codes (e.g. a Fetesti
+// locker filed under a Craiova code), and one bad point must not drag the result away.
 function centroid(rows) {
   const pts = rows.filter((r) => r.lat != null && r.lng != null);
   if (!pts.length) return null;
-  return {
-    lat: pts.reduce((s, r) => s + r.lat, 0) / pts.length,
-    lng: pts.reduce((s, r) => s + r.lng, 0) / pts.length,
+  const median = (vals) => {
+    const v = [...vals].sort((a, b) => a - b);
+    const m = Math.floor(v.length / 2);
+    return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
   };
+  return { lat: median(pts.map((r) => r.lat)), lng: median(pts.map((r) => r.lng)) };
+}
+
+// Prefer points whose locality matches the shopper's city ("Craiova DJ" ⊇ "Craiova")
+function sameCity(rows, city) {
+  const want = normalizePlace(city);
+  if (!want) return rows;
+  const matching = rows.filter((r) => {
+    const have = normalizePlace(r.city);
+    return have && (have.includes(want) || want.includes(have));
+  });
+  return matching.length ? matching : rows;
 }
 
 // Best-effort location of an address: exact coordinates → same postal code →
@@ -35,16 +50,16 @@ export async function locateAddress({ lat, lng, postalCode, city, country }) {
 
   const cc = (country || "ro").toLowerCase();
   const zip = String(postalCode || "").replace(/\s+/g, "");
-  const select = { lat: true, lng: true };
+  const select = { lat: true, lng: true, city: true };
 
   if (zip) {
-    const exact = centroid(await prisma.pickupPoint.findMany({ where: { country: cc, zip, isActive: true }, select, take: 50 }));
+    const exact = centroid(sameCity(await prisma.pickupPoint.findMany({ where: { country: cc, zip, isActive: true }, select, take: 50 }), city));
     if (exact) return { ...exact, precision: "postal_code" };
     for (const len of [zip.length - 1, zip.length - 2]) {
       if (len < 3) break;
-      const near = centroid(await prisma.pickupPoint.findMany({
+      const near = centroid(sameCity(await prisma.pickupPoint.findMany({
         where: { country: cc, zip: { startsWith: zip.slice(0, len) }, isActive: true }, select, take: 200,
-      }));
+      }), city));
       if (near) return { ...near, precision: "postal_area" };
     }
   }
