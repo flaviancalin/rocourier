@@ -1,163 +1,107 @@
 // app/routes/api.sync-orders.js
-// Manually sync orders from Shopify Admin GraphQL API into the local DB
+// Manually sync recent orders from the Shopify Admin GraphQL API into the local DB.
+// Each order is converted to the webhook payload shape and saved through
+// upsertOrderFromWebhook, so a synced order is identical to one received live
+// (checkout locker, shipping-line phone, payment status).
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
+import { upsertOrderFromWebhook } from "../models/order.server.js";
+
+const SYNC_DAYS = 60;   // Shopify only exposes the last 60 days without read_all_orders
+const MAX_PAGES = 10;   // 500 orders — keeps the request well inside the timeout
 
 const ORDERS_QUERY = `
-  query syncOrders($first: Int!, $after: String) {
-    orders(first: $first, after: $after, query: "status:any") {
+  query syncOrders($first: Int!, $after: String, $query: String!) {
+    orders(first: $first, after: $after, query: $query, sortKey: CREATED_AT, reverse: true) {
       pageInfo { hasNextPage endCursor }
-      edges {
-        node {
-          id
-          name
-          createdAt
-          totalPriceSet { shopMoney { amount } }
-          customer { email phone firstName lastName }
-          shippingAddress {
-            firstName lastName phone address1
-            city province zip countryCode: countryCodeV2
-          }
-          lineItems(first: 50) {
-            edges {
-              node {
-                quantity
-              }
-            }
-          }
-          customAttributes { key value }
-          totalWeight
-        }
+      nodes {
+        id
+        name
+        email
+        phone
+        createdAt
+        displayFinancialStatus
+        totalPriceSet { shopMoney { amount } }
+        totalWeight
+        customer { firstName lastName }
+        shippingAddress { firstName lastName phone address1 city province zip countryCodeV2 }
+        billingAddress { phone }
+        shippingLines(first: 1) { nodes { code title phone } }
+        customAttributes { key value }
       }
     }
   }
 `;
 
-export async function action({ request }) {
-  let session, admin;
-  try {
-    ({ session, admin } = await authenticate.admin(request));
-  } catch (e) {
-    console.error("[sync-orders] authenticate.admin failed:", e?.message || e);
-    return json({ error: "Authentication failed: " + (e?.message || "unknown") }, { status: 401 });
-  }
+// GraphQL order → the subset of the REST/webhook payload upsertOrderFromWebhook reads
+function toWebhookPayload(o) {
+  const sa = o.shippingAddress || {};
+  const line = o.shippingLines?.nodes?.[0];
+  return {
+    id: o.id.replace("gid://shopify/Order/", ""),
+    name: o.name,
+    created_at: o.createdAt,
+    total_price: o.totalPriceSet?.shopMoney?.amount,
+    financial_status: o.displayFinancialStatus ? o.displayFinancialStatus.toLowerCase() : null,
+    phone: o.phone,
+    note_attributes: (o.customAttributes || []).map((a) => ({ name: a.key, value: a.value })),
+    shipping_lines: line ? [line] : [],
+    shipping_address: o.shippingAddress ? {
+      first_name: sa.firstName, last_name: sa.lastName, phone: sa.phone, address1: sa.address1,
+      city: sa.city, province: sa.province, zip: sa.zip, country_code: sa.countryCodeV2,
+    } : null,
+    billing_address: o.billingAddress,
+    customer: { first_name: o.customer?.firstName, email: o.email },
+    line_items: [{ grams: Number(o.totalWeight) || 0, quantity: 1 }],
+  };
+}
 
+export async function action({ request }) {
+  const { session, admin } = await authenticate.admin(request);
   const shop = session.shop;
 
   try {
-    let allOrders = [];
-    let cursor    = null;
-    let hasNext   = true;
-
-    while (hasNext) {
-      const res = await admin.graphql(ORDERS_QUERY, { variables: { first: 50, after: cursor } });
-
-      let body;
-      try {
-        body = await res.json();
-      } catch (parseErr) {
-        const text = await res.text().catch(() => "(unreadable)");
-        console.error("[sync-orders] Shopify returned non-JSON response:", res.status, text.slice(0, 500));
-        return json({ error: `Shopify returned an unexpected response (HTTP ${res.status}). Check Railway logs.` }, { status: 502 });
-      }
-
+    const since = new Date(Date.now() - SYNC_DAYS * 864e5).toISOString().slice(0, 10);
+    const orders = [];
+    let cursor = null;
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const res = await admin.graphql(ORDERS_QUERY, {
+        variables: { first: 50, after: cursor, query: `status:any created_at:>=${since}` },
+      });
+      const body = await res.json();
       if (body?.errors?.length) {
         const err = body.errors.map((e) => e.message).join("; ");
         console.error("[sync-orders] Shopify GraphQL errors:", err);
-        return json({ error: `Shopify GraphQL error: ${err}` }, { status: 502 });
+        return json({ error: `Shopify: ${err}` }, { status: 502 });
       }
-
-      const page = body?.data?.orders;
-      if (!page) {
-        console.error("[sync-orders] Unexpected Shopify response shape:", JSON.stringify(body).slice(0, 500));
-        return json({ error: "Shopify returned an unexpected response shape. Check Railway logs." }, { status: 502 });
-      }
-
-      allOrders.push(...page.edges.map((e) => e.node));
-      hasNext = page.pageInfo.hasNextPage;
-      cursor  = page.pageInfo.endCursor;
+      const data = body?.data?.orders;
+      if (!data) break;
+      orders.push(...data.nodes);
+      if (!data.pageInfo.hasNextPage) break;
+      cursor = data.pageInfo.endCursor;
     }
 
-    let upserted = 0;
-    for (const o of allOrders) {
-      const attrs = {};
-      (o.customAttributes || []).forEach((a) => { attrs[a.key] = a.value; });
-
-      const method  = attrs["_rc_method"]   || attrs["_rocourier_method"]   || "home_delivery";
-      const courier = attrs["_rc_courier"]  || attrs["_rocourier_courier"]  || "fan";
-      const pid     = attrs["_rc_point_id"] || attrs["_rocourier_point_id"] || null;
-      const pname   = attrs["_rc_point_name"]    || attrs["_rocourier_point_name"]    || null;
-      const paddr   = attrs["_rc_point_address"] || attrs["_rocourier_point_address"] || null;
-
-      const sa = o.shippingAddress || {};
-
-      const weightKg = (Number(o.totalWeight) || 0) / 1000; // Shopify reports grams
-
-      const shopifyOrderId = o.id.replace("gid://shopify/Order/", "");
-
-      const customerName =
-        [sa.firstName, sa.lastName].filter(Boolean).join(" ") ||
-        [o.customer?.firstName, o.customer?.lastName].filter(Boolean).join(" ") ||
-        "Unknown";
-
-      const data = {
-        shopifyOrderName:   o.name,
-        customerName,
-        customerPhone:      sa.phone || o.customer?.phone || "",
-        customerEmail:      o.customer?.email || "",
-        shippingAddress1:   sa.address1 || "",
-        shippingCity:       sa.city || "",
-        shippingCounty:     sa.province || "",
-        shippingZip:        sa.zip || "",
-        shippingCountry:    sa.countryCode || "RO",
-        shippingMethod:     method,
-        courierType:        courier,
-        pickupPointId:      pid,
-        pickupPointName:    pname,
-        pickupPointAddress: paddr,
-        codAmount:          parseFloat(o.totalPriceSet?.shopMoney?.amount) || 0,
-        orderTotal:         parseFloat(o.totalPriceSet?.shopMoney?.amount) || 0,
-        weight:             weightKg > 0 ? weightKg : undefined,
-        shopifyCreatedAt:   new Date(o.createdAt),
-      };
-
-      await prisma.order.upsert({
-        where:  { shop_shopifyOrderId: { shop, shopifyOrderId } },
-        update: {
-          shopifyOrderName:   data.shopifyOrderName,
-          customerName:       data.customerName,
-          customerPhone:      data.customerPhone,
-          customerEmail:      data.customerEmail,
-          shippingAddress1:   data.shippingAddress1,
-          shippingCity:       data.shippingCity,
-          shippingCounty:     data.shippingCounty,
-          shippingZip:        data.shippingZip,
-          codAmount:          data.codAmount,
-          orderTotal:         data.orderTotal,
-          ...(weightKg > 0 ? { weight: weightKg } : {}),
-        },
-        create: { shop, shopifyOrderId, awbStatus: "pending", ...data },
+    let synced = 0;
+    for (const o of orders) {
+      const payload = toWebhookPayload(o);
+      const existing = await prisma.order.findUnique({
+        where: { shop_shopifyOrderId: { shop, shopifyOrderId: payload.id } },
+        select: { id: true, awbStatus: true },
       });
-
-      await prisma.order.updateMany({
-        where: { shop, shopifyOrderId, awbStatus: "pending" },
-        data: {
-          shippingMethod:     data.shippingMethod,
-          courierType:        data.courierType,
-          pickupPointId:      data.pickupPointId,
-          pickupPointName:    data.pickupPointName,
-          pickupPointAddress: data.pickupPointAddress,
-        },
-      });
-      upserted++;
+      // Shipping data is frozen once an AWB exists; only the payment status can change
+      if (existing && existing.awbStatus !== "pending") {
+        await prisma.order.update({ where: { id: existing.id }, data: { financialStatus: payload.financial_status } });
+      } else {
+        await upsertOrderFromWebhook(shop, payload);
+      }
+      synced++;
     }
 
-    console.log("[sync-orders] synced:", upserted, "of", allOrders.length, "for", shop);
-    return json({ success: true, synced: upserted, total: allOrders.length });
-
+    console.log("[sync-orders] synced:", synced, "for", shop);
+    return json({ success: true, synced, total: orders.length });
   } catch (e) {
-    console.error("[sync-orders] unhandled error for shop", shop, ":", e?.message || e, e?.stack);
-    return json({ error: "Internal error: " + (e?.message || "unknown error") }, { status: 500 });
+    console.error("[sync-orders] error for shop", shop, ":", e?.message || e);
+    return json({ error: e?.message || "Sync failed" }, { status: 500 });
   }
 }
