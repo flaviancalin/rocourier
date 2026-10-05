@@ -58,7 +58,10 @@ export async function onShopifyOrderCancelled(shop, dbOrder) {
   if (settings.onCancelInvoice !== "none") {
     await step(`${settings.onCancelInvoice} invoice on cancel`, dbOrder, () => undoInvoice(shop, dbOrder, settings.onCancelInvoice));
   }
-  if (settings.statusTags) await step("tag cancelled", dbOrder, () => setStatusTag(admin, dbOrder.shopifyOrderId, "cancelled"));
+  // A parcel that came back keeps its "picklo-retur" tag: the return is why the order was cancelled
+  if (settings.statusTags && !["returned", "delivered"].includes(dbOrder.awbStatus)) {
+    await step("tag cancelled", dbOrder, () => setStatusTag(admin, dbOrder.shopifyOrderId, "cancelled"));
+  }
 }
 
 // ── Order fully refunded (not cancelled) ────────────────────────────────────

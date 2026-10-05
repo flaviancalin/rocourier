@@ -30,7 +30,11 @@ export const action = async ({ request }) => {
       // webhook answers within Shopify's timeout; the order is marked cancelled after.
       onShopifyOrderCancelled(shop, order)
         .catch((err) => logError("cancel automations", err))
-        .finally(() => prisma.order.update({ where: { id: order.id }, data: { awbStatus: "cancelled" } }).catch(() => {}));
+        .finally(() => {
+          // Keep the courier's final outcome (delivered / returned) instead of overwriting it
+          if (["delivered", "returned"].includes(order.awbStatus)) return;
+          return prisma.order.update({ where: { id: order.id }, data: { awbStatus: "cancelled" } }).catch(() => {});
+        });
     }
   } catch (err) {
     logError("Webhook ORDERS_CANCELLED", err);
