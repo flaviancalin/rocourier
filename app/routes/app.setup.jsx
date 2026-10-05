@@ -83,7 +83,7 @@ export async function loader({ request }) {
 
   return json({
     redirectTo: null, shop, clientId: CLIENT_ID, step1Done, step2Done, step3Done: !!theme?.blockAdded,
-    checkoutMode: settings?.checkoutMode || null, lockerCount: settings?.checkoutLockerCount ?? 3,
+    lockerCount: settings?.checkoutLockerCount ?? 3,
     themes: themes.map((t) => ({ id: numericId(t.id), name: t.name, live: t.role === "MAIN" })), theme,
   });
 }
@@ -154,7 +154,7 @@ function StepHeader({ n, done, active, title, desc, t, children }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function SetupWizard() {
-  const { shop, clientId, step1Done, step2Done, step3Done, redirectTo, checkoutMode, lockerCount, themes, theme } = useLoaderData();
+  const { shop, clientId, step1Done, step2Done, step3Done, redirectTo, lockerCount, themes, theme } = useLoaderData();
   const actionData  = useActionData();
   const { t }       = useTranslation();
   const navigate    = useNavigate();
@@ -187,7 +187,8 @@ export default function SetupWizard() {
   };
 
   const setupResult = actionData?.intent === "setup-checkout" ? actionData : null;
-  const mode  = setupResult?.success ? setupResult.mode : checkoutMode;
+  // Mode details (with the zones) are known only right after the setup runs
+  const mode  = setupResult?.success ? setupResult.mode : null;
   const zones = setupResult?.zones?.join(", ") || "—";
 
   return (
