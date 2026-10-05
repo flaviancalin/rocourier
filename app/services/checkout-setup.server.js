@@ -84,17 +84,21 @@ async function readZones(admin) {
   return { currency: data.shop.currencyCode, zones };
 }
 
+// A zone's rates apply to every country in it, so a courier is only offered in a
+// zone when it serves all of that zone's countries (no "FANbox" for a shopper in Dubai).
 const couriersForZone = (zone, enabled) =>
-  enabled.filter((c) => COURIER_COUNTRIES[c].some((cc) => zone.countries.includes(cc)));
+  zone.countries.length ? enabled.filter((c) => zone.countries.every((cc) => COURIER_COUNTRIES[c].includes(cc))) : [];
 
-async function updateZone(admin, zone, { create = [], update = [] }) {
-  if (!create.length && !update.length) return;
+async function updateZone(admin, zone, { create = [], update = [], remove = [] }) {
+  if (!create.length && !update.length && !remove.length) return;
   const data = await gql(admin, `
     mutation deliveryProfileUpdate($id: ID!, $profile: DeliveryProfileInput!) {
       deliveryProfileUpdate(id: $id, profile: $profile) { profile { id } userErrors { field message } }
     }`, {
     id: zone.profileId,
-    profile: { locationGroupsToUpdate: [{ id: zone.locationGroupId, zonesToUpdate: [{
+    profile: {
+      ...(remove.length ? { methodDefinitionsToDelete: remove } : {}),
+      locationGroupsToUpdate: [{ id: zone.locationGroupId, zonesToUpdate: [{
       id: zone.zoneId,
       ...(create.length ? { methodDefinitionsToCreate: create } : {}),
       ...(update.length ? { methodDefinitionsToUpdate: update } : {}),
@@ -126,7 +130,16 @@ async function syncManualRates(admin, settings, enabled) {
   const done = [];
   for (const zone of zones) {
     const couriers = couriersForZone(zone, enabled);
-    if (!couriers.length) continue;
+    // Picklo rates for couriers that don't (or no longer) belong in this zone
+    const ownNames = new Set(COURIERS.flatMap((c) => Object.values(manualRateNames(c))));
+    const keepNames = new Set(couriers.flatMap((c) => Object.values(manualRateNames(c))));
+    const remove = zone.methods
+      .filter((m) => ownNames.has(m.name) && !keepNames.has(m.name) && m.rateProvider?.__typename === "DeliveryRateDefinition")
+      .map((m) => m.id);
+    if (!couriers.length) {
+      await updateZone(admin, zone, { remove });
+      continue;
+    }
     const create = [];
     const update = [];
     for (const c of couriers) {
@@ -141,7 +154,7 @@ async function syncManualRates(admin, settings, enabled) {
         }
       }
     }
-    await updateZone(admin, zone, { create, update });
+    await updateZone(admin, zone, { create, update, remove });
     done.push(zone.zoneName);
   }
   return { zones: done, currency };
