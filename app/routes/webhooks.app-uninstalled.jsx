@@ -25,6 +25,14 @@ export const action = async ({ request }) => {
       data:  { planType: "trial", shopifyChargeId: null, planActivatedAt: null },
     });
 
+    // Shopify removes the app's carrier service and delivery customization on uninstall,
+    // so checkout must be set up again: the setup guide shows again after a reinstall.
+    // Courier credentials, fees and orders are kept.
+    await prisma.shopSettings.updateMany({
+      where: { shop },
+      data:  { checkoutMode: null, onboardingCompleted: false },
+    });
+
     // Delete all app sessions for this shop so stale tokens don't accumulate.
     await prisma.session.deleteMany({ where: { shop } });
   } catch (err) {
