@@ -1,0 +1,64 @@
+{
+  "payload": {
+    "export": "cart-delivery-options-transform-run",
+    "target": "cart.delivery-options.transform.run",
+    "input": {
+      "cart": {
+        "method": {
+          "value": "pickup_point"
+        },
+        "courier": {
+          "value": "fan"
+        },
+        "pointName": {
+          "value": "FANbox Spania 49"
+        },
+        "deliveryGroups": [
+          {
+            "deliveryOptions": [
+              {
+                "handle": "h-home",
+                "title": "FAN Courier — Livrare la domiciliu",
+                "code": "FAN Courier — Livrare la domiciliu",
+                "cost": {
+                  "amount": "15"
+                }
+              },
+              {
+                "handle": "h-fanbox",
+                "title": "FANbox — Ridicare din punct",
+                "code": "FANbox — Ridicare din punct",
+                "cost": {
+                  "amount": "18"
+                }
+              },
+              {
+                "handle": "h-easybox",
+                "title": "Sameday easybox — Ridicare din punct",
+                "code": "Sameday easybox — Ridicare din punct",
+                "cost": {
+                  "amount": "18"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "output": {
+      "operations": [
+        {
+          "deliveryOptionRename": {
+            "deliveryOptionHandle": "h-fanbox",
+            "title": "FANbox — FANbox Spania 49"
+          }
+        },
+        {
+          "deliveryOptionHide": {
+            "deliveryOptionHandle": "h-easybox"
+          }
+        }
+      ]
+    }
+  }
+}

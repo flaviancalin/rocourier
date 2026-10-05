@@ -2,8 +2,8 @@
 // Picklo delivery options for stores without carrier-calculated shipping.
 // Picklo creates fixed rates such as "FANbox — Ridicare din punct". When the shopper
 // already picked a locker in the cart widget, this renames that courier's pickup rate
-// to the chosen locker ("FANbox — FANbox Oltet 20 DJ") and lists it first, so checkout
-// shows exactly what they chose. Rates from the carrier service (codes "RC_…") are
+// to the chosen locker ("FANbox — FANbox Oltet 20 DJ") and lists it first when no option
+// is cheaper, so checkout shows exactly what they chose. Rates from the carrier service (codes "RC_…") are
 // already specific and left untouched.
 
 /**
@@ -43,8 +43,13 @@ export function cartDeliveryOptionsTransformRun(input) {
     if (index === -1) continue;
     const option = group.deliveryOptions[index];
     operations.push({ deliveryOptionRename: { deliveryOptionHandle: option.handle, title: `${label} — ${pointName}`.slice(0, 255) } });
-    // Pickup points are exempt from the "cheapest option first" rule (App Store 1.1.10)
-    if (index !== 0) operations.push({ deliveryOptionMove: { deliveryOptionHandle: option.handle, index: 0 } });
+    // Pre-select the shopper's locker only when no other option is cheaper:
+    // the cheapest option must stay first (App Store requirement 1.1.10)
+    const cost = (o) => Number(o.cost?.amount ?? Infinity);
+    const cheapest = Math.min(...group.deliveryOptions.map(cost));
+    if (index !== 0 && cost(option) <= cheapest) {
+      operations.push({ deliveryOptionMove: { deliveryOptionHandle: option.handle, index: 0 } });
+    }
     // Other couriers' generic pickup rates have no locker behind them once one is chosen
     for (const other of group.deliveryOptions) {
       if (other.handle === option.handle) continue;

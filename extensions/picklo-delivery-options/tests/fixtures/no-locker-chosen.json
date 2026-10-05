@@ -1,0 +1,46 @@
+{
+  "payload": {
+    "export": "cart-delivery-options-transform-run",
+    "target": "cart.delivery-options.transform.run",
+    "input": {
+      "cart": {
+        "method": null,
+        "courier": null,
+        "pointName": null,
+        "deliveryGroups": [
+          {
+            "deliveryOptions": [
+              {
+                "handle": "h-home",
+                "title": "FAN Courier — Livrare la domiciliu",
+                "code": "FAN Courier — Livrare la domiciliu",
+                "cost": {
+                  "amount": "25"
+                }
+              },
+              {
+                "handle": "h-fanbox",
+                "title": "FANbox — Ridicare din punct",
+                "code": "FANbox — Ridicare din punct",
+                "cost": {
+                  "amount": "18"
+                }
+              },
+              {
+                "handle": "h-easybox",
+                "title": "Sameday easybox — Ridicare din punct",
+                "code": "Sameday easybox — Ridicare din punct",
+                "cost": {
+                  "amount": "18"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "output": {
+      "operations": []
+    }
+  }
+}
