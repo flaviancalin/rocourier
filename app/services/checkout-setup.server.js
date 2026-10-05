@@ -56,7 +56,7 @@ export async function ensureCarrierService(admin) {
 async function readZones(admin) {
   const data = await gql(admin, `{
     shop { currencyCode }
-    deliveryProfiles(first: 10) { nodes { id name
+    deliveryProfiles(first: 10) { nodes { id name default
       profileLocationGroups { locationGroup { id }
         locationGroupZones(first: 50) { nodes {
           zone { id name countries { code { countryCode } } }
@@ -69,6 +69,8 @@ async function readZones(admin) {
       } } }
   }`);
   const zones = [];
+  const defaultProfile = data.deliveryProfiles.nodes.find((p) => p.default) || data.deliveryProfiles.nodes[0];
+  const defaultGroup = defaultProfile?.profileLocationGroups?.[0]?.locationGroup?.id;
   for (const profile of data.deliveryProfiles.nodes) {
     for (const group of profile.profileLocationGroups) {
       for (const z of group.locationGroupZones.nodes) {
@@ -81,7 +83,27 @@ async function readZones(admin) {
       }
     }
   }
-  return { currency: data.shop.currencyCode, zones };
+  return { currency: data.shop.currencyCode, zones, defaultProfileId: defaultProfile?.id, defaultGroupId: defaultGroup };
+}
+
+// Store doesn't ship to Romania yet: create a "România" zone in the main shipping
+// profile so Picklo's options have somewhere to live. Returns true if created.
+async function ensureHomeZone(admin, enabled) {
+  const { zones, defaultProfileId, defaultGroupId } = await readZones(admin);
+  if (zones.some((z) => couriersForZone(z, enabled).length)) return false;
+  if (zones.some((z) => z.countries.includes("RO"))) return false; // RO shares a zone with other countries — leave it to the merchant
+  if (!defaultProfileId || !defaultGroupId || !enabled.some((c) => COURIER_COUNTRIES[c].includes("RO"))) return false;
+  const data = await gql(admin, `
+    mutation deliveryProfileUpdate($id: ID!, $profile: DeliveryProfileInput!) {
+      deliveryProfileUpdate(id: $id, profile: $profile) { profile { id } userErrors { field message } }
+    }`, {
+    id: defaultProfileId,
+    profile: { locationGroupsToUpdate: [{ id: defaultGroupId,
+      zonesToCreate: [{ name: "România", countries: [{ code: "RO", includeAllProvinces: true }] }] }] },
+  });
+  const errors = data.deliveryProfileUpdate.userErrors;
+  if (errors.length) throw new Error(`România: ${errors.map((e) => e.message).join("; ")}`);
+  return true;
 }
 
 // A zone's rates apply to every country in it, so a courier is only offered in a
@@ -191,6 +213,7 @@ export async function setupCheckout(admin, shop) {
   if (!enabled.length) throw new Error("Enable at least one courier first");
 
   const carrier = await ensureCarrierService(admin);
+  const createdZone = await ensureHomeZone(admin, enabled);
   let zones;
   let currency = null;
   if (carrier.mode === "ccs") zones = await attachCarrier(admin, carrier.carrierServiceId, enabled);
@@ -200,7 +223,7 @@ export async function setupCheckout(admin, shop) {
   }
 
   await prisma.shopSettings.update({ where: { shop }, data: { checkoutMode: carrier.mode } });
-  return { mode: carrier.mode, zones, currency, reason: carrier.reason };
+  return { mode: carrier.mode, zones, currency, reason: carrier.reason, createdZone };
 }
 
 // Keeps manual rates in step with the fees after the merchant saves settings
