@@ -3,6 +3,8 @@
 
 export const T = {
   ro: {
+    thankyou_block_btn: "Adaugă lockerul pe pagina de mulțumire",
+    thankyou_block_help: "O singură dată: în editorul de checkout, adaugă blocul „Picklo Checkout” pe pagina de mulțumire, ca clientul să vadă lockerul ales după comandă.",
     checkout_locker_count: "Câte lockere să apară în checkout (1–10)",
     checkout_mode_none: "Neconfigurat încă. Apasă butonul pentru a adăuga opțiunile Picklo în checkout.",
     checkout_mode_manual: "Magazinul nu are tarife calculate de curier (CCS — disponibile pe Grow cu plată anuală sau +20$/lună, Advanced și Plus). Am creat tarifele fixe în zonele: {zones}. Clientul alege lockerul din widgetul din coș.",
@@ -536,6 +538,8 @@ export const T = {
   },
 
   en: {
+    thankyou_block_btn: "Add locker to thank-you page",
+    thankyou_block_help: "One time: in the checkout editor, add the \"Picklo Checkout\" block to the thank-you page so shoppers see their locker after ordering.",
     checkout_locker_count: "Lockers shown in checkout (1–10)",
     checkout_mode_none: "Not set up yet. Click the button to add Picklo's options to checkout.",
     checkout_mode_manual: "This store has no carrier-calculated shipping (CCS — available on Grow with annual billing or +$20/month, Advanced and Plus). Fixed rates were created in: {zones}. Shoppers pick the locker in the cart widget.",
@@ -1040,6 +1044,8 @@ export const T = {
   },
 
   de: {
+    thankyou_block_btn: "Abholstation auf Dankesseite anzeigen",
+    thankyou_block_help: "Einmalig: Fügen Sie im Checkout-Editor den Block „Picklo Checkout“ zur Dankesseite hinzu.",
     checkout_locker_count: "Abholstationen im Checkout (1–10)",
     checkout_mode_none: "Noch nicht eingerichtet. Klicken Sie auf die Schaltfläche.",
     checkout_mode_manual: "Dieser Shop hat keine vom Versanddienst berechneten Tarife (CCS). Festpreise wurden angelegt in: {zones}. Kunden wählen die Station im Warenkorb-Widget.",
@@ -1544,6 +1550,8 @@ export const T = {
   },
 
   hu: {
+    thankyou_block_btn: "Automata megjelenítése a köszönőoldalon",
+    thankyou_block_help: "Egyszer: a pénztárszerkesztőben adja hozzá a „Picklo Checkout” blokkot a köszönőoldalhoz.",
     checkout_locker_count: "Csomagautomaták száma a pénztárban (1–10)",
     checkout_mode_none: "Még nincs beállítva. Kattintson a gombra.",
     checkout_mode_manual: "A boltban nincs futár által számolt díj (CCS). Fix díjak létrehozva: {zones}. A vásárló a kosárban választ automatát.",
@@ -2048,6 +2056,8 @@ export const T = {
   },
 
   cs: {
+    thankyou_block_btn: "Zobrazit box na děkovací stránce",
+    thankyou_block_help: "Jednorázově: v editoru pokladny přidejte blok „Picklo Checkout“ na děkovací stránku.",
     checkout_locker_count: "Počet výdejních boxů v pokladně (1–10)",
     checkout_mode_none: "Zatím nenastaveno. Klikněte na tlačítko.",
     checkout_mode_manual: "Obchod nemá tarify počítané dopravcem (CCS). Pevné tarify vytvořeny v: {zones}. Zákazník vybírá box v košíku.",

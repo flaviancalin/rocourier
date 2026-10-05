@@ -798,9 +798,16 @@ export default function Settings() {
                           <TextField label={t("checkout_locker_count")} value={lockerCount} onChange={setLockerCount}
                             type="number" min="1" max="10" autoComplete="off" />
                         )}
-                        <Button variant="primary" onClick={handleCarrierRegister} loading={carrierStatus === "loading"}>
-                          {t("checkout_setup_btn")}
-                        </Button>
+                        <InlineStack gap="200">
+                          <Button variant="primary" onClick={handleCarrierRegister} loading={carrierStatus === "loading"}>
+                            {t("checkout_setup_btn")}
+                          </Button>
+                          {/* Checkout blocks must be placed once by the merchant in the checkout editor */}
+                          <Button url={`https://${shop}/admin/settings/checkout/editor?page=thank-you&context=apps`} target="_top">
+                            {t("thankyou_block_btn")}
+                          </Button>
+                        </InlineStack>
+                        <Text tone="subdued" variant="bodySm">{t("thankyou_block_help")}</Text>
                       </BlockStack>
                     </Card>
 
