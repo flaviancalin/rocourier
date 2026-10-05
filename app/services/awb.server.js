@@ -10,6 +10,7 @@ import { packetaDeletePacket, packetaCreatePacket } from "./packeta.server.js";
 import { cancelFulfillmentsForAwb } from "./fulfillment.server.js";
 import { syncAwbToShopify, writeOrderMetafields } from "./xconnector.server.js";
 import { updateOrderAwb } from "../models/order.server.js";
+import { setStatusTag } from "./shopify-orders.server.js";
 
 export async function deleteAwbForOrder(admin, order, settings) {
   if (!order.awbNumber) throw new Error("No AWB to delete");
@@ -348,6 +349,11 @@ export async function generateAwbForOrder(admin, shop, orderId, options = {}) {
     } catch (syncError) {
       // Non-fatal — AWB was created, just sync failed
       console.error("Shopify sync error (non-fatal):", syncError?.message || syncError);
+    }
+
+    if (settings.statusTags) {
+      await setStatusTag(admin, order.shopifyOrderId, "generated")
+        .catch((e) => console.error("Status tag error (non-fatal):", e?.message || e));
     }
 
 
