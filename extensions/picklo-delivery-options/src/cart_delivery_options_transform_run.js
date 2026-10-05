@@ -34,15 +34,24 @@ export function cartDeliveryOptionsTransformRun(input) {
   const label = POINT_LABELS[courier];
   if (method !== "pickup_point" || !pointName || !label) return NO_CHANGES;
 
+  const isPickupRate = (o, pointLabel) =>
+    !String(o.code || "").startsWith("RC_") && (o.title || "").startsWith(`${pointLabel} — `);
+
   const operations = [];
   for (const group of input.cart.deliveryGroups) {
-    const index = group.deliveryOptions.findIndex((o) =>
-      !String(o.code || "").startsWith("RC_") && (o.title || "").startsWith(`${label} — `));
+    const index = group.deliveryOptions.findIndex((o) => isPickupRate(o, label));
     if (index === -1) continue;
     const option = group.deliveryOptions[index];
     operations.push({ deliveryOptionRename: { deliveryOptionHandle: option.handle, title: `${label} — ${pointName}`.slice(0, 255) } });
     // Pickup points are exempt from the "cheapest option first" rule (App Store 1.1.10)
     if (index !== 0) operations.push({ deliveryOptionMove: { deliveryOptionHandle: option.handle, index: 0 } });
+    // Other couriers' generic pickup rates have no locker behind them once one is chosen
+    for (const other of group.deliveryOptions) {
+      if (other.handle === option.handle) continue;
+      if (Object.entries(POINT_LABELS).some(([c, l]) => c !== courier && isPickupRate(other, l))) {
+        operations.push({ deliveryOptionHide: { deliveryOptionHandle: other.handle } });
+      }
+    }
   }
   return { operations };
 }
