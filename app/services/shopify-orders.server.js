@@ -52,18 +52,20 @@ export async function setStatusTag(admin, shopifyOrderId, status) {
   await gql(admin, `mutation tagsAdd($id: ID!, $tags: [String!]!) { tagsAdd(id: $id, tags: $tags) { userErrors { message } } }`, { id, tags: [tag] });
 }
 
-// Fills a missing shipping phone from the billing address or customer profile.
+// Fills a missing shipping phone from the shipping line (phone_required rates),
+// the billing address or the customer profile.
 // Returns the phone now on the shipping address (or null).
 export async function copyCustomerPhoneToShipping(admin, shopifyOrderId) {
   const data = await gql(admin, `
     query OrderPhones($id: ID!) { order(id: $id) {
       phone billingAddress { phone } customer { defaultPhoneNumber { phoneNumber } }
+      shippingLines(first: 1) { nodes { phone } }
       shippingAddress { firstName lastName company address1 address2 city provinceCode countryCodeV2 zip phone } } }`,
   { id: gid(shopifyOrderId) });
   const o = data.order;
   if (!o?.shippingAddress) return null;
   if (o.shippingAddress.phone) return o.shippingAddress.phone;
-  const phone = o.billingAddress?.phone || o.phone || o.customer?.defaultPhoneNumber?.phoneNumber;
+  const phone = o.shippingLines?.nodes?.[0]?.phone || o.billingAddress?.phone || o.phone || o.customer?.defaultPhoneNumber?.phoneNumber;
   if (!phone) return null;
   // Send the whole address: a partial shippingAddress must not wipe the other fields
   const a = o.shippingAddress;

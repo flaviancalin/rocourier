@@ -36,10 +36,12 @@ export function shouldAutoGenerateAwb(settings, payload, dbOrder) {
 
 // ── New order: fill a missing shipping phone (couriers and lockers need it) ──
 export async function onOrderCreated(shop, settings, dbOrder) {
-  if (!settings?.copyCustomerPhone || dbOrder.customerPhone) return;
+  // Always checks Shopify: Picklo may already know the phone (from the shipping line)
+  // while the order's shipping address — what packing slips and other apps read — has none.
+  if (!settings?.copyCustomerPhone) return;
   await step("copy phone", dbOrder, async () => {
     const phone = await copyCustomerPhoneToShipping(await adminFor(shop), dbOrder.shopifyOrderId);
-    if (phone) await prisma.order.update({ where: { id: dbOrder.id }, data: { customerPhone: phone } });
+    if (phone && phone !== dbOrder.customerPhone) await prisma.order.update({ where: { id: dbOrder.id }, data: { customerPhone: phone } });
     return { phone: phone ? "copied" : "none available" };
   });
 }

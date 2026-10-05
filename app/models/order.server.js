@@ -47,7 +47,9 @@ export async function upsertOrderFromWebhook(shop, shopifyOrder) {
       shopifyOrder.shipping_address?.first_name,
       shopifyOrder.shipping_address?.last_name,
     ].filter(Boolean).join(" ") || shopifyOrder.customer?.first_name || "Unknown",
-    customerPhone: shopifyOrder.shipping_address?.phone || shopifyOrder.customer?.phone || "",
+    // Rates with phone_required put the checkout phone on the shipping line, not the address
+    customerPhone: shopifyOrder.shipping_address?.phone || shopifyOrder.shipping_lines?.[0]?.phone
+      || shopifyOrder.billing_address?.phone || shopifyOrder.phone || shopifyOrder.customer?.phone || "",
     customerEmail: shopifyOrder.customer?.email || "",
     shippingAddress1: shopifyOrder.shipping_address?.address1 || "",
     shippingCity: shopifyOrder.shipping_address?.city || "",
