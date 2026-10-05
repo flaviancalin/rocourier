@@ -47,6 +47,7 @@ export async function buildRates({ rate, settings }) {
     description:  t.homeDesc,
     total_price:  toCents(settings[`${c}HomeDeliveryFee`]),
     currency,
+    phone_required: true, // couriers need it; lockers send the pickup code by SMS
     min_delivery_date: deliveryDate(1), max_delivery_date: deliveryDate(3),
   }));
 
@@ -56,6 +57,7 @@ export async function buildRates({ rate, settings }) {
     description:  p.address || t.point,
     total_price:  toCents(settings[`${p.courier}PickupFee`]),
     currency,
+    phone_required: true, // couriers need it; lockers send the pickup code by SMS
     min_delivery_date: deliveryDate(1), max_delivery_date: deliveryDate(2),
   });
 
@@ -98,6 +100,7 @@ export async function buildRates({ rate, settings }) {
         description:  t.point,
         total_price:  toCents(settings[`${c}PickupFee`]),
         currency,
+    phone_required: true, // couriers need it; lockers send the pickup code by SMS
         min_delivery_date: deliveryDate(1), max_delivery_date: deliveryDate(2),
       });
     }

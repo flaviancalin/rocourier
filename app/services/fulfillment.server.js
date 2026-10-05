@@ -108,3 +108,18 @@ export async function setOrderMetafields(admin, shopifyOrderId, namespace, value
   const errors = res?.data?.metafieldsSet?.userErrors || [];
   if (errors.length) throw new Error(errors.map((e) => e.message).join("; "));
 }
+
+// Cancels the order's fulfillments that carry this AWB as tracking (after the AWB is deleted).
+export async function cancelFulfillmentsForAwb(admin, shopifyOrderId, awbNumber) {
+  if (!awbNumber) return 0;
+  const body = await gql(admin, `query ($id: ID!) { order(id: $id) { fulfillments { id status trackingInfo { number } } } }`,
+    { id: orderGid(shopifyOrderId) });
+  const matches = (body?.data?.order?.fulfillments || []).filter((f) =>
+    f.status === "SUCCESS" && f.trackingInfo.some((t) => t.number === awbNumber));
+  for (const f of matches) {
+    const res = await gql(admin, `mutation ($id: ID!) { fulfillmentCancel(id: $id) { userErrors { message } } }`, { id: f.id });
+    const errors = res?.data?.fulfillmentCancel?.userErrors || [];
+    if (errors.length) throw new Error(errors.map((e) => e.message).join("; "));
+  }
+  return matches.length;
+}

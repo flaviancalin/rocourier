@@ -8,9 +8,10 @@ import { samedayDeleteAwb } from "../services/sameday.server.js";
 import { cargusDeleteAwb } from "../services/cargus.server.js";
 import { glsDeleteAwb } from "../services/gls.server.js";
 import { packetaDeletePacket } from "../services/packeta.server.js";
+import { cancelFulfillmentsForAwb } from "../services/fulfillment.server.js";
 
 export async function action({ request }) {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const { shop } = session;
 
   const { orderId } = await request.json();
@@ -78,6 +79,13 @@ export async function action({ request }) {
 
     } else {
       return json({ error: `Unsupported courier: ${courier}` }, { status: 400 });
+    }
+
+    // The order shouldn't stay "fulfilled" with tracking for an AWB that no longer exists
+    try {
+      await cancelFulfillmentsForAwb(admin, order.shopifyOrderId, order.awbNumber);
+    } catch (e) {
+      console.error("Cancel fulfillment after AWB delete failed:", e.message);
     }
 
     // Clear AWB from DB
