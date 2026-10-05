@@ -14,8 +14,9 @@ function attr(key) {
   return (shopify.attributes?.value || []).find((a) => a.key === key)?.value || "";
 }
 
-// Locker chosen in the cart widget, or (carrier-calculated shipping) the locker rate
-// picked in checkout, whose code is RC_PP_<courier>_<id>.
+// Locker chosen in the cart widget, or the locker rate picked in checkout. On the
+// Thank you page the option may lack its code or selection, so the locker title
+// ("FANbox — …") and a single remaining option are accepted too.
 function chosenPoint() {
   if (attr("_rc_method") === "pickup_point" && attr("_rc_point_name")) {
     return {
@@ -24,10 +25,12 @@ function chosenPoint() {
       address: attr("_rc_point_address"),
     };
   }
+  const lockerTitle = new RegExp(`^(${Object.values(POINT_LABELS).map((l) => l.replace(/[/]/g, "\\/")).join("|")}) — `);
   for (const group of shopify.deliveryGroups?.value || []) {
+    const options = group.deliveryOptions || [];
     const handle = group.selectedDeliveryOption?.handle;
-    const option = group.deliveryOptions.find((o) => o.handle === handle);
-    if (option?.code?.startsWith("RC_PP_")) {
+    const option = options.find((o) => o.handle === handle) || (options.length === 1 ? options[0] : null);
+    if (option && (option.code?.startsWith("RC_PP_") || lockerTitle.test(option.title || ""))) {
       return { label: "", name: option.title || "", address: option.description || "" };
     }
   }
