@@ -90,7 +90,7 @@ model ShopSettings {
   smartbillToken      String?
   smartbillCompanyCIF String?  // CIF-ul firmei (ex: "RO12345678")
   smartbillSeries     String?  // Seria facturii (ex: "FACT")
-  smartbillTVA        String?  @default("19")  // cota TVA implicita (%)
+  smartbillTVA        String?  @default("21")  // cota TVA implicita (%)
   smartbillCurrency   String?  @default("RON")
   smartbillEnabled    Boolean  @default(false)
 
@@ -100,7 +100,7 @@ model ShopSettings {
   oblioSecret         String?  // client_secret din Oblio API
   oblioCIF            String?  // CIF-ul firmei
   oblioSeries         String?  // Seria facturii
-  oblioTVA            String?  @default("19")
+  oblioTVA            String?  @default("21")
   oblioCurrency       String?  @default("RON")
   oblioEnabled        Boolean  @default(false)
 
@@ -153,6 +153,20 @@ model ShopSettings {
   // "ccs" = Shopify asks Picklo for rates (carrier-calculated shipping available)
   // "manual" = store has no CCS; Picklo-created fixed rates + cart widget
   checkoutMode        String?  // null until detected
+
+  // ── Automations (all off by default) ─────────────────────────────────────
+  autoAwbFilter          String  @default("all")  // all | cod | paid | pickup
+  autoAwbMarkShipped     Boolean @default(false)
+  autoAwbNotifyCustomer  Boolean @default(false)
+  autoInvoiceOnDelivered Boolean @default(false)  // invoice when the courier confirms delivery
+  onCancelDeleteAwb      Boolean @default(false)  // Shopify order cancelled → delete AWB (+ cancel fulfillment)
+  onCancelInvoice        String  @default("none") // none | cancel | reverse
+  onRefundReverseInvoice Boolean @default(false)  // fully refunded → storno
+  onDeliveredMarkPaid    Boolean @default(false)  // COD delivered → mark paid in Shopify + collect invoice
+  onReturnedCancelOrder  Boolean @default(false)  // returned/refused → cancel order in Shopify (restock)
+  onReturnedInvoice      String  @default("none") // none | cancel | reverse
+  statusTags             Boolean @default(false)  // picklo-* tags on Shopify orders
+  copyCustomerPhone      Boolean @default(false)  // fill missing shipping phone from customer/billing
   checkoutLockerCount Int      @default(5) // nearest lockers offered as rates in CCS mode
 
   createdAt DateTime @default(now())
@@ -199,6 +213,17 @@ model Order {
   orderTotal    Float   @default(0)
   weight        Float   @default(1)
   packageCount  Int     @default(1)
+
+  // Invoice (SmartBill / Oblio) — kept so it can be cancelled, reversed or collected later
+  invoiceProvider   String?   // "smartbill" | "oblio"
+  invoiceSeries     String?
+  invoiceNumber     String?
+  invoiceUrl        String?
+  invoiceStatus     String?   // "issued" | "cancelled" | "reversed" | "collected"
+  invoiceReverseNumber String? // storno document number
+  invoiceIssuedAt   DateTime?
+  financialStatus   String?   // Shopify financial status (paid, pending, refunded…)
+  shopifyCancelledAt DateTime?
 
   // xConnector sync status
   xconnectorSynced  Boolean  @default(false)

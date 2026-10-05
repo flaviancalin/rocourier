@@ -1,5 +1,6 @@
 // app/routes/api.track-awb.js
 import { json } from "@remix-run/node";
+import { onShipmentStatusChanged } from "../services/automations.server.js";
 import { authenticate } from "../shopify.server.js";
 import { getOrder, addTrackingEvent, updateOrderAwb } from "../models/order.server.js";
 import { prisma } from "../db.server.js";
@@ -13,7 +14,8 @@ import { packetaTrackPacket } from "../services/packeta.server.js";
 function eventToStatus(events, courier) {
   if (!events || events.length === 0) return null;
 
-  const latest = events[0];
+  // Couriers return events in different orders (FAN chronologically) — newest first
+  const latest = [...events].sort((a, b) => new Date(b.date) - new Date(a.date))[0];
   const code = String(latest.code || "").toLowerCase();
   const desc = String(latest.description || "").toLowerCase();
 
@@ -125,6 +127,8 @@ export async function loader({ request }) {
     const newStatus = eventToStatus(events, order.courierType);
     if (newStatus && newStatus !== order.awbStatus) {
       await updateOrderAwb(order.id, { awbNumber: order.awbNumber, awbStatus: newStatus });
+      await onShipmentStatusChanged(settings, order, newStatus).catch((err) =>
+        console.error("[track-awb] automations failed:", err.message));
     }
 
     return json({ events, status: newStatus || order.awbStatus });

@@ -63,6 +63,7 @@ export async function upsertOrderFromWebhook(shop, shopifyOrder) {
     orderTotal: parseFloat(shopifyOrder.total_price) || 0,
     weight: weightKg > 0 ? weightKg : undefined,
     awbStatus: "pending",
+    financialStatus: shopifyOrder.financial_status || null,
     shopifyCreatedAt: new Date(shopifyOrder.created_at),
   };
 
@@ -75,6 +76,7 @@ export async function upsertOrderFromWebhook(shop, shopifyOrder) {
       pickupPointName: data.pickupPointName,
       pickupPointAddress: data.pickupPointAddress,
       codAmount: data.codAmount,
+      financialStatus: data.financialStatus,
       ...(weightKg > 0 ? { weight: weightKg } : {}),
     },
     create: { shop, shopifyOrderId: String(shopifyOrder.id), ...data },

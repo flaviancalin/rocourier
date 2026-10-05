@@ -1,128 +1,137 @@
 // app/services/oblio.server.js
-// Oblio API integration — generates invoices (facturi) for Shopify orders.
-// Docs: https://api.oblio.eu/docs/
+// Oblio API — invoices for Shopify orders.
+// Docs: https://www.oblio.eu/api · reference client: github.com/OblioSoftware/OblioApiJs
+// Auth: POST /api/authorize/token { client_id: email, client_secret } → Bearer token (1h).
+// Responses: { status: 200, statusMessage, data }.
 
-const TOKEN_URL = "https://www.oblio.eu/api/authorize/token";
-const BASE_URL  = "https://www.oblio.eu/api";
-
-let _tokenCache = null;
+const BASE_URL = "https://www.oblio.eu/api";
+const tokenCache = new Map(); // email → { token, expiresAt }
 
 async function getToken(email, secret) {
-  if (_tokenCache && _tokenCache.email === email && _tokenCache.expiresAt > Date.now()) {
-    return _tokenCache.token;
-  }
+  const cached = tokenCache.get(email);
+  if (cached && cached.expiresAt > Date.now()) return cached.token;
 
-  const res = await fetch(TOKEN_URL, {
-    method:  "POST",
-    headers: { "Content-Type": "application/json" },
-    body:    JSON.stringify({ grant_type: "client_credentials", email, secret }),
+  const res = await fetch(`${BASE_URL}/authorize/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ client_id: email, client_secret: secret, grant_type: "client_credentials" }),
   });
-
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.access_token) {
-    throw new Error(data.error_description || data.message || `Oblio auth failed (${res.status})`);
+    throw new Error(`Oblio autentificare esuata (${res.status}): ${data.error_description || data.statusMessage || data.message || "verifica emailul si cheia API"}`);
   }
-
-  _tokenCache = {
-    email,
-    token:     data.access_token,
-    expiresAt: Date.now() + (data.expires_in - 60) * 1000,
-  };
-  return _tokenCache.token;
+  tokenCache.set(email, { token: data.access_token, expiresAt: Date.now() + (Number(data.expires_in || 3600) - 60) * 1000 });
+  return data.access_token;
 }
+
+async function request(path, { method = "GET", email, secret, body, query } = {}) {
+  const token = await getToken(email, secret);
+  const qs = query ? `?${new URLSearchParams(query)}` : "";
+  const res = await fetch(`${BASE_URL}${path}${qs}`, {
+    method,
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/json" },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || (data.status && Number(data.status) >= 300)) {
+    throw new Error(`Oblio ${method} ${path} (${res.status}): ${data.statusMessage || "eroare necunoscuta"}`);
+  }
+  return data;
+}
+
+const stripRo = (cif) => String(cif || "").replace(/^RO/i, "").trim();
 
 export async function oblioTestConnection({ email, secret, cif }) {
-  const token = await getToken(email, secret);
-  const res = await fetch(`${BASE_URL}/docs/nomenclature/companies`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Oblio connection test failed (${res.status}): ${body}`);
+  const data = await request("/nomenclature/companies", { email, secret });
+  const companies = data.data || [];
+  const match = companies.find((c) => stripRo(c.cif) === stripRo(cif));
+  if (!match) {
+    throw new Error(`CIF "${cif}" nu a fost gasit in contul Oblio. CIF-uri disponibile: ${companies.map((c) => c.cif).join(", ") || "niciunul"}`);
   }
-  const data = await res.json();
-  const companies = data?.data || [];
-  const match = companies.find((c) => c.cif === cif || c.cif === cif?.replace(/^RO/i, ""));
-  if (!match && companies.length > 0) {
-    throw new Error(`CIF "${cif}" nu a fost găsit în contul Oblio. CIF-uri disponibile: ${companies.map((c) => c.cif).join(", ")}`);
-  }
-  return true;
+  const series = await request("/nomenclature/series", { email, secret, query: { cif } }).catch(() => ({ data: [] }));
+  return { series: (series.data || []).filter((s) => s.type === "Factura").map((s) => s.name) };
 }
 
+// order: normalized order from invoice.server.js (net prices after discounts)
 export async function oblioCreateInvoice({ email, secret, cif, series, tva, currency, order }) {
-  const token      = await getToken(email, secret);
-  const vatPercent = parseFloat(tva) || 19;
-
-  const products = (order.lineItems || []).map((item) => ({
-    name:        item.name || item.title || "Produs",
-    code:        item.sku  || "",
-    measuringUnit: "buc",
-    currency:    currency || "RON",
-    quantity:    item.quantity || 1,
-    price:       parseFloat(item.price) || 0,
-    vatIncluded: true,
-    vatPercentage: vatPercent,
-    vatName:     vatPercent === 0 ? "Scutit" : "Normala",
-  }));
-
-  if ((order.shippingTotal || 0) > 0) {
-    products.push({
-      name:          "Transport",
-      measuringUnit: "buc",
-      currency:      currency || "RON",
-      quantity:      1,
-      price:         parseFloat(order.shippingTotal),
-      vatIncluded:   true,
-      vatPercentage: vatPercent,
-      vatName:       "Normala",
-    });
-  }
-
-  const body = {
-    cif,
-    seriesName: series,
-    client: {
-      name:    order.customerName  || "Client",
-      cif:     "",
-      address: order.shippingAddress1 || "",
-      city:    order.shippingCity   || "",
-      county:  order.shippingCounty || "",
-      country: order.shippingCountry || "Romania",
-      email:   order.customerEmail || "",
-      phone:   order.customerPhone || "",
-      vatPayer: false,
-      save:    false,
-    },
-    issueDate: new Date().toISOString().slice(0, 10),
-    dueDate:   new Date().toISOString().slice(0, 10),
-    deliveryDate: new Date().toISOString().slice(0, 10),
-    currency:  currency || "RON",
-    language:  "RO",
-    precision: 2,
-    products,
-    observations: `Comanda Shopify ${order.shopifyOrderName || ""}`,
-    useStock: false,
-  };
-
-  const res = await fetch(`${BASE_URL}/docs/invoice`, {
-    method:  "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body:    JSON.stringify(body),
+  const vatPercent = Number.parseFloat(tva);
+  const vat = Number.isFinite(vatPercent) ? vatPercent : 21;
+  const line = (name, code, quantity, price, productType = "Marfa") => ({
+    name, code: code || "", measuringUnit: "buc", currency: currency || "RON",
+    quantity, price, vatIncluded: 1, vatPercentage: vat, productType, save: 0,
   });
 
-  const data = await res.json();
-  if (!res.ok || data.status !== "ok") {
-    throw new Error(data.statusMessage || data.message || `Oblio error ${res.status}`);
-  }
+  const products = order.lineItems.map((i) => line(i.name, i.sku, i.quantity, i.unitPrice));
+  if (order.shippingTotal > 0) products.push(line("Transport", "", 1, order.shippingTotal, "Serviciu"));
 
-  return { invoiceNumber: data.data?.number, series: data.data?.seriesName };
+  const today = new Date().toISOString().slice(0, 10);
+  const data = await request("/docs/invoice", {
+    method: "POST", email, secret,
+    body: {
+      cif,
+      seriesName: series,
+      issueDate: today,
+      dueDate: today,
+      deliveryDate: today,
+      client: {
+        name: order.customerName || "Client",
+        address: order.shippingAddress1 || "",
+        city: order.shippingCity || "",
+        state: order.shippingCounty || "",
+        country: order.shippingCountry || "Romania",
+        email: order.customerEmail || "",
+        phone: order.customerPhone || "",
+        vatPayer: 0,
+        save: 0,
+      },
+      currency: currency || "RON",
+      language: "RO",
+      precision: 2,
+      useStock: 0,
+      products,
+      mentions: `Comanda Shopify ${order.shopifyOrderName || ""}`.trim(),
+      orderNumber: order.shopifyOrderName || "",
+      idempotencyKey: order.idempotencyKey || undefined,
+    },
+  });
+  return { series: data.data?.seriesName || series, number: String(data.data?.number), url: data.data?.link || null };
+}
+
+// Storno (credit note): new invoice referencing the original with refund=1
+export async function oblioReverseInvoice({ email, secret, cif, series, number }) {
+  const data = await request("/docs/invoice", {
+    method: "POST", email, secret,
+    body: { cif, seriesName: series, referenceDocument: { type: "Factura", seriesName: series, number: Number(number), refund: 1 } },
+  });
+  return { series: data.data?.seriesName || series, number: String(data.data?.number) };
+}
+
+export async function oblioCancelInvoice({ email, secret, cif, series, number }) {
+  await request("/docs/invoice/cancel", { method: "PUT", email, secret, body: { cif, seriesName: series, number: Number(number) } });
+}
+
+// Only the last invoice in a series can be deleted; use cancel otherwise
+export async function oblioDeleteInvoice({ email, secret, cif, series, number }) {
+  await request("/docs/invoice", { method: "DELETE", email, secret, body: { cif, seriesName: series, number: Number(number) } });
+}
+
+// Records the cash-on-delivery money collected by the courier ("Ramburs"); the AWB is the payment document
+export async function oblioCollectInvoice({ email, secret, cif, series, number, documentNumber }) {
+  await request("/docs/invoice/collect", {
+    method: "PUT", email, secret,
+    body: { cif, seriesName: series, number: Number(number), collect: { type: "Ramburs", documentNumber: documentNumber || `Ramburs ${series}${number}` } },
+  });
+}
+
+export async function oblioGetInvoice({ email, secret, cif, series, number }) {
+  const data = await request("/docs/invoice", { email, secret, query: { cif, seriesName: series, number } });
+  return data.data;
 }
 
 export async function oblioGetInvoicePdf({ email, secret, cif, series, number }) {
-  const token = await getToken(email, secret);
-  const url   = `${BASE_URL}/docs/invoice/${encodeURIComponent(cif)}/${encodeURIComponent(series)}/${encodeURIComponent(number)}?format=pdf`;
-  const res   = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (!res.ok) throw new Error(`Oblio PDF fetch failed: ${res.status}`);
-  const buffer = await res.arrayBuffer();
-  return Buffer.from(buffer);
+  const doc = await oblioGetInvoice({ email, secret, cif, series, number });
+  if (!doc?.link) throw new Error("Oblio: factura nu are link PDF");
+  const res = await fetch(doc.link);
+  if (!res.ok) throw new Error(`Oblio PDF (${res.status})`);
+  return Buffer.from(await res.arrayBuffer());
 }

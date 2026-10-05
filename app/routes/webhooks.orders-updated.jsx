@@ -6,6 +6,7 @@ import { authenticate } from "../shopify.server.js";
 import { logError } from "../utils/log.server.js";
 import { prisma } from "../db.server.js";
 import { generateInvoiceForOrder } from "../services/invoice.server.js";
+import { onOrderRefunded } from "../services/automations.server.js";
 
 export const loader = async () => new Response("Method Not Allowed", { status: 405 });
 
@@ -47,6 +48,7 @@ export const action = async ({ request }) => {
       shippingZip:      order.shipping_address?.zip      || existing.shippingZip,
       codAmount:        parseFloat(order.total_price)    || existing.codAmount,
       orderTotal:       parseFloat(order.total_price)    || existing.orderTotal,
+      financialStatus:  order.financial_status || existing.financialStatus,
       updatedAt:        new Date(),
     };
 
@@ -60,15 +62,22 @@ export const action = async ({ request }) => {
 
     await prisma.order.update({ where: { id: existing.id }, data: updates });
 
-    // Auto-invoice on fulfillment
     const settings = await prisma.shopSettings.findUnique({ where: { shop } });
-    const justFulfilled = order.fulfillment_status === "fulfilled" && existing.awbStatus !== "delivered";
-    if (settings?.autoInvoiceOnFulfill && settings?.invoiceProvider && justFulfilled) {
+    const fresh = await prisma.order.findUnique({ where: { id: existing.id } });
+
+    // Auto-invoice on fulfillment — issueInvoice only ever issues one invoice per order
+    // (orders/updated fires for every edit, tag or note on an already fulfilled order)
+    if (settings?.autoInvoiceOnFulfill && settings?.invoiceProvider && order.fulfillment_status === "fulfilled" && !fresh.invoiceNumber) {
       try {
         await generateInvoiceForOrder(shop, order);
       } catch (invoiceErr) {
         logError("auto-invoice (fulfill)", invoiceErr, { shopifyOrderId: String(order.id) });
       }
+    }
+
+    // Fully refunded without being cancelled (cancellations go through orders/cancelled)
+    if (order.financial_status === "refunded" && !order.cancelled_at && existing.financialStatus !== "refunded") {
+      await onOrderRefunded(shop, settings, fresh);
     }
 
   } catch (err) {

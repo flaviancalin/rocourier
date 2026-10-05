@@ -6,6 +6,7 @@
 
 import { prisma } from "../db.server.js";
 import { fanTrackAwb } from "../services/fan-courier.server.js";
+import { onShipmentStatusChanged } from "../services/automations.server.js";
 import { samedayTrackAwb } from "../services/sameday.server.js";
 import { addTrackingEvent } from "../models/order.server.js";
 
@@ -108,8 +109,9 @@ async function syncTrackingForShop(settings) {
         await addTrackingEvent(order.id, event).catch(() => {});
       }
 
-      // Determine new status from most recent event
-      const latestEvent = events[0];
+      // Determine new status from the most recent event (couriers return them in
+      // different orders — FAN chronologically — so sort by date, newest first)
+      const latestEvent = [...events].sort((a, b) => new Date(b.date) - new Date(a.date))[0];
       let newStatus = null;
 
       if (order.courierType === "fan") {
@@ -133,6 +135,9 @@ async function syncTrackingForShop(settings) {
           `${order.awbStatus} → ${newStatus}`
         );
         updated++;
+        // Delivered / returned / tags → Shopify + invoicing automations
+        await onShipmentStatusChanged(settings, order, newStatus).catch((err) =>
+          console.error(`[TrackingSync] automations failed for ${order.shopifyOrderName}:`, err.message));
       }
 
       // Throttle: 200ms between requests to avoid rate limiting

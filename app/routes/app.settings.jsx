@@ -177,6 +177,18 @@ export async function action({ request }) {
       defaultCourier:  get("defaultCourier") || "fan",
       defaultWeight:   parseFloat(get("defaultWeight")) || 1,
       autoGenerateAwb: get("autoGenerateAwb") === "true",
+      autoAwbMarkShipped: get("autoAwbMarkShipped") === "true",
+      autoAwbNotifyCustomer: get("autoAwbNotifyCustomer") === "true",
+      autoInvoiceOnDelivered: get("autoInvoiceOnDelivered") === "true",
+      onCancelDeleteAwb: get("onCancelDeleteAwb") === "true",
+      onRefundReverseInvoice: get("onRefundReverseInvoice") === "true",
+      onDeliveredMarkPaid: get("onDeliveredMarkPaid") === "true",
+      onReturnedCancelOrder: get("onReturnedCancelOrder") === "true",
+      statusTags: get("statusTags") === "true",
+      copyCustomerPhone: get("copyCustomerPhone") === "true",
+      autoAwbFilter: get("autoAwbFilter") || "all",
+      onCancelInvoice: get("onCancelInvoice") || "none",
+      onReturnedInvoice: get("onReturnedInvoice") || "none",
       showPickupMap:   get("showPickupMap") === "true",
       widgetLanguage:  get("widgetLanguage") || "auto",
       fanHomeDeliveryFee:      parseFloat(get("fanHomeDeliveryFee"))      || 0,
@@ -298,6 +310,18 @@ export default function Settings() {
   const [defaultWeight,   setDefaultWeight]   = useState(String(settings.defaultWeight || 1));
   const [showPickupMap,   setShowPickupMap]   = useState(settings.showPickupMap !== false);
   const [autoGenerateAwb, setAutoGenerateAwb] = useState(!!settings.autoGenerateAwb);
+  const [autoAwbMarkShipped, setAutoAwbMarkShipped] = useState(!!settings.autoAwbMarkShipped);
+  const [autoAwbNotifyCustomer, setAutoAwbNotifyCustomer] = useState(!!settings.autoAwbNotifyCustomer);
+  const [autoInvoiceOnDelivered, setAutoInvoiceOnDelivered] = useState(!!settings.autoInvoiceOnDelivered);
+  const [onCancelDeleteAwb, setOnCancelDeleteAwb] = useState(!!settings.onCancelDeleteAwb);
+  const [onRefundReverseInvoice, setOnRefundReverseInvoice] = useState(!!settings.onRefundReverseInvoice);
+  const [onDeliveredMarkPaid, setOnDeliveredMarkPaid] = useState(!!settings.onDeliveredMarkPaid);
+  const [onReturnedCancelOrder, setOnReturnedCancelOrder] = useState(!!settings.onReturnedCancelOrder);
+  const [statusTags, setStatusTags] = useState(!!settings.statusTags);
+  const [copyCustomerPhone, setCopyCustomerPhone] = useState(!!settings.copyCustomerPhone);
+  const [autoAwbFilter, setAutoAwbFilter] = useState(settings.autoAwbFilter || "all");
+  const [onCancelInvoice, setOnCancelInvoice] = useState(settings.onCancelInvoice || "none");
+  const [onReturnedInvoice, setOnReturnedInvoice] = useState(settings.onReturnedInvoice || "none");
   const [widgetLanguage,  setWidgetLanguage]  = useState(settings.widgetLanguage  || "auto");
 
   const [fanHomeDeliveryFee,     setFanHomeDeliveryFee]     = useState(String(settings.fanHomeDeliveryFee     ?? 0));
@@ -366,6 +390,18 @@ export default function Settings() {
       defaultCourier, defaultWeight,
       showPickupMap: String(showPickupMap),
       autoGenerateAwb: String(autoGenerateAwb),
+      autoAwbMarkShipped: String(autoAwbMarkShipped),
+      autoAwbNotifyCustomer: String(autoAwbNotifyCustomer),
+      autoInvoiceOnDelivered: String(autoInvoiceOnDelivered),
+      onCancelDeleteAwb: String(onCancelDeleteAwb),
+      onRefundReverseInvoice: String(onRefundReverseInvoice),
+      onDeliveredMarkPaid: String(onDeliveredMarkPaid),
+      onReturnedCancelOrder: String(onReturnedCancelOrder),
+      statusTags: String(statusTags),
+      copyCustomerPhone: String(copyCustomerPhone),
+      autoAwbFilter,
+      onCancelInvoice,
+      onReturnedInvoice,
       widgetLanguage,
       fanHomeDeliveryFee, fanPickupFee, samedayHomeDeliveryFee, samedayPickupFee,
       cargusHomeDeliveryFee, cargusPickupFee, glsHomeDeliveryFee, glsPickupFee,
@@ -389,6 +425,7 @@ export default function Settings() {
       packetaEnabled, packetaApiKey, packetaLabelFormat,
       xconnectorEnabled, xconnectorApiKey, defaultCourier, defaultWeight,
       showPickupMap, autoGenerateAwb, widgetLanguage,
+      autoAwbMarkShipped, autoAwbNotifyCustomer, autoInvoiceOnDelivered, onCancelDeleteAwb, onRefundReverseInvoice, onDeliveredMarkPaid, onReturnedCancelOrder, statusTags, copyCustomerPhone, autoAwbFilter, onCancelInvoice, onReturnedInvoice,
       fanHomeDeliveryFee, fanPickupFee, samedayHomeDeliveryFee, samedayPickupFee,
       cargusHomeDeliveryFee, cargusPickupFee, glsHomeDeliveryFee, glsPickupFee,
       packetaHomeDeliveryFee, packetaPickupFee, lockerCount,
@@ -409,6 +446,12 @@ export default function Settings() {
     submit({ intent: "carrier-register" }, { method: "post" });
   }, [submit]);
 
+  const invoiceActionOptions = [
+    { label: t("auto_invoice_none"), value: "none" },
+    { label: t("auto_invoice_cancel"), value: "cancel" },
+    { label: t("auto_invoice_reverse"), value: "reverse" },
+  ];
+
   const tabs = [
     { id: "sender",     content: `📦 ${t("tab_sender")}`     },
     { id: "fan",        content: "🚛 FAN Courier"              },
@@ -419,6 +462,7 @@ export default function Settings() {
     { id: "xconnector", content: "🔗 xConnector"               },
     { id: "widget",     content: `🛒 ${t("tab_widget")}`       },
     { id: "facturare",  content: "🧾 Facturare"                 },
+    { id: "automations", content: `⚙️ ${t("tab_automations")}` },
   ];
 
   return (
@@ -847,6 +891,64 @@ export default function Settings() {
                         <Banner tone="warning" title={t("fees_note_title")}>
                           <Text>{t("fees_note", { currency })}</Text>
                         </Banner>
+                      </BlockStack>
+                    </Card>
+                  </BlockStack>
+                )}
+
+                {/* ── TAB 9: Automatizări ───────────────────────────────── */}
+                {tab === 9 && (
+                  <BlockStack gap="400">
+                    <Banner tone="info">
+                      <Text>{t("auto_intro")}</Text>
+                    </Banner>
+
+                    <Card>
+                      <BlockStack gap="300">
+                        <Text variant="headingMd" fontWeight="semibold">{t("auto_cancel_title")}</Text>
+                        <Checkbox label={t("auto_cancel_awb")} helpText={t("auto_cancel_awb_help")} checked={onCancelDeleteAwb} onChange={setOnCancelDeleteAwb} />
+                        <Select label={t("auto_cancel_invoice")} value={onCancelInvoice} onChange={setOnCancelInvoice} options={invoiceActionOptions} helpText={t("auto_invoice_action_help")} />
+                      </BlockStack>
+                    </Card>
+
+                    <Card>
+                      <BlockStack gap="300">
+                        <Text variant="headingMd" fontWeight="semibold">{t("auto_delivery_title")}</Text>
+                        <Checkbox label={t("auto_delivered_paid")} helpText={t("auto_delivered_paid_help")} checked={onDeliveredMarkPaid} onChange={setOnDeliveredMarkPaid} />
+                        <Checkbox label={t("auto_returned_cancel")} helpText={t("auto_returned_cancel_help")} checked={onReturnedCancelOrder} onChange={setOnReturnedCancelOrder} />
+                        <Select label={t("auto_returned_invoice")} value={onReturnedInvoice} onChange={setOnReturnedInvoice} options={invoiceActionOptions} />
+                        <Checkbox label={t("auto_status_tags")} helpText={t("auto_status_tags_help")} checked={statusTags} onChange={setStatusTags} />
+                      </BlockStack>
+                    </Card>
+
+                    <Card>
+                      <BlockStack gap="300">
+                        <Text variant="headingMd" fontWeight="semibold">{t("auto_invoice_title")}</Text>
+                        <Text tone="subdued">{t("auto_invoice_need_provider")}</Text>
+                        <Checkbox label={t("auto_invoice_create")} checked={autoSendInvoice} onChange={setAutoSendInvoice} />
+                        <Checkbox label={t("auto_invoice_fulfill")} checked={autoInvoiceOnFulfill} onChange={setAutoInvoiceOnFulfill} />
+                        <Checkbox label={t("auto_invoice_delivered")} helpText={t("auto_invoice_delivered_help")} checked={autoInvoiceOnDelivered} onChange={setAutoInvoiceOnDelivered} />
+                        <Checkbox label={t("auto_refund_reverse")} checked={onRefundReverseInvoice} onChange={setOnRefundReverseInvoice} />
+                      </BlockStack>
+                    </Card>
+
+                    <Card>
+                      <BlockStack gap="300">
+                        <Text variant="headingMd" fontWeight="semibold">{t("auto_awb_title")}</Text>
+                        <Checkbox label={t("auto_awb_enable")} helpText={t("auto_awb_enable_help")} checked={autoGenerateAwb} onChange={setAutoGenerateAwb} />
+                        {autoGenerateAwb && (
+                          <BlockStack gap="300">
+                            <Select label={t("auto_awb_filter")} value={autoAwbFilter} onChange={setAutoAwbFilter} options={[
+                              { label: t("auto_awb_filter_all"), value: "all" },
+                              { label: t("auto_awb_filter_cod"), value: "cod" },
+                              { label: t("auto_awb_filter_paid"), value: "paid" },
+                              { label: t("auto_awb_filter_pickup"), value: "pickup" },
+                            ]} />
+                            <Checkbox label={t("auto_awb_ship")} checked={autoAwbMarkShipped} onChange={setAutoAwbMarkShipped} />
+                            <Checkbox label={t("auto_awb_notify")} disabled={!autoAwbMarkShipped} checked={autoAwbNotifyCustomer && autoAwbMarkShipped} onChange={setAutoAwbNotifyCustomer} />
+                          </BlockStack>
+                        )}
+                        <Checkbox label={t("auto_copy_phone")} helpText={t("auto_copy_phone_help")} checked={copyCustomerPhone} onChange={setCopyCustomerPhone} />
                       </BlockStack>
                     </Card>
                   </BlockStack>
