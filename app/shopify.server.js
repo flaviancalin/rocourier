@@ -39,7 +39,19 @@ const shopify = shopifyApp({
 export default shopify;
 export const apiVersion = ApiVersion.October26;
 export const addDocumentResponseHeaders = shopify.addDocumentResponseHeaders;
-export const authenticate = shopify.authenticate;
+// A malformed `host` param makes the library throw TypeError: Invalid URL (500).
+// Answer such requests with 400 instead.
+export const authenticate = {
+  ...shopify.authenticate,
+  admin: async (request) => {
+    try {
+      return await shopify.authenticate.admin(request);
+    } catch (e) {
+      if (e?.code === "ERR_INVALID_URL") throw new Response("Bad Request", { status: 400 });
+      throw e;
+    }
+  },
+};
 export const unauthenticated = shopify.unauthenticated;
 export const login = shopify.login;
 export const registerWebhooks = shopify.registerWebhooks;
