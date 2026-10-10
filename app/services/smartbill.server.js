@@ -53,9 +53,10 @@ export async function smartbillCreateInvoice({ email, token, cif, series, tva, c
       issueDate: today,
       dueDate: today,
       client: {
-        name: order.customerName || "Client",
-        isTaxPayer: false,
-        address: order.shippingAddress1 || "",
+        name: (order.customerCompany && order.customerVatCode ? order.customerCompany : order.customerName) || "Client",
+        ...(order.customerCompany && order.customerVatCode ? { vatCode: order.customerVatCode, ...(order.customerRegCom ? { regCom: order.customerRegCom } : {}) } : {}),
+        isTaxPayer: /^RO/i.test(order.customerVatCode || ""),
+        address: (order.customerCompany && order.companyAddress) || order.shippingAddress1 || "",
         city: order.shippingCity || "",
         county: order.shippingCounty || "",
         country: order.shippingCountry || "Romania",

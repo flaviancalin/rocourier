@@ -251,6 +251,7 @@
 .rc-badge-cargus  { background: #E2002018; color: #E20020; border: 1px solid #E2002040; }
 .rc-badge-gls     { background: #FFD70060; color: #003591; border: 1px solid #FFD700;   }
 .rc-badge-packeta { background: #BA202518; color: #BA2025; border: 1px solid #BA202540; }
+.rc-badge-dpd     { background: #DC003218; color: #DC0032; border: 1px solid #DC003240; }
 
 .rc-point-info {
   flex: 1;
@@ -701,3 +702,14 @@
   .rc-method-row { padding: 12px 13px; gap: 11px; }
   .rc-method-icon { width: 34px; height: 34px; }
 }
+
+/* ── Free delivery progress ─────────────────────────────────────────────── */
+.rc-free-bar[hidden], .rc-eta[hidden] { display: none !important; }
+.rc-free-bar { display: flex; flex-direction: column; gap: 6px; margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--rc-border, #e0e0e0); border-radius: var(--rc-radius, 10px); background: var(--rc-bg, #fff); }
+.rc-free-text { font-size: 13px; line-height: 1.35; color: inherit; }
+.rc-free-track { display: block; height: 6px; border-radius: 3px; background: rgba(0, 0, 0, .08); overflow: hidden; }
+.rc-free-fill { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--rc-primary, #222); transition: width .4s ease; }
+.rc-free-done .rc-free-fill { background: #1a7f4b; }
+.rc-free-done .rc-free-text { color: #1a7f4b; font-weight: 600; }
+.rc-eta { margin: 10px 0 0; font-size: 13px; line-height: 1.4; opacity: .8; }
+@media (prefers-reduced-motion: reduce) { .rc-free-fill { transition: none; } }

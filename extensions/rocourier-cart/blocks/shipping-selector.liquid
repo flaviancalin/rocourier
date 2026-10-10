@@ -44,6 +44,11 @@
   data-packeta-pickup-fee="{{ block.settings.packeta_pickup_fee | default: 0 }}"
   data-packeta-logo="{{ 'logo-packeta.svg' | asset_url }}"
   data-packeta-pin="{{ 'pin-packeta.png' | asset_url }}"
+  data-dpd-enabled="{{ block.settings.dpd_enabled }}"
+  data-dpd-home-fee="{{ block.settings.dpd_home_fee | default: 0 }}"
+  data-dpd-pickup-fee="{{ block.settings.dpd_pickup_fee | default: 0 }}"
+  data-dpd-logo="{{ 'logo-dpd.svg' | asset_url }}"
+  data-dpd-pin="{{ 'pin-dpd.png' | asset_url }}"
 >
 
   {%- if block.settings.show_title != false -%}
@@ -51,6 +56,11 @@
     {{ block.settings.title | default: 'Metoda de livrare:' }}
   </p>
   {%- endif -%}
+
+  <div id="rc-free-bar" class="rc-free-bar" hidden>
+    <span id="rc-free-text" class="rc-free-text"></span>
+    <span class="rc-free-track"><span id="rc-free-fill" class="rc-free-fill"></span></span>
+  </div>
 
   <div class="rc-methods" role="radiogroup" aria-label="Metoda de livrare">
 
@@ -100,6 +110,8 @@
     </div>
     <button type="button" id="rc-change-point" class="rc-change-btn"><!-- translated by JS --></button>
   </div>
+
+  <p id="rc-eta" class="rc-eta" hidden></p>
 
   <div id="rc-error" class="rc-error" style="display:none;"></div>
 
@@ -166,6 +178,11 @@
         {%- if block.settings.packeta_enabled -%}
           <button type="button" class="rc-filter-btn" data-courier="packeta">
             <img src="{{ 'logo-packeta.svg' | asset_url }}" alt="Packeta" class="rc-filter-logo" width="48" height="16">
+          </button>
+        {%- endif -%}
+        {%- if block.settings.dpd_enabled -%}
+          <button type="button" class="rc-filter-btn" data-courier="dpd">
+            <img src="{{ 'logo-dpd.svg' | asset_url }}" alt="DPD" class="rc-filter-logo" width="48" height="16">
           </button>
         {%- endif -%}
       </div>
@@ -254,10 +271,13 @@
     { "type": "checkbox", "id": "gls_enabled",        "label": "Activează GLS",        "default": false },
     { "type": "number",   "id": "gls_home_fee",       "label": "Tarif livrare acasă (RON)", "default": 0 },
     { "type": "number",   "id": "gls_pickup_fee",     "label": "Tarif ParcelShop (RON)","default": 0 },
-    { "type": "header",   "content": "Packeta" },
+    { "type": "header",   "content": "Packeta și DPD" },
     { "type": "checkbox", "id": "packeta_enabled",    "label": "Activează Packeta",    "default": false },
     { "type": "number",   "id": "packeta_home_fee",   "label": "Tarif livrare acasă (RON)", "default": 0 },
-    { "type": "number",   "id": "packeta_pickup_fee", "label": "Tarif Packeta Point (RON)", "default": 0 }
+    { "type": "number",   "id": "packeta_pickup_fee", "label": "Tarif Packeta Point (RON)", "default": 0 },
+    { "type": "checkbox", "id": "dpd_enabled",        "label": "Activează DPD",        "default": false },
+    { "type": "number",   "id": "dpd_home_fee",       "label": "Tarif livrare acasă (RON)", "default": 0 },
+    { "type": "number",   "id": "dpd_pickup_fee",     "label": "Tarif DPDbox (RON)",   "default": 0 }
   ]
 }
 {% endschema %}

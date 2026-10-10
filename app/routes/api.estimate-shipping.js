@@ -41,7 +41,7 @@ export async function action({ request }) {
 
     // ── Sameday ──────────────────────────────────────────────────────────────
     if (courier === "sameday" && settings.samedayUsername && settings.samedayPassword) {
-      const { samedayGetClientPickupPoints, samedayGetServices, samedayCalculatePrice } =
+      const { samedayGetClientPickupPoints, samedayGetServices, samedayCalculatePrice, samedayServiceFor } =
         await import("../services/sameday.server.js");
 
       const [senderPoints, services] = await Promise.all([
@@ -50,7 +50,7 @@ export async function action({ request }) {
       ]);
 
       const senderPoint = senderPoints[0];
-      const svc = services.find((s) => s.code === service) || services[0];
+      const svc = samedayServiceFor(services, { override: service });
 
       if (senderPoint && svc) {
         const order = orderId ? await prisma.order.findFirst({ where: { shop, id: orderId } }) : null;

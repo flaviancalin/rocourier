@@ -4,6 +4,8 @@ import { boundary } from "@shopify/shopify-app-remix/server";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import { authenticate } from "../shopify.server.js";
 import { getOrder } from "../models/order.server.js";
+import { orderWarnings, courierFromRules } from "../services/order-checks.server.js";
+import { listActivity } from "../services/activity.server.js";
 import { prisma } from "../db.server.js";
 import { useState } from "react";
 import { useTranslation } from "../context/i18n.jsx";
@@ -22,11 +24,18 @@ export async function loader({ request, params }) {
     where: { shop: session.shop },
     select: {
       fanEnabled: true, samedayEnabled: true,
-      cargusEnabled: true, glsEnabled: true, packetaEnabled: true,
+      cargusEnabled: true, glsEnabled: true, packetaEnabled: true, dpdEnabled: true,
+      validateAddresses: true, refusalWarnThreshold: true, routingRules: true,
     },
   });
-
-  return json({ order, settings });
+  const [warnings, activity, returns] = await Promise.all([
+    order.awbNumber ? [] : orderWarnings(session.shop, order, settings),
+    listActivity(session.shop, { orderId: order.id, take: 30 }),
+    prisma.returnRequest.findMany({ where: { shop: session.shop, orderId: order.id }, orderBy: { createdAt: "desc" } }),
+  ]);
+  // Routing rules suggest a courier for the AWB wizard
+  const suggestedCourier = order.awbNumber ? null : courierFromRules({ ...settings, routingRules: settings?.routingRules }, order);
+  return json({ order, settings, warnings, activity, returns, suggestedCourier });
 }
 
 // ── Static service lists (fallback if live fetch fails) ───────────────────────
@@ -59,11 +68,14 @@ const COURIER_SERVICES = {
   packeta: [
     { label: "Standard",                          value: "standard" },
   ],
+  dpd: [
+    { label: "Serviciul din setări",              value: "" },
+  ],
 };
 
 const COURIER_LABELS = {
   fan: "FAN Courier", sameday: "Sameday",
-  cargus: "Cargus", gls: "GLS", packeta: "Packeta",
+  cargus: "Cargus", gls: "GLS", packeta: "Packeta", dpd: "DPD",
 };
 
 const STATUS_CONFIG = {
@@ -102,8 +114,41 @@ function defaultServiceFor(courier, isPickup, services) {
   return opts[0]?.value || "standard";
 }
 
+// Contract prices from every connected courier, cheapest first
+function RateCompare({ orderId, current }) {
+  const [rates, setRates] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/compare-rates?orderId=${encodeURIComponent(orderId)}`);
+      setRates((await res.json()).rates || []);
+    } catch (_) { setRates([]); }
+    setLoading(false);
+  };
+  return (
+    <Card>
+      <BlockStack gap="200">
+        <InlineStack align="space-between" blockAlign="center">
+          <Text variant="headingMd" fontWeight="semibold">Cost transport pe curieri</Text>
+          <Button size="slim" onClick={load} loading={loading}>{rates ? "Reîncarcă" : "Compară"}</Button>
+        </InlineStack>
+        {rates && (rates.length === 0 ? <Text tone="subdued">Niciun curier activ.</Text> : rates.map((r, i) => (
+          <InlineStack key={r.courier} align="space-between">
+            <Text fontWeight={r.courier === current ? "semibold" : "regular"}>{r.name}{r.courier === current ? " (ales de client)" : ""}</Text>
+            <Text tone={r.price == null ? "subdued" : i === 0 ? "success" : undefined}>
+              {r.price != null ? `${r.price.toFixed(2)} RON` : r.error ? "eroare" : "—"}
+            </Text>
+          </InlineStack>
+        )))}
+        {rates?.some((r) => r.error) && <Text tone="subdued" variant="bodySm">{rates.filter((r) => r.error).map((r) => `${r.name}: ${r.error}`).join(" · ")}</Text>}
+      </BlockStack>
+    </Card>
+  );
+}
+
 export default function OrderDetail() {
-  const { order, settings } = useLoaderData();
+  const { order, settings, warnings = [], activity = [], returns = [], suggestedCourier } = useLoaderData();
   const navigate = useNavigate();
   const { t }    = useTranslation();
   const FAN_OBSERVATIONS = FAN_OBS_KEYS.map((k) => t(k));
@@ -396,6 +441,7 @@ export default function OrderDetail() {
                 ...(settings?.cargusEnabled  ? [{ label: "Cargus",      value: "cargus"  }] : []),
                 ...(settings?.glsEnabled     ? [{ label: "GLS",         value: "gls"     }] : []),
                 ...(settings?.packetaEnabled ? [{ label: "Packeta",     value: "packeta" }] : []),
+                ...(settings?.dpdEnabled     ? [{ label: "DPD",         value: "dpd"     }] : []),
               ]}
             />
           </div>
@@ -791,6 +837,19 @@ export default function OrderDetail() {
                 </Banner>
               )}
 
+              {!order.awbNumber && warnings.length > 0 && (
+                <Banner tone={warnings.some((w) => w.code === "refusals") ? "critical" : "warning"} title="Verifică înainte de AWB">
+                  <BlockStack gap="100">
+                    {warnings.map((w) => <Text key={w.code}>• {w.message}</Text>)}
+                  </BlockStack>
+                </Banner>
+              )}
+              {!order.awbNumber && suggestedCourier && suggestedCourier !== order.courierType && (
+                <Banner tone="info" title={`Regulă de curier: ${COURIER_LABELS[suggestedCourier] || suggestedCourier}`}>
+                  <Text>O regulă din Setări → Livrare &amp; verificări recomandă acest curier pentru comanda asta. Îl poți alege în asistentul AWB.</Text>
+                </Banner>
+              )}
+
               {order.awbNumber ? (
                 <Banner title={`AWB: ${order.awbNumber}`} tone={order.awbStatus === "delivered" ? "success" : "info"}>
                   <Text>{t("wizard_courier_label")}: {COURIER_LABELS[order.courierType] || order.courierType}</Text>
@@ -815,6 +874,9 @@ export default function OrderDetail() {
                   } />
                   <DetailRow label={t("cod_label")} value={order.codAmount > 0 ? `${order.codAmount.toFixed(2)} RON` : t("paid_online")} />
                   <DetailRow label={t("weight_label")} value={`${order.weight || 1} kg`} />
+                  {order.shippingCost != null && <DetailRow label="Cost transport (curier)" value={`${order.shippingCost.toFixed(2)} RON`} />}
+                  {order.codCollectedAt && <DetailRow label="Ramburs încasat" value={`${(order.codCollectedAmount ?? 0).toFixed(2)} RON · ${new Date(order.codCollectedAt).toLocaleDateString("ro-RO")}`} />}
+                  {order.customerCompany && <DetailRow label="Firmă (factură)" value={`${order.customerCompany}${order.customerVatCode ? ` · ${order.customerVatCode}` : ""}`} />}
                   <DetailRow label={t("packages_label")} value={order.packageCount || 1} />
                 </BlockStack>
               </Card>
@@ -894,6 +956,46 @@ export default function OrderDetail() {
                 )}
               </BlockStack>
             </Card>
+
+            {!order.awbNumber && (
+              <Box paddingBlockStart="400"><RateCompare orderId={order.id} current={order.courierType} /></Box>
+            )}
+
+            {returns.length > 0 && (
+              <Box paddingBlockStart="400">
+                <Card>
+                  <BlockStack gap="200">
+                    <Text variant="headingMd" fontWeight="semibold">Retururi</Text>
+                    <Divider />
+                    {returns.map((rr) => (
+                      <InlineStack key={rr.id} align="space-between" blockAlign="center">
+                        <Text>{new Date(rr.createdAt).toLocaleDateString("ro-RO")} · {rr.reason}</Text>
+                        <Button variant="plain" url={`/app/returns?id=${rr.id}`}>{rr.status}</Button>
+                      </InlineStack>
+                    ))}
+                  </BlockStack>
+                </Card>
+              </Box>
+            )}
+
+            <Box paddingBlockStart="400">
+              <Card>
+                <BlockStack gap="200">
+                  <Text variant="headingMd" fontWeight="semibold">Istoric activitate</Text>
+                  <Divider />
+                  {activity.length === 0 ? (
+                    <Text tone="subdued">Nicio acțiune înregistrată încă.</Text>
+                  ) : activity.map((a) => (
+                    <BlockStack key={a.id} gap="050">
+                      <Text variant="bodySm">{a.message}</Text>
+                      <Text variant="bodySm" tone="subdued">
+                        {new Date(a.createdAt).toLocaleString("ro-RO", { timeZone: "Europe/Bucharest" })}{a.actor ? ` · ${a.actor === "automation" ? "automat" : a.actor}` : ""}
+                      </Text>
+                    </BlockStack>
+                  ))}
+                </BlockStack>
+              </Card>
+            </Box>
           </Layout.Section>
         </Layout>
       </Page>

@@ -19,6 +19,7 @@ const COURIER_COUNTRIES = {
   cargus:  ["RO"],
   gls:     ["RO", "HU", "CZ", "SK", "SI", "HR", "DE", "AT", "PL"],
   packeta: ["CZ", "SK", "HU", "RO", "PL", "DE", "AT", "SI", "HR", "BG"],
+  dpd:     ["RO"],
 };
 const COURIERS = Object.keys(COURIER_LABELS);
 
@@ -83,7 +84,23 @@ async function readZones(admin) {
       }
     }
   }
+  await attachPickloConditions(admin, zones);
   return { currency: data.shop.currencyCode, zones, defaultProfileId: defaultProfile?.id, defaultGroupId: defaultGroup };
+}
+
+// Price conditions ("free over X") only for Picklo's own fixed rates, in a second small
+// query: asking for them on every method of every zone pushes stores with many zones
+// over Shopify's 1000-point query cost limit.
+async function attachPickloConditions(admin, zones) {
+  const own = new Set(COURIERS.flatMap((c) => Object.values(manualRateNames(c))));
+  const methods = zones.flatMap((z) => z.methods).filter((m) => own.has(m.name) && m.rateProvider?.__typename === "DeliveryRateDefinition");
+  for (let i = 0; i < methods.length; i += 50) {
+    const chunk = methods.slice(i, i + 50);
+    const data = await gql(admin, `query ($ids: [ID!]!) { nodes(ids: $ids) { ... on DeliveryMethodDefinition {
+      id methodConditions { id operator conditionCriteria { __typename ... on MoneyV2 { amount } } } } } }`, { ids: chunk.map((m) => m.id) });
+    const byId = new Map((data.nodes || []).filter(Boolean).map((n) => [n.id, n.methodConditions || []]));
+    for (const m of chunk) m.methodConditions = byId.get(m.id) || [];
+  }
 }
 
 // Store doesn't ship to Romania yet: create a "România" zone in the main shipping
@@ -163,23 +180,57 @@ async function syncManualRates(admin, settings, enabled) {
       continue;
     }
     const create = [];
-    const update = [];
     for (const c of couriers) {
       const names = manualRateNames(c);
       for (const [kind, name] of Object.entries(names)) {
         const fee = Number(settings[kind === "home" ? `${c}HomeDeliveryFee` : `${c}PickupFee`]) || 0;
-        const price = { amount: fee.toFixed(2), currencyCode: currency };
-        const existing = zone.methods.find((m) => m.name === name && m.rateProvider?.__typename === "DeliveryRateDefinition");
-        if (!existing) create.push({ name, active: true, rateDefinition: { price } });
-        else if (Number(existing.rateProvider.price.amount) !== fee || !existing.active) {
-          update.push({ id: existing.id, active: true, rateDefinition: { id: existing.rateProvider.id, price } });
+        const wanted = desiredManualRates(settings, fee, kind === "home" ? "home" : "pickup");
+        const existing = zone.methods.filter((m) => m.name === name && m.rateProvider?.__typename === "DeliveryRateDefinition");
+        if (sameRates(existing, wanted)) continue;
+        // Replace this rate's definitions: simpler than diffing price conditions one by one
+        remove.push(...existing.map((m) => m.id));
+        for (const w of wanted) {
+          create.push({
+            name, active: true,
+            rateDefinition: { price: { amount: w.price.toFixed(2), currencyCode: currency } },
+            ...(w.min != null || w.max != null ? { priceConditionsToCreate: [
+              ...(w.min != null ? [{ operator: "GREATER_THAN_OR_EQUAL_TO", criteria: { amount: w.min.toFixed(2), currencyCode: currency } }] : []),
+              ...(w.max != null ? [{ operator: "LESS_THAN_OR_EQUAL_TO", criteria: { amount: w.max.toFixed(2), currencyCode: currency } }] : []),
+            ] } : {}),
+          });
         }
       }
     }
-    await updateZone(admin, zone, { create, update, remove });
+    await updateZone(admin, zone, { create, remove });
     done.push(zone.zoneName);
   }
   return { zones: done, currency };
+}
+
+// Without CCS, "free delivery over X" is two fixed rates with order-total conditions:
+// the normal price below the threshold and 0 from the threshold up.
+export function desiredManualRates(settings, fee, kind) {
+  const threshold = Number(settings.freeShippingThreshold) || 0;
+  const applies = threshold > 0 && fee > 0 && (settings.freeShippingScope !== "pickup" || kind === "pickup");
+  if (!applies) return [{ price: fee, min: null, max: null }];
+  return [
+    { price: fee, min: null, max: Math.round((threshold - 0.01) * 100) / 100 },
+    { price: 0, min: threshold, max: null },
+  ];
+}
+
+function sameRates(existing, wanted) {
+  if (existing.length !== wanted.length || existing.some((m) => !m.active)) return false;
+  const shape = (price, min, max) => `${Number(price).toFixed(2)}|${min ?? ""}|${max ?? ""}`;
+  const have = existing.map((m) => {
+    const cond = (op) => {
+      const c = (m.methodConditions || []).find((x) => x.operator === op && x.conditionCriteria?.__typename === "MoneyV2");
+      return c ? Number(c.conditionCriteria.amount).toFixed(2) : null;
+    };
+    return shape(m.rateProvider.price.amount, cond("GREATER_THAN_OR_EQUAL_TO"), cond("LESS_THAN_OR_EQUAL_TO"));
+  }).sort();
+  const want = wanted.map((w) => shape(w.price, w.min?.toFixed(2) ?? null, w.max?.toFixed(2) ?? null)).sort();
+  return have.join(",") === want.join(",");
 }
 
 // Turns on Picklo's delivery customization function (renames the pickup rate to the

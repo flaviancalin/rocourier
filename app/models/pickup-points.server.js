@@ -8,7 +8,8 @@ import { fanGetPickupPoints } from "../services/fan-courier.server.js";
 import { samedayGetLockers } from "../services/sameday.server.js";
 import { cargusGetPickupPoints } from "../services/cargus.server.js";
 import { glsGetPickupPoints    } from "../services/gls.server.js";
-import { packetaGetPickupPoints } from "../services/packeta.server.js";
+import { packetaGetPickupPoints, packetaCredentials } from "../services/packeta.server.js";
+import { dpdGetPickupPoints } from "../services/dpd.server.js";
 
 const CACHE_TTL_HOURS = 24;
 
@@ -41,8 +42,16 @@ async function getSyncCredentials() {
       password:        process.env.CARGUS_SYNC_PASSWORD          || shop?.cargusPassword         || null,
     },
     packeta: {
-      apiKey: process.env.PACKETA_SYNC_API_KEY || shop?.packetaApiKey || null,
+      // Feeds need the 16-char API key (not the 32-char API password)
+      apiKey: packetaCredentials({ packetaApiKey: process.env.PACKETA_SYNC_API_KEY }).apiKey
+        || packetaCredentials(await prisma.shopSettings.findFirst({ where: { packetaEnabled: true, packetaApiKey: { not: null } }, select: { packetaApiKey: true, packetaApiPassword: true } })).apiKey
+        || null,
     },
+    // DPD offices are public data but the API needs a login: env vars, else any shop with DPD set up
+    dpd: process.env.DPD_SYNC_USERNAME
+      ? { username: process.env.DPD_SYNC_USERNAME, password: process.env.DPD_SYNC_PASSWORD }
+      : await prisma.shopSettings.findFirst({ where: { dpdUsername: { not: null }, dpdPassword: { not: null } }, select: { dpdUsername: true, dpdPassword: true } })
+          .then((d) => ({ username: d?.dpdUsername || null, password: d?.dpdPassword || null })),
   };
 }
 
@@ -51,7 +60,7 @@ async function getSyncCredentials() {
 // couriers: which carriers to return — caller filters by merchant's enabled list
 // ─────────────────────────────────────────────────────────────────────────────
 export async function getPickupPoints({
-  couriers = ["fan", "sameday", "cargus", "gls", "packeta"],
+  couriers = ["fan", "sameday", "cargus", "gls", "packeta", "dpd"],
   country = null,
   lat = null,
   lng = null,
@@ -117,9 +126,9 @@ async function bulkReplace(courier, rows) {
   await prisma.pickupPoint.createMany({ data: rows, skipDuplicates: true });
 }
 
-export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "cargus", "gls", "packeta"] } = {}) {
+export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "cargus", "gls", "packeta", "dpd"] } = {}) {
   const creds = await getSyncCredentials();
-  const results = { fan: 0, sameday: 0, cargus: 0, gls: 0, packeta: 0, errors: [] };
+  const results = { fan: 0, sameday: 0, cargus: 0, gls: 0, packeta: 0, dpd: 0, errors: [] };
   const samedayCreds = creds.sameday;
 
   // All carriers in parallel — total time = slowest single carrier, not sum of all
@@ -221,6 +230,22 @@ export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "
       } catch (e) {
         results.errors.push(`Packeta: ${e.message}`);
         console.error("[SYNC] Packeta error:", e.message);
+      }
+    })(),
+
+    // ── DPD (offices + DPDbox lockers) ─────────────────────────────────────────
+    (async () => {
+      if (!couriers.includes("dpd")) return;
+      // No store uses DPD yet: nothing to sync, not an error
+      if (!creds.dpd.username || !creds.dpd.password) return;
+      try {
+        const points = await dpdGetPickupPoints(creds.dpd);
+        await bulkReplace("dpd", points.map((p) => ({ ...p, isActive: true })));
+        results.dpd = points.length;
+        console.error(`[SYNC] DPD: ${points.length} puncte stocate`);
+      } catch (e) {
+        results.errors.push(`DPD: ${e.message}`);
+        console.error("[SYNC] DPD error:", e.message);
       }
     })(),
 

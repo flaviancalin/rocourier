@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+  /* Tema se alege o singura data, pentru ghiduri, pagina de start si Scalar: aceeasi cheie
+     `colorMode` din localStorage pe care o citeste Scalar. Fara alegere explicita, tema sistemului.
+     Sta inaintea CSS-ului, ca pagina sa nu clipeasca alb in modul intunecat. */
+  (function () {
+    try {
+      var m = localStorage.getItem('colorMode');
+      if (m !== 'dark' && m !== 'light') { m = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; }
+      document.documentElement.setAttribute('data-tema', m);
+    } catch (e) { }
+  })();
+</script>
+<title>Emiterea unei facturi — FGO API</title>
+<link rel="icon" href="../favicon.ico">
+<style>
+  /* Fara fonturi si fara scripturi externe: pagina trebuie sa arate la fel si in retele care
+     blocheaza CDN-uri, si sa nu depinda de un tert ca sa fie lizibila. Aceeasi regula ca la Scalar. */
+  /* Paleta este exact cea a temei implicite Scalar (`--scalar-background-1/2`, `--scalar-color-1/2`,
+     `--scalar-border-color`, `--scalar-color-accent`), in ambele moduri, ca fundalul si textul sa nu
+     se schimbe la trecerea dintr-un tab in altul. Daca se schimba tema Scalar, se schimba si aici. */
+  :root {
+    color-scheme: light dark;
+    --fundal: #ffffff;
+    --fundal-2: #f6f6f6;
+    --text: #1b1b1b;
+    --text-secundar: #757575;
+    --linie: #dfdfdf;
+    --accent: #0099ff;
+    --cod-fundal: #f6f6f6;
+    --cod-text: #b3134f;
+    --nota-fundal: #fff8e1;
+    --nota-linie: #f2c94c;
+  }
+  :root[data-tema="light"] { color-scheme: light; }
+  :root[data-tema="dark"] {
+    color-scheme: dark;
+      --fundal: #0f0f0f;
+      --fundal-2: #1a1a1a;
+      --text: #e7e7e7;
+      --text-secundar: #a4a4a4;
+      --linie: #2d2d2d;
+      --accent: #00aeff;
+      --cod-fundal: #1a1a1a;
+      --cod-text: #ff9bc2;
+      --nota-fundal: #2a2410;
+      --nota-linie: #8a6d1a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-tema="light"]) {
+      --fundal: #0f0f0f;
+      --fundal-2: #1a1a1a;
+      --text: #e7e7e7;
+      --text-secundar: #a4a4a4;
+      --linie: #2d2d2d;
+      --accent: #00aeff;
+      --cod-fundal: #1a1a1a;
+      --cod-text: #ff9bc2;
+      --nota-fundal: #2a2410;
+      --nota-linie: #8a6d1a;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--fundal); color: var(--text); }
+  /* Aceleasi stive de fonturi ca `--scalar-font` / `--scalar-font-code` din Scalar (fara Inter si
+     JetBrains Mono descarcate: `DefaultFonts = false`), ca textul sa arate la fel in ambele taburi. */
+  body {
+    font: 16px/1.65 "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    display: flex; min-height: 100vh; flex-direction: column;
+  }
+
+  /* Ca la developers.trendyol.com: marca, meniul lateral si textul stau intr-un container
+     centrat de 1440px; bara de sus ramane pe toata latimea, dar continutul ei are aceeasi
+     margine ca meniul de dedesubt. Aceeasi bara si acelasi container sunt puse si peste
+     Scalar (Program.cs, HeadContent), ca trecerea dintr-un tab in altul sa nu miste nimic. */
+  .interior { width: 100%; max-width: 1440px; margin: 0 auto; }
+
+  .taburi {
+    border-bottom: 1px solid var(--linie);
+    background: var(--fundal); position: sticky; top: 0; z-index: 2;
+    font-size: 15px; line-height: 24px;
+  }
+  .taburi .interior { display: flex; align-items: center; gap: 4px; padding: 0 20px; height: 52px; }
+  .taburi .marca { font-weight: 600; margin-right: 16px; color: var(--text); text-decoration: none; }
+  .taburi a.tab {
+    display: inline-flex; align-items: center; height: 52px; padding: 0 14px;
+    color: var(--text-secundar); text-decoration: none; border-bottom: 2px solid transparent;
+  }
+  .taburi a.tab.activ { color: var(--text); border-bottom-color: var(--accent); }
+  .taburi a.tab:hover { color: var(--text); }
+
+  .corp { display: flex; flex: 1; min-height: 0; }
+  nav.lateral {
+    width: 260px; flex: none; padding: 20px 12px; border-right: 1px solid var(--linie);
+    position: sticky; top: 52px; height: calc(100vh - 52px); overflow-y: auto;
+  }
+  nav.lateral ol { list-style: none; margin: 0; padding: 0; }
+  nav.lateral li a {
+    display: block; padding: 7px 10px; border-radius: 6px; color: var(--text-secundar);
+    text-decoration: none; font-size: 14.5px;
+  }
+  nav.lateral li a:hover { color: var(--text); background: var(--cod-fundal); }
+  nav.lateral li a.activ { color: var(--text); background: var(--cod-fundal); font-weight: 600; }
+  nav.lateral li.sectiune { margin: 18px 10px 6px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-secundar); }
+  nav.lateral li.sectiune:first-child { margin-top: 4px; }
+  nav.lateral li a.extern::after { content: " \2197"; color: var(--text-secundar); font-size: 12px; }
+
+  main { flex: 1; min-width: 0; padding: 36px 56px 80px; }
+  main h1 { font-size: 30px; line-height: 1.2; margin: 0 0 20px; letter-spacing: -0.01em; }
+  main h2 { font-size: 21px; margin: 40px 0 12px; padding-top: 8px; border-top: 1px solid var(--linie); }
+  main h3 { font-size: 17px; margin: 28px 0 8px; }
+  main p, main li { max-width: 72ch; }
+  main a { color: var(--accent); }
+  main code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.9em;
+    background: var(--cod-fundal); color: var(--cod-text); padding: 0 4px; border-radius: 4px;
+  }
+  main pre {
+    background: var(--fundal-2); color: var(--text); border: 1px solid var(--linie); padding: 14px 16px;
+    border-radius: 8px; overflow-x: auto; font-size: 13.5px; line-height: 1.5; max-width: 100%;
+  }
+  main pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
+  .exemplu-cod { margin: 1em 0; border: 1px solid var(--linie); border-radius: 8px; overflow: hidden; background: var(--fundal-2); }
+  .exemplu-cod pre { margin: 0; border: 0; border-radius: 0; }
+  .bara-cod { display: flex; justify-content: flex-end; padding: 6px 10px; border-bottom: 1px solid var(--linie); }
+  .copiaza-cod { font: inherit; font-size: 13px; color: var(--text); background: var(--fundal); border: 1px solid var(--linie); border-radius: 5px; padding: 4px 10px; cursor: pointer; }
+  .copiaza-cod:hover { border-color: var(--text-secundar); }
+  .copiaza-cod:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  main table { border-collapse: collapse; margin: 12px 0 20px; display: block; overflow-x: auto; max-width: 100%; }
+  main th, main td { border: 1px solid var(--linie); padding: 7px 12px; text-align: left; vertical-align: top; font-size: 14.5px; }
+  main th { background: var(--fundal-2); }
+  main blockquote {
+    margin: 16px 0; padding: 10px 16px; border-left: 4px solid var(--nota-linie);
+    background: var(--nota-fundal); border-radius: 0 6px 6px 0;
+  }
+  main blockquote p { margin: 6px 0; }
+  main hr { border: 0; border-top: 1px solid var(--linie); margin: 32px 0; }
+
+  @media (max-width: 860px) {
+    .corp { flex-direction: column; }
+    nav.lateral { width: auto; position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--linie); }
+    main { padding: 24px 20px 60px; }
+  }
+  /* Comutatorul de tema: aceeasi pozitie in toate barele (ghiduri, start, Scalar). */
+  .tema { margin-left: auto; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--linie);
+    background: var(--fundal); color: var(--text); cursor: pointer; font: inherit; font-size: 16px; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+  .tema:hover { border-color: var(--text-secundar); }
+  .tema::before { content: "\263E"; }
+  :root[data-tema="dark"] .tema::before { content: "\2600"; }
+</style>
+</head>
+<body>
+<header class="taburi">
+  <div class="interior">
+    <a class="marca" href="../">FGO API</a>
+    <a class="tab activ" href="inceput-rapid" aria-current="page">Ghiduri</a>
+    <a class="tab" href="../scalar/">Referință API</a>
+    <button class="tema" type="button" aria-label="Schimbă tema" title="Schimbă tema"></button>
+  </div>
+</header>
+<div class="corp interior">
+  <nav class="lateral" aria-label="Ghiduri">
+    <ol>
+<li class="sectiune">API v2</li>
+<li><a href="inceput-rapid">Primii pași</a></li>
+<li><a href="autentificare">Autentificare</a></li>
+<li><a href="emiterea-unei-facturi" class="activ" aria-current="page">Emiterea unei facturi</a></li>
+<li><a href="erori-si-reluari">Erori, limite și reluări</a></li>
+<li><a href="liste-si-paginare">Liste, paginare și fields</a></li>
+<li><a href="formate">Date, ore și numere</a></li>
+<li><a href="identificatori">Identificatori</a></li>
+<li><a href="compatibilitate-si-retragere">Depreciere și retragere</a></li>
+<li><a href="migrare-de-la-v1">Migrarea de la v1</a></li>
+<li class="sectiune">MCP</li>
+<li><a href="mcp-conectare">Conectare</a></li>
+
+    </ol>
+  </nav>
+  <main>
+    <h1>Emiterea unei facturi</h1>
+<p><code>POST /v2/facturi</code> creează și emite o factură: client, articole, număr alocat din registru, totul într-o singură tranzacție. Dacă ceva nu trece, nu rămâne nimic în urmă — nici client, nici factură pe jumătate.</p>
+<h2 id="inainte-de-primul-apel">Înainte de primul apel</h2>
+<p>Trei lucruri de pregătit în FGO, o singură dată:</p>
+<ol>
+<li><strong>Un registru de facturi</strong> care conține seria pe care o trimiți. Registrul poate fi comun sau al utilizatorului API.</li>
+<li><strong>O cheie API cu dreptul <code>facturi:emitere</code>.</strong> Vezi <a href="autentificare">Autentificare</a>.</li>
+<li><strong>Adresa site-ului</strong> din care emiți, înregistrată în <a href="https://www.fgo.ro/v4/setari-ecommerce/api">Setări eCommerce → API</a>. O trimiți în headerul <code>Fgo-Url-Platforma</code> la fiecare emitere.</li>
+</ol>
+<h2 id="cererea">Cererea</h2>
+<pre><code class="language-json">{
+  &quot;serie&quot;: &quot;FGO&quot;,
+  &quot;valuta&quot;: &quot;RON&quot;,
+  &quot;tip_factura&quot;: &quot;F&quot;,
+  &quot;data_emitere&quot;: &quot;2026-09-03&quot;,
+  &quot;data_scadenta&quot;: &quot;2026-09-18&quot;,
+  &quot;id_extern&quot;: &quot;comanda-10425&quot;,
+  &quot;verificare_duplicat&quot;: true,
+  &quot;client&quot;: {
+    &quot;tip&quot;: &quot;PJ&quot;,
+    &quot;denumire&quot;: &quot;Client Exemplu SRL&quot;,
+    &quot;cod_unic&quot;: &quot;12345674&quot;,
+    &quot;email&quot;: &quot;facturi@client-exemplu.ro&quot;,
+    &quot;tara&quot;: &quot;Romania&quot;,
+    &quot;cod_judet&quot;: &quot;B&quot;,
+    &quot;localitate&quot;: &quot;Bucuresti&quot;,
+    &quot;adresa&quot;: &quot;Str. Exemplu nr. 10&quot;
+  },
+  &quot;articole&quot;: [
+    {
+      &quot;cod_articol&quot;: &quot;SERV-CONSULT&quot;,
+      &quot;denumire&quot;: &quot;Servicii consultanta&quot;,
+      &quot;um&quot;: &quot;ora&quot;,
+      &quot;nr_produse&quot;: 1,
+      &quot;pret_unitar&quot;: 100,
+      &quot;cota_tva&quot;: 0.21
+    }
+  ]
+}
+</code></pre>
+<p>Obligatorii sunt <code>serie</code>, <code>valuta</code>, <code>tip_factura</code> și <code>articole</code> cu cel puțin un articol. <code>data_emitere</code> lipsă înseamnă azi; <code>data_scadenta</code> lipsă se calculează din setările firmei.</p>
+<h3 id="clientul">Clientul</h3>
+<p><code>client.tip</code> e <code>PJ</code> sau <code>PF</code>. Un client <code>PJ</code> are nevoie de <code>denumire</code> și <code>cod_unic</code>; unul <code>PF</code> de <code>denumire</code> și, dacă îl ai, de CNP în același <code>cod_unic</code>.</p>
+<p>FGO caută clientul după <code>cod_unic</code>. Dacă îl găsește, îl folosește; dacă nu, îl creează din ce ai trimis. Pentru persoanele juridice românești, datele oficiale — denumire, număr la Registrul Comerțului, plătitor de TVA, județ, localitate, adresă — se completează din ANAF și pot înlocui ce ai trimis tu. Nu e o eroare: e clientul așa cum e înregistrat oficial.</p>
+<p><code>cod_judet</code> e codul canonic din <code>GET /v2/nomenclatoare/judete</code> (<code>B</code>, <code>IS</code>, <code>CJ</code>), nu numele județului. <code>tara</code> e denumirea din <code>GET /v2/nomenclatoare/tari</code>.</p>
+<h3 id="articolele">Articolele</h3>
+<p>Fiecare articol are obligatoriu <code>denumire</code> și <code>nr_produse</code>. Prețul îl dai fie ca <code>pret_unitar</code>, fie ca <code>pret_total</code>.</p>
+<p><code>cota_tva</code> e coeficientul din <code>GET /v2/nomenclatoare/cote-tva</code>: <code>0.21</code> pentru 21%, <code>0</code> pentru scutit. E obligatorie, cu o excepție: la <code>tip_factura</code> = <code>T</code> (taxare inversă) o poți omite, FGO pune zero.</p>
+<p>Articolul se leagă de nomenclatorul firmei printr-un singur câmp, cel ales de firmă în FGO, la Configurare API, setarea „Căutare articole după”:</p>
+<table>
+<thead>
+<tr>
+<th>Setarea firmei</th>
+<th>Câmpul după care se caută</th>
+<th>Cum se potrivește</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>cod articol (implicit)</td>
+<td><code>cod_articol</code></td>
+<td>exact, pe codul comercial</td>
+</tr>
+<tr>
+<td>cod de bare</td>
+<td><code>cod_bare</code></td>
+<td>exact, pe codul de bare</td>
+</tr>
+<tr>
+<td>denumire</td>
+<td><code>denumire</code></td>
+<td>exact, pe denumire</td>
+</tr>
+</tbody>
+</table>
+<p>Poți trimite pe linie toate câmpurile, <code>cod_articol</code>, <code>cod_bare</code> și <code>denumire</code>. FGO caută articolul doar după câmpul modului; dacă nu-l găsește, creează un articol nou cu denumirea și cu toate codurile trimise, așa că următoarea emitere îl găsește. Dacă îl găsește după cod, dar cu altă denumire, decide setarea „Generare articol nou” din aceeași pagină: articol nou cu codul trimis, sau primul articol cu acel cod.</p>
+<p>O linie fără codul modului caută articolul după <code>denumire</code> și îl creează dacă lipsește, cu codurile trimise pe el. Așa merg taxele, transportul, discounturile, orice linie pe care integratorul nu o ține cu codul firmei. La emitere setarea e o prioritate, nu o restricție: nicio linie nu e respinsă din cauza ei. Aceeași setare decide și filtrele acceptate la <code>GET /v2/articole</code> și pe operațiile de stoc, unde regula e strictă: doar câmpul modului, altfel <code>400 validation</code>. <code>cod_gestiune</code> descarcă stocul din gestiunea aceea.</p>
+<h3 id="discounturi">Discounturi</h3>
+<p>Un discount e o linie ca oricare alta, cu <code>tip</code> = <code>Discount</code>. Se leagă de articolul pe care îl reduce prin <code>nr_crt_articol</code>, care indică <code>nr_crt</code>-ul acelei linii. Valoarea negativă o dai în unul din trei feluri, toate cu același rezultat, cantitate negativă și preț pozitiv:</p>
+<table>
+<thead>
+<tr>
+<th>Forma</th>
+<th>Câmpuri</th>
+<th>Observații</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>total negativ</td>
+<td><code>pret_total: -12.10</code>, <code>nr_produse: 1</code></td>
+<td>totalul negativ trece cantitatea pe minus</td>
+</tr>
+<tr>
+<td>cantitate negativă, total pozitiv</td>
+<td><code>pret_total: 12.10</code>, <code>nr_produse: -1</code></td>
+<td>forma trimisă de modulele FGO pentru WooCommerce</td>
+</tr>
+<tr>
+<td>cantitate negativă, preț unitar pozitiv</td>
+<td><code>pret_unitar: 10</code>, <code>nr_produse: -1</code></td>
+<td>calcul clasic, fără TVA în preț</td>
+</tr>
+</tbody>
+</table>
+<p><code>pret_unitar</code> negativ e respins: valoarea negativă se dă prin cantitate sau prin total. <code>pret_total</code> include TVA.</p>
+<pre><code class="language-json">&quot;articole&quot;: [
+  {
+    &quot;tip&quot;: &quot;Articol&quot;,
+    &quot;nr_crt&quot;: 1,
+    &quot;cod_articol&quot;: &quot;SERV-CONSULT&quot;,
+    &quot;denumire&quot;: &quot;Servicii consultanta&quot;,
+    &quot;um&quot;: &quot;ora&quot;,
+    &quot;nr_produse&quot;: 1,
+    &quot;pret_unitar&quot;: 100,
+    &quot;cota_tva&quot;: 0.21
+  },
+  {
+    &quot;tip&quot;: &quot;Discount&quot;,
+    &quot;nr_crt&quot;: 2,
+    &quot;nr_crt_articol&quot;: 1,
+    &quot;denumire&quot;: &quot;Discount 10% Servicii consultanta&quot;,
+    &quot;um&quot;: &quot;ora&quot;,
+    &quot;nr_produse&quot;: 1,
+    &quot;pret_total&quot;: -12.10,
+    &quot;cota_tva&quot;: 0.21
+  }
+]
+</code></pre>
+<p>Un discount fără <code>nr_crt_articol</code> rămâne pe factură, nelegat de o linie. <code>efactura</code> nu e permis pe discount. Discountul nu trimite de regulă niciun cod: FGO îl caută după denumire în nomenclator și, dacă nu-l găsește, îl creează ca articol al firmei, la fel ca orice linie fără cod. Dacă îi pui un cod, se aplică aceleași reguli ca la articole.</p>
+<h3 id="e-factura">e-Factura</h3>
+<p>Când cumpărătorul cere referințe în XML-ul e-Factura — număr de comandă, contract, coduri CPV pe produs — le pui în <code>efactura</code>, la nivel de factură și pe fiecare articol. Sunt opționale; maparea completă către câmpurile BT e în <a href="../scalar/#tag/facturi">referință, la operație</a>.</p>
+<h2 id="verificarea-duplicatelor">Verificarea duplicatelor</h2>
+<p>Trimite <code>&quot;verificare_duplicat&quot;: true</code> pentru a verifica dacă factura există deja. Opțiunea este implicit dezactivată.</p>
+<ul>
+<li>Dacă <code>id_extern</code> este nenul, verificarea folosește acest identificator, firma cheii API și seria transmisă.</li>
+<li>Dacă <code>id_extern</code> lipsește sau este <code>null</code>, verificarea folosește <code>serie</code> și <code>numar</code>, dacă ambele sunt completate.</li>
+<li>Fără ID extern și fără serie și număr, nu există un criteriu de verificare.</li>
+</ul>
+<p>Dacă factura este găsită, API-ul răspunde <code>400 invalid-state</code>, cu <code>motiv.cod=factura_duplicata</code>, cu seria și numărul facturii existente în <code>detail</code>, și nu emite o factură nouă. Dacă verificarea întâmpină o eroare, emiterea se oprește.</p>
+<p>Verificarea privește facturile deja salvate; nu garantează unicitatea între cereri simultane. Dacă pierzi răspunsul la emitere, verifică mai întâi rezultatul prin <code>GET /v2/facturi</code>. Nu retrimite automat cât timp prima cerere ar putea fi încă în curs.</p>
+<h2 id="raspunsul">Răspunsul</h2>
+<pre><code class="language-json">{
+  &quot;data&quot;: {
+    &quot;serie&quot;: &quot;FGO&quot;,
+    &quot;numar&quot;: &quot;1201&quot;,
+    &quot;stocuri&quot;: [
+      { &quot;cod_articol&quot;: &quot;PROD-001&quot;, &quot;cod_bare&quot;: &quot;5941234567005&quot;, &quot;nume&quot;: &quot;Produs demonstrativ&quot;, &quot;cod_gestiune&quot;: &quot;DEPOZIT&quot;, &quot;stoc&quot;: 41.000 }
+    ]
+  },
+  &quot;meta&quot;: { &quot;timestamp&quot;: &quot;2026-09-03T12:00:00+03:00&quot; }
+}
+</code></pre>
+<p>Seria și numărul: factura există și e emisă. <code>stocuri</code> are câte un element pentru fiecare linie care a descărcat stoc, cu stocul rămas după această factură și cu codul, codul de bare și numele articolului din nomenclator. O integrare de magazin îl scrie direct pe produsul vândut, fără o cerere separată. Lista e goală, nu absentă, când firma nu ține stoc pe articol, când tipul de document nu descarcă stoc sau când drepturile firmei nu permit expunerea stocului.</p>
+<p>Din ce gestiune e stocul: dacă linia a avut <code>cod_gestiune</code> și firma lucrează cu gestiuni pe linie, elementul îl repetă și <code>stoc</code> este stocul rămas în acea gestiune, cea din care s-a descărcat. Fără gestiune pe linie, <code>cod_gestiune</code> este <code>null</code> și <code>stoc</code> este stocul total al articolului, din toate gestiunile. Un magazin care vinde dintr-o singură gestiune trimite același <code>cod_gestiune</code> pe fiecare linie și citește restul stocului cu <code>GET /v2/stocuri/stoc-gestiune</code> pe aceeași gestiune, ca cele două cifre să însemne același lucru. Același articol pe mai multe linii scade cumulat: al doilea element pleacă de la stocul rămas după primul.</p>
+<p>Restul — PDF, link de plată, încasări — se cere separat, pe <code>/v2/facturi/{serie}/{numar}/...</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Vrei</th>
+<th>Apelezi</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PDF-ul</td>
+<td><code>POST /v2/facturi/{serie}/{numar}/genereaza-link-de-descarcare</code></td>
+</tr>
+<tr>
+<td>link de plată</td>
+<td><code>POST /v2/facturi/{serie}/{numar}/genereaza-link-de-plata</code></td>
+</tr>
+<tr>
+<td>să o trimiți clientului</td>
+<td><code>POST /v2/facturi/{serie}/{numar}/trimite-pe-email</code></td>
+</tr>
+<tr>
+<td>să o trimiți la ANAF</td>
+<td><code>POST /v2/facturi/{serie}/{numar}/trimite-in-spv</code>, apoi <code>GET .../efactura</code> pentru status</td>
+</tr>
+<tr>
+<td>să înregistrezi o încasare</td>
+<td><code>POST /v2/facturi/{serie}/{numar}/incasari</code></td>
+</tr>
+<tr>
+<td>starea ei</td>
+<td><code>GET /v2/facturi/{serie}/{numar}</code></td>
+</tr>
+<tr>
+<td>să o anulezi</td>
+<td><code>POST /v2/facturi/{serie}/{numar}/anuleaza</code> — rămâne în evidență, marcată anulată</td>
+</tr>
+<tr>
+<td>să o stornezi</td>
+<td><code>POST /v2/facturi/{serie}/{numar}/storneaza</code> — emite factura de stornare</td>
+</tr>
+<tr>
+<td>să retragi o stornare</td>
+<td><code>POST /v2/facturi/{serie}/{numar}/repune-in-vigoare-factura-stornata</code> — folosește seria și numărul originalului; acesta revine la starea emisă, iar documentul storno este șters logic. Necesită <code>facturi:anulare</code> și <code>Fgo-Url-Platforma</code>.</td>
+</tr>
+<tr>
+<td>să o ștergi</td>
+<td><code>DELETE /v2/facturi/{serie}/{numar}</code> — numai dacă nu e încasată și nu e în SPV</td>
+</tr>
+</tbody>
+</table>
+<p>Linkul PDF e un short link FGO și rămâne același cât timp factura nu se schimbă, deci îl poți păstra.</p>
+<h2 id="limita-de-apeluri">Limita de apeluri</h2>
+<p>O emitere pe secundă, pe firmă. A doua în aceeași secundă primește <code>429</code> cu <code>Retry-After</code>. Dacă emiți în lot, serializează apelurile și respectă headerul — vezi <a href="erori-si-reluari">Erori, limite și reluări</a>.</p>
+
+  </main>
+</div>
+<script>
+  document.querySelectorAll('main pre > code').forEach(function (cod) {
+    var pre = cod.parentElement;
+    var exemplu = document.createElement('div');
+    exemplu.className = 'exemplu-cod';
+    var bara = document.createElement('div');
+    bara.className = 'bara-cod';
+    var buton = document.createElement('button');
+    buton.type = 'button';
+    buton.className = 'copiaza-cod';
+    buton.textContent = 'Copiază';
+    buton.setAttribute('aria-label', 'Copiază exemplul de cod');
+    buton.setAttribute('aria-live', 'polite');
+    bara.appendChild(buton);
+    pre.before(exemplu);
+    exemplu.append(bara, pre);
+    var resetare;
+    buton.addEventListener('click', async function () {
+      clearTimeout(resetare);
+      buton.disabled = true;
+      try {
+        await navigator.clipboard.writeText(cod.textContent);
+        buton.textContent = 'Copiat!';
+        buton.setAttribute('aria-label', 'Cod copiat');
+      } catch (e) {
+        var selectie = window.getSelection();
+        var interval = document.createRange();
+        interval.selectNodeContents(cod);
+        selectie.removeAllRanges();
+        selectie.addRange(interval);
+        buton.textContent = 'Copiază manual';
+        buton.setAttribute('aria-label', 'Copierea nu a reușit. Copiază manual codul selectat.');
+      } finally {
+        buton.disabled = false;
+        resetare = setTimeout(function () {
+          buton.textContent = 'Copiază';
+          buton.setAttribute('aria-label', 'Copiază exemplul de cod');
+        }, 3000);
+      }
+    });
+  });
+  document.querySelector('.tema').addEventListener('click', function () {
+    var m = document.documentElement.getAttribute('data-tema') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-tema', m);
+    try { localStorage.setItem('colorMode', m); } catch (e) { }
+  });
+</script>
+</body>
+</html>

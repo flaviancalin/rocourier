@@ -8,6 +8,7 @@ const COURIER_LABELS = {
   cargus:  { home: "Cargus",          pickup: "Cargus Ship & Go" },
   gls:     { home: "GLS",             pickup: "GLS ParcelShop"   },
   packeta: { home: "Packeta",         pickup: "Packeta / Z-BOX"  },
+  dpd:     { home: "DPD",             pickup: "DPDbox / Punct DPD" },
 };
 
 export default function extension() {

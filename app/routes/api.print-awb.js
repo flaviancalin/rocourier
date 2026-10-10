@@ -2,11 +2,7 @@
 // Download and stream the AWB label PDF for any courier
 import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
-import { fanPrintAwb } from "../services/fan-courier.server.js";
-import { samedayDownloadAwbPdf } from "../services/sameday.server.js";
-import { cargusDownloadAwbPdf } from "../services/cargus.server.js";
-import { glsDownloadAwbPdf } from "../services/gls.server.js";
-import { packetaDownloadLabel } from "../services/packeta.server.js";
+import { fetchLabelPdf } from "../services/labels.server.js";
 
 export async function loader({ request }) {
   const { session } = await authenticate.admin(request);
@@ -14,6 +10,23 @@ export async function loader({ request }) {
 
   const url = new URL(request.url);
   const orderId = url.searchParams.get("orderId");
+
+  // Return label: same courier modules, with the return AWB
+  const returnId = url.searchParams.get("returnId");
+  if (returnId) {
+    const [rr, s] = await Promise.all([
+      prisma.returnRequest.findFirst({ where: { shop, id: returnId } }),
+      prisma.shopSettings.findUnique({ where: { shop } }),
+    ]);
+    if (!rr?.returnAwbNumber) return new Response("No return AWB", { status: 404 });
+    try {
+      const pdf = await fetchLabelPdf({ courierType: rr.returnCourier, awbNumber: rr.returnAwbNumber, awbPdfUrl: null }, s);
+      return new Response(pdf, { headers: { "Content-Type": "application/pdf", "Content-Disposition": `inline; filename="RETUR_${rr.returnAwbNumber}.pdf"` } });
+    } catch (e) {
+      return new Response(`Error: ${e.message}`, { status: 500 });
+    }
+  }
+
   if (!orderId) {
     return new Response("Missing orderId", { status: 400 });
   }
@@ -29,62 +42,7 @@ export async function loader({ request }) {
   const courier = order.courierType;
 
   try {
-    let pdfBuffer;
-
-    if (courier === "fan") {
-      pdfBuffer = await fanPrintAwb({
-        clientId: settings.fanClientId,
-        username: settings.fanUsername,
-        password: settings.fanPassword,
-        awbNumber: order.awbNumber,
-      });
-
-    } else if (courier === "sameday") {
-      pdfBuffer = await samedayDownloadAwbPdf({
-        username: settings.samedayUsername,
-        password: settings.samedayPassword,
-        sandbox: !!settings.samedaySandbox,
-        awbNumber: order.awbNumber,
-      });
-
-    } else if (courier === "cargus") {
-      pdfBuffer = await cargusDownloadAwbPdf({
-        subscriptionKey: settings.cargusSubscriptionKey,
-        username: settings.cargusUsername,
-        password: settings.cargusPassword,
-        awbNumber: order.awbNumber,
-      });
-
-    } else if (courier === "gls") {
-      if (order.awbPdfUrl?.startsWith("gls_label:")) {
-        // Label was stored at AWB creation time — decode directly, no API call needed
-        pdfBuffer = Buffer.from(order.awbPdfUrl.replace("gls_label:", ""), "base64");
-      } else {
-        // Fallback for older orders that only have parcelId stored
-        pdfBuffer = await glsDownloadAwbPdf({
-          username: settings.glsUsername,
-          password: settings.glsPassword,
-          sandbox: !!settings.glsSandbox,
-          awbNumber: order.awbNumber,
-        });
-      }
-
-    } else if (courier === "packeta") {
-      // Packeta needs packetId — stored in awbPdfUrl with packeta_id: prefix
-      // barcode (awbNumber) is passed as fallback for the v6 REST label endpoint
-      const packetId = order.awbPdfUrl?.startsWith("packeta_id:")
-        ? order.awbPdfUrl.replace("packeta_id:", "")
-        : order.awbNumber;
-      pdfBuffer = await packetaDownloadLabel({
-        apiKey: settings.packetaApiKey,
-        packetId,
-        barcode: order.awbNumber,
-        format: settings.packetaLabelFormat || "A6 on A4",
-      });
-
-    } else {
-      return new Response(`Unsupported courier: ${courier}`, { status: 400 });
-    }
+    const pdfBuffer = await fetchLabelPdf(order, settings);
 
     const filename = `AWB_${order.awbNumber}_${courier}.pdf`;
     return new Response(pdfBuffer, {

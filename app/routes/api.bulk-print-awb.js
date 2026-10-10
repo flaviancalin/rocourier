@@ -3,66 +3,7 @@
 import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
 import { PDFDocument } from "pdf-lib";
-import { fanPrintAwb } from "../services/fan-courier.server.js";
-import { samedayDownloadAwbPdf } from "../services/sameday.server.js";
-import { cargusDownloadAwbPdf } from "../services/cargus.server.js";
-import { glsDownloadAwbPdf } from "../services/gls.server.js";
-import { packetaDownloadLabel } from "../services/packeta.server.js";
-
-async function fetchPdf(order, settings) {
-  const courier = order.courierType;
-
-  if (courier === "fan") {
-    const result = await fanPrintAwb({
-      clientId: settings.fanClientId,
-      username: settings.fanUsername,
-      password: settings.fanPassword,
-      awbNumber: order.awbNumber,
-    });
-    if (result?.pdf) return Buffer.from(result.pdf, "base64");
-    if (result?.pdfUrl) {
-      const res = await fetch(result.pdfUrl);
-      return Buffer.from(await res.arrayBuffer());
-    }
-    throw new Error("FAN: no PDF data");
-  }
-
-  if (courier === "sameday") {
-    return samedayDownloadAwbPdf({
-      username: settings.samedayUsername,
-      password: settings.samedayPassword,
-      sandbox: !!settings.samedaySandbox,
-      awbNumber: order.awbNumber,
-    });
-  }
-
-  if (courier === "cargus") {
-    return cargusDownloadAwbPdf({
-      subscriptionKey: settings.cargusSubscriptionKey,
-      username: settings.cargusUsername,
-      password: settings.cargusPassword,
-      awbNumber: order.awbNumber,
-    });
-  }
-
-  if (courier === "gls") {
-    return glsDownloadAwbPdf({
-      username: settings.glsUsername,
-      password: settings.glsPassword,
-      sandbox: !!settings.glsSandbox,
-      awbNumber: order.awbNumber,
-    });
-  }
-
-  if (courier === "packeta") {
-    const packetId = order.awbPdfUrl?.startsWith("packeta_id:")
-      ? order.awbPdfUrl.replace("packeta_id:", "")
-      : order.awbNumber;
-    return packetaDownloadLabel({ apiKey: settings.packetaApiKey, packetId, format: settings.packetaLabelFormat || "A6 on A4" });
-  }
-
-  throw new Error(`Unsupported courier: ${courier}`);
-}
+import { fetchLabelPdf } from "../services/labels.server.js";
 
 export async function loader({ request }) {
   const { session } = await authenticate.admin(request);
@@ -92,7 +33,7 @@ export async function loader({ request }) {
     await Promise.all(
       chunk.map(async (order) => {
         try {
-          const pdfBytes = await fetchPdf(order, settings);
+          const pdfBytes = await fetchLabelPdf(order, settings);
           const doc = await PDFDocument.load(pdfBytes);
           const pages = await merged.copyPages(doc, doc.getPageIndices());
           pages.forEach((p) => merged.addPage(p));

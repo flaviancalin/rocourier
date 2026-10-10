@@ -1,0 +1,60 @@
+{% comment %}
+  Picklo — estimated delivery date for product pages:
+  "Comandă în 2h 14m și ajunge marți, 13 oct." Uses the merchant's dispatch cut-off,
+  weekends and Romanian public holidays (same rules as the cart widget and checkout).
+{% endcomment %}
+<div class="picklo-eta" id="picklo-eta-{{ block.id }}" data-lang="{{ request.locale.iso_code | slice: 0, 2 | downcase }}" hidden
+  style="gap:8px;align-items:flex-start;margin:{{ block.settings.margin }}px 0;font-size:{{ block.settings.font_size }}px;line-height:1.4;color:{{ block.settings.text_color }}">
+  <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+  <span class="picklo-eta-text"></span>
+</div>
+<style>.picklo-eta:not([hidden]){display:flex}</style>
+<script>
+(function () {
+  var el = document.getElementById("picklo-eta-{{ block.id }}");
+  if (!el) return;
+  var T = {
+    ro: { arrives: "Ajunge {date}", order: "Comandă în {time} și ajunge {date}", months: "ian.,feb.,mar.,apr.,mai,iun.,iul.,aug.,sept.,oct.,nov.,dec.", days: "duminică,luni,marți,miercuri,joi,vineri,sâmbătă" },
+    en: { arrives: "Arrives {date}", order: "Order within {time} to get it {date}", months: "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec", days: "Sunday,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday" },
+    hu: { arrives: "Érkezik: {date}", order: "Rendelj {time} belül, és megérkezik: {date}", months: "jan.,febr.,márc.,ápr.,máj.,jún.,júl.,aug.,szept.,okt.,nov.,dec.", days: "vasárnap,hétfő,kedd,szerda,csütörtök,péntek,szombat" }
+  };
+  var t = T[el.dataset.lang] || T.ro;
+  function easter(y) { var a = y % 4, b = y % 7, c = y % 19, d = (19 * c + 15) % 30, e = (2 * a + 4 * b - d + 34) % 7, m = Math.floor((d + e + 114) / 31), day = ((d + e + 114) % 31) + 1; return Date.UTC(y, m - 1, day + 13); }
+  function working(d) {
+    var w = d.getUTCDay(); if (w === 0 || w === 6) return false;
+    var iso = d.toISOString().slice(0, 10), md = iso.slice(5);
+    if (["01-01","01-02","01-06","01-07","01-24","05-01","06-01","08-15","11-30","12-01","12-25","12-26"].indexOf(md) >= 0) return false;
+    var e = easter(d.getUTCFullYear());
+    return [-2, 0, 1, 49, 50].every(function (n) { return new Date(e + n * 864e5).toISOString().slice(0, 10) !== iso; });
+  }
+  function add(d, n) { var x = new Date(d.getTime()); while (n > 0) { x.setUTCDate(x.getUTCDate() + 1); if (working(x)) n--; } return x; }
+  fetch("/apps/rocourier/widget-config").then(function (r) { return r.json(); }).then(function (cfg) {
+    var eta = cfg && cfg.eta; if (!eta || eta.show === false) return;
+    var p = {}; new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Bucharest", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date()).forEach(function (x) { p[x.type] = x.value; });
+    var today = new Date(Date.UTC(+p.year, +p.month - 1, +p.day)), hour = +p.hour, cutoff = Number(eta.cutoffHour == null ? 14 : eta.cutoffHour), proc = Number(eta.processingDays || 0);
+    var ship = today, shipsToday = working(today) && hour < cutoff && !proc;
+    if (!working(ship) || hour >= cutoff) ship = add(ship, 1);
+    if (proc) ship = add(ship, proc);
+    var arrive = add(ship, 1), m = t.months.split(","), dn = t.days.split(",");
+    var date = dn[arrive.getUTCDay()] + ", " + arrive.getUTCDate() + " " + m[arrive.getUTCMonth()];
+    var mins = (cutoff - hour) * 60 - (+p.minute);
+    var text = shipsToday && mins > 0 && mins <= 8 * 60
+      ? t.order.replace("{time}", Math.floor(mins / 60) + "h " + String(mins % 60).padStart(2, "0") + "m").replace("{date}", date)
+      : t.arrives.replace("{date}", date);
+    el.querySelector(".picklo-eta-text").textContent = text;
+    el.hidden = false;
+  }).catch(function () {});
+})();
+</script>
+
+{% schema %}
+{
+  "name": "Picklo — data livrării",
+  "target": "section",
+  "settings": [
+    { "type": "color",  "id": "text_color", "label": "Culoare text", "default": "#1a7f4b" },
+    { "type": "range",  "id": "font_size",  "label": "Mărime text", "min": 12, "max": 20, "step": 1, "unit": "px", "default": 14 },
+    { "type": "range",  "id": "margin",     "label": "Spațiu sus/jos", "min": 0, "max": 32, "step": 2, "unit": "px", "default": 12 }
+  ]
+}
+{% endschema %}

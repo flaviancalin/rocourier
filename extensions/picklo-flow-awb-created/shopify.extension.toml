@@ -1,0 +1,23 @@
+[[extensions]]
+name = "AWB created"
+uid = "65e96a70-a09c-2b3a-0ca6-8efab88c73fcf89c72e3"
+type = "flow_trigger"
+handle = "picklo-awb-created"
+description = "Picklo created a courier AWB for an order."
+
+  [settings]
+
+  [[settings.fields]]
+  type = "order_reference"
+
+  [[settings.fields]]
+  type = "single_line_text_field"
+  key = "AWB number"
+
+  [[settings.fields]]
+  type = "single_line_text_field"
+  key = "Courier"
+
+  [[settings.fields]]
+  type = "url"
+  key = "Tracking URL"

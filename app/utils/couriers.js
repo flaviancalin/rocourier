@@ -5,4 +5,5 @@ export const COURIER_LABELS = {
   cargus:  { name: "Cargus",      point: "Cargus Ship & Go" },
   gls:     { name: "GLS",         point: "GLS ParcelShop" },
   packeta: { name: "Packeta",     point: "Packeta / Z-BOX" },
+  dpd:     { name: "DPD",         point: "DPDbox / Punct DPD" },
 };

@@ -1,0 +1,1153 @@
+                                               Metode API - integrare FGO
+                                                                                 v.7.1
+
+
+
+
+Cuprins
+
+ ISTORIC VERSIUNI ................................................................................................................................................... 2
+ INTRODUCERE ......................................................................................................................................................... 4
+ APELARE ................................................................................................................................................................. 6
+ NOMENCLATOARE .................................................................................................................................................. 6
+ FACTURA................................................................................................................................................................. 7
+    EMITERE.............................................................................................................................................................. 7
+    PRINT ................................................................................................................................................................ 12
+    STERGERE.......................................................................................................................................................... 12
+    ANULARE .......................................................................................................................................................... 13
+    GETSTATUS ....................................................................................................................................................... 14
+    ADAUGARE INCASARE ....................................................................................................................................... 15
+    STERGERE INCASARE ......................................................................................................................................... 16
+    STORNARE FACTURA ......................................................................................................................................... 16
+    AWB.................................................................................................................................................................. 17
+    LIST FACTURI ASOCIATE ..................................................................................................................................... 18
+ ARTICOLE .............................................................................................................................................................. 19
+    LIST ................................................................................................................................................................... 19
+    GET ................................................................................................................................................................... 20
+    GETLIST ............................................................................................................................................................. 20
+    ARTICOLEMODIFICATE ...................................................................................................................................... 21
+    GESTIUNE .......................................................................................................................................................... 22
+ CUM SE CALCULEAZA HASH-UL?............................................................................................................................ 23
+ISTORIC VERSIUNI
+
+Versiune   Descriere                                                                                 Data
+7.0        Emitere:                                                                                  01.01.2024
+                - Tara client devine camp obligatoriu. Daca Tara = RO, campul Judet, devine
+                     obligatoriu conform specificatiilor e-Factura
+6.9        Incasare:                                                                                 10.10.20224
+                - Generare automata a facturii la adaugarea incasarii pe Comanda sau
+                     Proforma.
+6.8        Inlocuire mediu de test: https://api-testuat.fgo.ro/v1                                    03.10.2024
+           Completare specificatii pentru apel emitere factura
+6.7        Emitere:                                                                                  05.07.2024
+                - Implementare produs complementar (ex. SGR). Daca produsul facturat
+                     exista in FGO si are atasate produse complementare, acestea vor fi
+                     adaugate automat pe factura.
+6.6        Emitere:                                                                                  04.06.2024
+                - Incepand cu 01.07.2024, in contextul e-Factura, parametrul
+                     ValideazaCodUnicRo va avea valoarea implicita true pentru clientii PJ a
+                     caror tara este Romania. Dacă această validare nu este dorită, parametrul
+                     trebuie setat explicit pe false.
+6.5        Articole:                                                                                 07.07.2023
+                - Adaugare parametru suplimentar pentru /articol/articolemodificate
+6.4        Emitere:                                                                                  19.06.2023
+                - Adaugare info stoc pe raspunsul de emitere;
+                - Actualizare descriere camp Client[IdExtern]
+6.3        Articole:                                                                                 04.04.2023
+                - Implementare metoda /articol/articolemodificate: va returna toate
+                     articolele care au suferit orice fel modificari in ultimele ore (valoare data
+                     prin parametru);
+                - Metoda /articol/getlist va fi decomisionata incepand cu 01.07.2023;
+                - Metoda /articol/list va avea un throttle de 30sec incepand cu 01.07.2023;
+6.2        Emitere:                                                                                  08.11.2022
+                - Validare cantitate articole.
+6.1        Emitere:                                                                                  24.10.2022
+           - Setare implicita TipFactura=X daca firma are bifa OSS, clientul este strain iar tipul
+           de factura transmis este Factura
+6.0        Actualizare documentatie cu referire la v.5.5                                             22.06.2022
+5.9        Emitere:                                                                                  17.05.2022
+           - Actualizare documentatie - camp Continut[i][CodCentruCost]
+5.8        Emitere:                                                                                  13.04.2022
+           - verificarea de duplicat se va face doar daca este specificat true in parametrul
+           VerificareDuplicat si doar dupa:
+                a. a. IdExtern;
+                b. concomitent Serie si Numar;
+5.7        Stornare factura:                                                                         04.02.2022
+           - Adaugare parametri optionali: SerieStorno, NumarStorno, DataEmitere
+5.5        Nomenclator:                                                                              15.12.2021
+           - Adaugare lista localitati;
+           Emitere:
+           - adaugare camp Client[Localitate];
+5.4        Emitere:                                                                                  25.10.2021
+           - imbunatatire cautare client dupa IdExtern, CodUnic, Nume;
+           - validare Client[CodUnic] pentru client PF din Romania – daca se transmite
+           CodUnic invalid, aceasta informatie va fi ignorata de la cautare si de la salvare.
+           - bug fixes minore;
+5.3        Emitere:                                                                                  18.10.2021
+           - adaugare parametru optional ValideazaCodUnicRo – daca este true, se va face
+           validarea codului unic pentru clientii PJ din Romania.
+5.2        Emitere:                                                                                  05.10.2021
+      - Implementare validare camp Client[CodUnic] - Ne pare rau ca suntem obligati sa
+      punem aceasta validare, care desi pentru multi era de la sine inteleasa, pentru altii
+      s-a transformat in orice altceva decat CUI PJ
+5.1   Emitere:                                                                                   31.08.2021
+      - Actualizare documentatie - camp Continut[i][CodCentruCost]
+5.0   Emitere:                                                                                   24.08.2021
+      - campul Client[Strain] va fi ignorat. Se va tine cont de Client[Tara]. Vezi explicatii
+      detaliate mai jos in dreptul fiecarui camp.
+4.9   Emitere:                                                                                   20.08.2021
+      - Implementare timeout pe metoda de emitere facture. Emiterea unei facturi se va
+      face in maxim 15 secunde; pentru acest interval garantam emiterea cu success a
+      peste 99.5% din apeluri;
+      - validare Serie – camp obligatoriu;
+4.7   Informatii cu privire la apelarea in cascada a metodelor:                                  06.07.2021
+      - Facturare/Incasare: 1 request la 1 secunda
+      - articole: 1 request la 5 secunde
+
+4.6   Info:                                                                                      13.05.2021
+      - s-a introdus parametrul PlatformaUrl in toate metodele API;
+
+      Articole:
+      - List, Get, GetList: informatiile referitoare la stoc vor fi disponibile incepand cu
+      abonamentul Premium de la 01.06.2021
+4.4   Articole:                                                                                  22.02.2021
+      - Metoda noua de listare articole GetList dupa o liste de coduri – disponibila doar in
+      noul pachet ENTERPRISE
+      Emitere:
+      - explicatii suplimentare pentru campurile NrProduse, PretUnitar, PretTotal
+4.3   - Modificare metoda ListFacturiAsociate – intoarce si linkul facturii                      27.01.2021
+      - Update informatii cu privire la metodele ListFacturiAsociate si List articole –
+      metodele vor fi disponibile doar in noul pachet ENTERPRISE incepand cu
+      01.03.2021
+4.2   - Adaugare metoda ListFacturiAsociate – intoarce o lista cu facturile asociate unei        18.01.2021
+      proforma (Serie, Numar, Valoare, DataEmitere si Valoare Achitata)
+4.1   Metodele Incasare si StergereIncasare, GetStatus (cu referire la statusul                  09.12.2020
+      incasarii) au fost decomisionate in 15.12.2020 pentru FGO Pro, fiind disponibile
+      doar pentru Premium & Enterprise
+4.0   Emitere:                                                                                   23.11.2020
+      - adaugare tip nou de factura: [TipFactura] = Deviz
+3.9   Incasare:                                                                                  06.11.2020
+      - Metodele Incasare si StergereIncasare vor fi decomisionate in 15.12.2020
+      Emitere:
+      - bug fix GetStatus
+3.8   Emitere:                                                                                   23.10.2020
+      - explicatii suplimentare pentru Continut[i][PretTotal]
+      - adaugare tipuri noi de factura (U Servicii cf. art. 311, H Vanzari cf. art. 312, N
+      Operatiuni neimpozabile, X Regim special cf. art. 314-315)
+3.7   Emitere:                                                                                   01.07.2020
+      - posibilitate suprascriere camp Continut[i]Descriere si/sau posibilitate
+      concatenare Descriere existenta in FGO cu valoarea transmisa prin API
+3.6   Articol                                                                                    25.03.2020
+      - Adaugare metoda GET: interogare articol dupa cod
+3.5   Emitere:                                                                                   24.02.2020
+      - Adaugare camp Client[PlatitorTVA]
+3.4   Emitere:                                                                                   30.09.2019
+      - In cazul in care se trimit simultan atat Seria, cat si Numarul facturii, aceasta se va
+      emite fara a mai verifica existenta facturii (in functie de continut)
+
+      - Verificare duplicat factura dupa IdExtern (id-ul de comanda): daca se trimite ID-ul
+      de comanda din magazinul online (WooCommerce, Prestashop), se va verifica daca
+      exista deja emisa o factura pentru acel ID de comanda
+3.3   Incasare:                                                                                  16.08.2019
+      - Adaugare campuri: ContIncasare si SerieChitanta
+ 3.2       Emitere:                                                                            07.08.2019
+           - Adaugare camp ContBancar - posibilitate salvare cont bancar pe client;
+           AWB
+            - Adaugare metoda AWB (salvarea unui numar AWB pe o factura a.i. sa usureze
+           identificarea si procesarea borderourilor de la curieri);
+ 3.1       Emitere:                                                                            04.06.2019
+           - Adaugare posibilitate creare comanda (TipFactura “Comanda”)
+ 3.0       Emitere:                                                                            23.05.2019
+                - Adaugare parametru IdExtern – id-ul de comanda (din magazinul online)
+                    pentru care se genereaza factura;
+                - Adaugare parametru Continut[i][CodGestiune] – permite transmiterea
+                    codului de gestiune pe un articol, pentru descarcarea corecta in
+                    contabilitate
+ 2.9       - Adaugare metoda GetStatus – intoarce suma unei facturi, respectiv suma platita    22.05.2019
+ 2.8       - Client[Tip] - camp obligatoriu;                                                   03.04.2019
+           - Marcare automata client platitor TVA (daca CodUnic contine RO sau alte initiale
+           din alte state);
+           - adaugare metoda client - list - afiseaza clientii existenti in FGO;
+ 2.7       Adaugare posibilitate emitere factura cu TipFactura "Scutit cu deducere" - S        11.02.2019
+ 2.6       Modificare tip de data la Continut[i][NrProduse] din int in decimal                 01.02.2019
+ 2.5       - Adaugare parametru DataScadenta la emiterea unei facturi;                         09.01.2019
+           - Bug fixes;
+ 2.4       - Adaugare metoda StergereIncasare;                                                 19.12.2018
+           - Adaugare metoda listare articole - /articol/list;
+
+
+
+INTRODUCERE
+
+Inainte de apelarea metodelor API trebuie sa urmezi pasii de mai jos:
+   1. Creeaza cont FGO:
+      - Mediul de test:
+            o https://testapp.fgo.ro/inregistrare (va fi decomisionat incepand cu 15.10.2024)
+            o https://testuat.fgo.ro/inregistrare
+      - Mediul de productie https://www.fgo.ro/inregistrare
+
+       Observatii:
+       -   Cele 2 medii nu se sincronizeaza intre ele si sunt independente, prin urmare va trebui sa repeti
+           pasii de inregistrare pentru trecerea de la un mediu la altul.
+       -   Pentru utilizarea mediului de TEST nu este necesara trecerea la un abonament platit (START,
+           PRO sau PREMIUM) .
+
+   2. Creeaza utilizator API:
+
+       Mergi in aplicatia FGO la Setari -> Utilizatori. Pentru activare, trebuie generat un user api. Va aparea
+       un popup care contine o Cheie Privata.
+       Pentru mediul de PRODUCTIE este necesara trecerea la abonamentul PRO sau PREMIUM
+3. Definire Registru:
+   In platforma FGO, la Setari, verfica sa fie Registrul definit (se poate folosi un registru comun, sau
+   registru special pe utilizator). Pentru a defini un registru, mergi in tabul Serii Documente.
+APELARE
+
+Root linkul pentru dezvoltare/testare, este: https://testapp.fgo.ro/publicws/ (va fi decomisionat incepand
+cu 15.10.2024) noul link https://api-testuat.fgo.ro/v1 (baza de date de test nu va fi sincronizata, prin
+urmare este nevoie de refacerea pasilor pentru inregistrarea contului)
+Root linkul pentru productie: https://api.fgo.ro/v1
+
+
+Formularele de test, linkul catre ultima versiune de documentatie si nomenclatoare, se regasesc la adresa:
+https://api-testuat.fgo.ro/v1/testing.html, respectiv https://api.fgo.ro/v1/testing.html
+
+
+Metode API disponibile:
+
+ ROOT                                 Controller       Metoda
+                                  nomenclator/         tara
+                                  nomenclator/         judet
+                                  nomenclator/         tva
+                                  nomenclator/         banca
+ https://testapp.fgo.ro/publicws/
+                                  nomenclator/         tipincasare
+ https://api-testuat.fgo.ro/v1
+                                  nomenclator/         tipfactura
+                                  nomenclator/         tipclient
+ sau
+                                  nomenclator/         localitati?judet=<<judet>>
+                                  factura/             emitere
+ https://api.fgo.ro/v1/
+                                  factura/             print
+                                  factura/             stergere
+                                  factura/             anulare
+                                  factura/             incasare
+
+
+
+
+NOMENCLATOARE
+
+Listele cu nomenclatoare pot fi accesate prin GET.
+
+Exemplu: https://api-testuat.fgo.ro/v1/nomenclator/tipfactura
+
+Raspunsul primit este in format JSON de forma:
+
+ {
+         "Success": true,
+         "List": [
+                   {
+                            "Nume": "Valoare"
+                 }
+         ]
+ }
+FACTURA
+
+EMITERE
+
+POST Request
+
+ Link: ROOT/factura/emitere
+ Limitare 1 request la 1 secunda
+
+ Timpul maxim necesar pe care FGO il are la dispozitie de la primirea request-ului pana la emiterea unei facturi
+ este de 15 secunde. In cazul in care acest timp este depasit, prin API ar trebui sa primiti urmatorul mesaj:
+
+ { Success = false, Message = "Timpul maxim pentru emiterea unei facturi a expirat. Factura nu a fost emisa si este
+ necesar sa reincercati. [x]" }
+
+ [x] reprezinta un cod intern ce poate avea valori de la 1 la 7 si va ajuta in investigarea posibilelor cauze in cazul in
+ care este necesar acest lucru.
+
+ Timpul de 15 secunde include doar intervalul intre momentul primirii request-ului de emitere de catre FGO, pana
+ la momentul formarii raspunsului. Timpul total petrecut, in care platforma dvs. formeaza si trimite request-ul
+ respectiv primeste raspunsul de la FGO poate fi mai mare decat cele 15 secunde.
+
+ Recomandăm ca fiecare apel API să fie executat dupa finalizarea sau obtinerea răspunsului apelului anterior. În
+ caz contrar, există riscul aparitiei de intarzieri sau blocaje la nivelul companiei Dv, depasindu-se capacitatea
+ alocata thread-urilor pentru apleurile care va sunt asignate/disponibile. In conditii atipice, generate de efectuarea
+ apelurilor API derulate in paralel, care se suprapun totodata cu accesul web sau mobile al utilizatorilor pentru
+ compania pentru care efectuati apeluri, pot rezulta in mod determinist efecte ca latență crescută pe compania dvs
+ sau chiar deadlock-uri, deoarece structura de date va trebui să gestioneze simultan mai multe requesturi
+ incomplete sau concurente.
+ Parametru                       Tip               Obligatoriu Observatii
+ CodUnic                         string            x               CUI-ul companiei
+ Hash                            string            x               Vezi sectiunea „Cum se calculeaza HASH-ul” de mai
+                                                                   jos.
+ Text                            string(2000)                      Se pot trece informatii suplimentare ex. Numele
+                                                                   delegatului care va aparea pe factura, etc.
+ Explicatii                      string(2000)                      Explicatii suplimentare care vor aparea pe factura
+ Valuta                          string(3)         x               Vezi nomenclator Valuta
+ TipFactura                      string(50)        x               Vezi nomenclator TipFactura.
+
+                                                                Daca sunt indeplinite conditiile de mai jos, se va seta
+                                                                implicit TipFactura de tip X.
+                                                                    a. in contul firmei emitente bifa OSS este activa,
+                                                                    b. clientul este strain,
+                                                                    c. TipFactura=Factura
+ DataEmitere                    datetime                        Daca nu se trimite valoare, data implicita va fi data si
+                                                                ora apelului.
+                                                                Format yyyy-mm-dd
+ DataScadenta                   datetime                        Parametru optional, daca nu se transmite valoare, se
+                                                                preia implicit numarul de zile scadente setat in contul
+                                                                fgo.ro: Setari - Factura - Setari facturare -> Zile
+                                                                scadenta
+Numar                string(50)        Daca nu se trimite valoare, se genereaza numar
+                                       automat conform registrului setat in FGO.
+
+Serie                string(50)    x   Seria definita in FGO -> Setari -> Serii documente
+TvaLaIncasare        bool              Primeste valorile true/false
+VerificareDuplicat   bool              Primeste valorile true/false. Se va face verificarea de
+                                       duplicat doar daca se transmite true si doar daca se va
+                                       transmite IdExtern sau concomitent Serie si Numar.
+ValideazaCodUnicRo   bool              Parametru optional. Primeste valorile true/false. Daca
+                                       se transmite true, se va face validarea codului unic
+                                       conform acestui link doar pentru clientii PJ pentru care
+                                       se transmite in parametru Client[Tara] Romania sau
+                                       RO.
+                                       Incepand cu 01.07.2024, in contextul e-Factura,
+                                       parametrul ValideazaCodUnicRo va avea valoarea
+                                       implicita true pentru clientii PJ a caror tara este
+                                       Romania. Dacă această validare nu este dorită,
+                                       parametrul trebuie setat explicit pe false.
+IdExtern             string(36)        id-ul de comanda (din magazinul online) pentru care
+                                       se genereaza factura.
+Client[Denumire]     string(255)   x   Denumire client
+Client[CodUnic]      string(128)       CUI/CNP client
+                                       Pentru persoane fizice, daca CNP-ul lipseste, asigura-te
+                                       ca adresa este completata respectand formatul: Loc.
+                                       [denumire localitate], Str. [denumire strada], Nr.
+                                       [numar strada], si dupa caz: Bl. [bloc], Sc. [scara] Et.
+                                       [etaj], Ap. [apartament]
+                                       Daca CNP este invalid (nu respecta validarea conform
+                                       acestui link) nu se va face identificarea clientului dupa
+                                       CodUnic, respectiv nu se va salva codul unic in fgo.
+
+Client[NrRegCom]     string(128)       Numar registru comert client
+Client[Email]        string(100)
+Client[Telefon]      string(100)
+Client[Tara]         string(128)   x   Vezi nomenclator Tara
+Client[Judet]        string(100)       Daca Tara = RO, campul devine obligatoriu
+                                       Vezi nomenclator Judet (validarea se face doar daca
+                                       Client[Tara] nu contine valoare sau contine ROMANIA)
+Client[Localitate]   string(100)       Valoarea apartine nomenclatorului publicat, in cazul in
+                                       care tara trimisa este ROMANIA si in functie de campul
+                                       Client[Judet]; daca tara este alta decat Romania,
+                                       campul va fi completat cu numele localitatii din
+                                       strainatate.
+                                       Atentie!: campul localitate si judet sunt importante
+                                       pentru corecta intocmire a declaratiilor periodice
+                                       contabile.
+Client[Adresa]       string(500)       Asigura-te ca adresa este completata respectand formatul:
+                                       Str. [denumire strada], Nr. [numar strada], si dupa caz: Bl.
+                                       [bloc], Sc. [scara] Et. [etaj], Ap. [apartament].
+
+
+                                       In cazul persoanelor fizice fara CNP, identificarea se face
+                                       dupa urmatoarele criterii:
+                                       - Client[IdExtern] daca este transmis;
+                                              - Denumire + Judet. In cazul in care exista mai multi clienti PF
+                                              cu acceasi denumire si acelasi judet, se ia in calcul si
+                                              localitatea transmisa in campul Client[Localitate]
+Client[Tip]               String(2)       x   Vezi nomenclator TipClient (PF/PJ)
+Client[IdExtern]          int                 Permite transmiterea unui identificator din aplicatia
+                                              terta pentru identificarea si salvarea corecta a unui
+                                              client (util in special pentru clientii persoane fizice care
+                                              nu au CodUnic introdus). Id-ul transmis trebuie sa fie >
+                                              0.
+                                              Atunci cand se trimite client nou, cu id extern, FGO
+                                              salveaza in datele clientului id-ul extern transmis.
+
+
+                                              Pentru activarea/dezactivarea cautarii dupa IdExtern,
+                                              mergeti in FGO -> Setari -> eCommerce -> Setari API.
+Client[Strain]            bool                Daca valoarea este true, se poate transmite la
+                                              Continut[i][CotaTVA] orice cota de TVA
+                                              Un client este considerat strain daca se va completa
+                                              tara acestuia in campul Client[Tara]. Daca Tara este
+                                              diferita de Romania se va accepta cota de TVA din tara
+                                              respectiva. (Daca se trimite o cota de tva care nu exista
+                                              in Romania si tara clientului este Romania, veti primi
+                                              eroare la emitere)
+Client[ContBancar]        string(100)         Contul bancar al clientului
+Client[PlatitorTVA]       bool                Primeste valorile true/false. Daca este completa
+                                              informatia si clientul facturat este PJ, se tine cont de
+                                              valorile true/false.
+                                              Daca acest camp nu este completat si clientul este PJ,
+                                              se va cauta informatia existenta in baza de date cu
+                                              companiile din Romania, pe care o gestioneaza FGO si
+                                              starea de platitor de tva regasita se preia de acolo.
+                                              Daca informatia nu este regasita in baza de date cu
+                                              firmele din Romania, dar CUI-ul transmis este precedat
+                                              de 2 litere, atunci se considera ca PJ facturata este
+                                              platitoare de TVA.
+                                              Daca informatia nu este regasita in baza de date de
+                                              firme din Romania si CUI-ul nu este precedat de 2 litere,
+                                              se considera ca firma facturata este neplatitoare de
+                                              TVA.
+Continut[i][Denumire]     string(1.000)   x   Denumire serviciu/produs.
+                                              Un articol cu un nume diferit, inseamna un articol nou
+                                              si atunci primeste un identificator nou.
+Continut[i][CodArticol]   string(128)         Este o informatie folosita pentru a cauta/identifica
+                                              articolele mai usor; atunci cand codul de articol este
+                                              regasit, denumirea nu mai este relevanta si FGO nu o
+                                              actualizeaza automat.
+                                              Codul de articol este primit si completat in FGO pentru
+                                              articolele noi, doar daca nu exista legatura cu SAGA; in
+                                              caz contrar, codul de articol este folosit doar pentru
+                                              cautare/identificare.
+                                           1.1 Daca este activa legatura cu SAGA, articolele din
+                                               FGO fara cod, ajung in SAGA si acolo primesc cod
+                                           1.2 Daca nu exista legatura cu SAGA, articolele
+                                               transmise via API in FGO, care au codul completat
+                                               si si care sunt noi, vor fi create in FGO cu denumirea
+                                               si codul transmis
+                                           Nu exista update pe denumirile de articole care sa se
+                                           propage intre FGO si platforma Dv online sau, acolo
+                                           unde este legatura cu SAGA, sa se actualizeze
+                                           denumirea articolelor din SAGA.
+                                           Pentru cei care au legatura cu SAGA, se poate obtine
+                                           codul de SAGA al articolului si in FGO, cu conditia rularii
+                                           explicite a sincronizarii de articole intre SAGA si FGO,
+                                           urmand acesti doi pasi:
+                                           i. export date din SAGA catre FGO
+                                           ii. importul datelor venite din SAGA in FGO: Setari -
+                                           SAGA -> butonul Incarca datele venite din SAGA
+
+Continut[i][CodGestiune]   string(128)     Permite transmiterea codului de gestiune pe un articol,
+                                           pentru descarcarea corecta in contabilitate.
+
+Continut[i][Descriere]     string(4.000)   Valoarea transmisa in acest camp se va pune pe factura
+                                           emisa, in locul descrierii existente in lista de produse
+                                           din FGO dar nu va suprascrie acea descriere existenta.
+
+                                           Daca se doreste pastrarea descrierii produsului din FGO
+                                           este suficient sa treceti textul [[descriere]].
+
+                                           Daca se doreste adaugarea unui text suplimentar la
+                                           descrierea existenta, se va folosi urmatoarea sintaxa:
+                                           [[descriere]] text suplimentar, unde [[descriere]] va fi
+                                           inlocuit cu textul deja existent in FGO.
+
+                                            Descriere FGO     Descriere param API      Rezultat
+                                            Abc               Empty string “”          Abc
+                                            Abc               123                      123
+                                            Abc               [[descriere]] 123        Abc 123
+                                            Abc               [[descriere]]            Abc
+                                            Abc               Spatiu “ ”
+
+Continut[i][PretUnitar]    decimal         Directie calcul: clasic (dinspre Pret unitar catre Pret
+                                           total)
+                                           Pret unitar in format XXXX.XX (numar pozitiv, pentru
+                                           articol care are valoare negativa, se va transmite
+                                           -XXXX.XXX in campul Continut[i][NrProduse])
+                                           Atentie: pentru calcul clasic, nu se transmite valoare in
+                                           campul [PretTotal], pretul total se va calcula automat.
+Continut[i][PretTotal]     decimal         Directie calcul: invers (dinspre Pret total catre Pret
+                                           unitar)
+                                           Pret unitar in format XXXX.XX
+                                           PretTotal reprezinta suma totala platita care include
+                                           TVA si numarul de produse.
+                                                       Atentie: pentru calcul invers, nu se transmite valoare
+                                                       in campul [PretUnitar], pretul unitar se va calcula
+                                                       automat.
+Continut[i][UM]             string(5)        x         Unitate de masura
+Continut[i][NrProduse]      decimal          x         Cantitate format XXXX.XXX (pentru articol care are
+                                                       valoare negativa, se va transmite -XXXX.XXX in campul
+                                                       Continut[i][NrProduse]). Cantitatea trebuie sa fie <> 0.
+Continut[i][CotaTVA]        decimal          x         Vezi nomenclator TVA
+                                                       (Daca se trimite o cota de tva care nu exista in
+                                                       Romania si tara clientului este Romania, veti primi
+                                                       eroare la emitere)
+                                                       Cota de TVA se trimite conform exemplului:
+                                                       - Daca TVA este 19%, valoarea transmisa trebuie sa fie 19
+                                                       - Daca TVA este 6.1%, valoarea transmisa trebuie sa fie 6.1
+                                                       - Daca TVA este 0%, valoarea transmisa trebuie sa fie 0
+Continut[i][CodCentruCost] string                      CodCentruCost reprezinta centrul de cost al unui
+                                                       produs. Se va transmite unul din codurile setate in
+                                                       platforma FGO.
+                                                       Daca produsul transmis este identificat (pe baza
+                                                       CodArticol sau Denumire) iar acesta are deja asociat
+                                                       un centru de cost in FGO, se va folosi acela.
+PlatformaUrl                string           x         Adresa url (root) de la care se face apelul catre API
+                                                       FGO. Este recomandat ca url site-ului să fie introdus
+                                                       complet. Exemple: https://www.fgo.ro
+                                                       https://www.24edu.ro
+
+
+Response
+{
+      "Success": true,
+      "Message": "",
+      "Factura": {
+              "Numar": "001",
+              "Serie": "BV",
+              "Link": "",
+              "LinkPlata": ""
+      },
+      "InfoStoc": [
+              {
+                       "CodConta": "A1",
+                       "Nume": "Produs 1",
+                       "Stoc": 10.0
+              },
+              {
+                       "CodConta": "A2",
+                       "Nume": "Produs 2",
+                       "Stoc": 5.0
+              }
+      ]
+}
+
+                                                 SAU
+
+Response
+{
+         "Success": false,
+         "Message": "Mesaj eroare"
+}
+
+
+PRINT
+
+POST Request
+
+Link: ROOT/factura/print
+Limitare 1 request la 1 secunda
+Parametru                 Tip           Obligatoriu   Observatii
+CodUnic                   string        x             CUI-ul companiei
+Hash                      string        x             Vezi sectiunea „Cum se calculeaza HASH-ul” 3.b. de mai
+                                                      jos.
+Numar                      string(50)   x
+Serie                      string(50)   x
+PlatformaUrl               string       x             Adresa url (root) de la care se face apelul catre API FGO.
+                                                      Este recomandat ca url site-ului să fie introdus complet.
+                                                      Exemple: https://www.fgo.ro https://www.24edu.ro
+
+Response
+{
+      "Success": true,
+      "Message": "",
+      "Factura": {
+              "Numar": "001",
+              "Serie": "BV",
+              "Link": ""
+      }
+}
+
+                                                       SAU
+
+Response
+{
+      "Success": false,
+      "Message": "Mesaj eroare"
+}
+
+
+
+
+STERGERE
+
+POST Request
+
+ Link: ROOT/factura/stergere
+ Limitare 1 request la 1 secunda
+ Parametru                 Tip          Obligatoriu   Observatii
+ CodUnic                   string       x             CUI-ul companiei
+ Hash                      string         x             Vezi sectiunea „Cum se calculeaza HASH-ul” 3.b. de mai
+                                                        jos.
+ Numar                     string(50)     x
+ Serie                     string(50)     x
+ PlatformaUrl              string         x             Adresa url (root) de la care se face apelul catre API FGO.
+                                                        Este recomandat ca url site-ului să fie introdus complet.
+                                                        Exemple: https://www.fgo.ro https://www.24edu.ro
+
+
+Response
+{
+      "Success": true,
+      "Message": "Factura a fost stearsa"
+}
+                                                        SAU
+
+Response
+{
+      "Success": false,
+      "Message": "Mesaj eroare"
+}
+
+
+ANULARE
+
+POST Request
+
+ Link: ROOT/factura/anulare
+ Limitare 1 request la 1 secunda
+ Parametru                 Tip            Obligatoriu   Observatii
+ CodUnic                   string         x             CUI-ul companiei
+ Hash                      string         x             Vezi sectiunea „Cum se calculeaza HASH-ul” 3.b. de mai
+                                                        jos.
+ Numar                     string(50)     x
+ Serie                     string(50)     x
+ PlatformaUrl              string         x             Adresa url (root) de la care se face apelul catre API FGO.
+                                                        Este recomandat ca url site-ului să fie introdus complet.
+                                                        Exemple: https://www.fgo.ro https://www.24edu.ro
+
+
+Response
+{
+  "Success": true,
+  "Message": "Factura a fost anulata.",
+}
+                                                        SAU
+
+Response
+{
+      "Success": false,
+      "Message": "Mesaj eroare"
+}
+GETSTATUS
+
+POST Request
+
+ Link: ROOT/factura/getstatus
+ Limitare 1 request la 1 secunda
+ Parametru                 Tip          Obligatoriu   Observatii
+ CodUnic                   string       x             CUI-ul companiei
+ Hash                      string       x             Vezi sectiunea „Cum se calculeaza HASH-ul” 3.b. de mai
+                                                      jos.
+ Numar                     string(50)   x
+ Serie                     string(50)   x
+ PlatformaUrl              string       x             Adresa url (root) de la care se face apelul catre API FGO.
+                                                      Este recomandat ca url site-ului să fie introdus complet.
+                                                      Exemple: https://www.fgo.ro https://www.24edu.ro
+
+
+Response
+{
+      "Success": true,
+      "Factura": {
+              "Numar": "1",
+              "Serie": "X",
+              "Valoare": "167.69",
+              "ValoareAchitata": "167.69",
+              "Incasari" :[
+                 {
+                    "SumaIncasata": 150.00,
+                    "DataIncasare": "2025-02-02",
+                    "Valuta": "RON",
+                 },
+                 {
+                    "SumaIncasata": 17.69,
+                    "DataIncasare": "2025-02-02",
+                    "Valuta": "RON",
+                 },
+               ]
+      }
+}
+
+                                                      SAU
+
+Response
+{
+      "Success": false,
+      "Message": "Mesaj eroare"
+}
+ADAUGARE INCASARE
+Atentie! Aceasta metoda a fost decomisionata in 15.12.2020 pentru FGO Pro, fiind disponibila doar pentru
+Premium & Enterprise
+
+POST Request
+
+ Link: ROOT/factura/incasare
+ Parametru               Tip           Obligatoriu   Observatii
+ CodUnic                 string        x             CUI-ul companiei
+ Hash                    string        x             Vezi sectiunea „Cum se calculeaza HASH-ul” 3.b. de mai
+                                                     jos.
+ NumarFactura            string(50)    x             Numarul facturii pentru care se adauga incasarea
+ SerieFactura            string(50)    x             Seria facturii pentru care se adauga incasarea
+
+ SerieChitanta           string(50)                  Specifica seria chitantei in cazul in care exista mai multe
+                                                     serii.
+ ContIncasare            string(50)                  Contul de incasare care se regaseste in fgo Setari-
+                                                     >Incasare -> cont contabil
+ TipIncasare             string(50)    x             Vezi nomenclator TipIncasare
+ SumaIncasata            decimal       x             Suma Incasata in format XXXX.XX
+ DataIncasare            datetime      x             Data Incasare in format yyyy-mm-dd hh:mm:ss
+
+ PlatformaUrl            string        x             Adresa url (root) de la care se face apelul catre API FGO.
+                                                     Este recomandat ca url site-ului să fie introdus complet.
+                                                     Exemple: https://www.fgo.ro https://www.24edu.ro
+ TipFactura              string                      In cazul in care exista aceeași serie pentru tipuri de
+                                                     documente diferite (ex. seria XYZ pentru Proforma,
+                                                     respectiv seria XYZ Factura) se va specifica tipul de
+                                                     document pentru care se face incasarea.
+
+
+ Response succes v1:
+ {
+       "Success": true,
+       "Message": "",
+       "Incasare": {
+               "Numar": "001",
+               "Serie": "BV"
+       }
+ }
+                                                      SAU
+ Response succes v2:
+ {
+       "Success": true,
+       "Message": "",
+       "Incasare": {
+               "Numar": "001",
+               "Serie": "BV"
+       },
+       "Factura": {
+               "Numar": "001",
+               "Serie": "BV",
+                 "Link": ""
+         }
+
+ }
+
+ Response eroare:
+ {
+       "Success": false,
+       "Message": "Mesaj eroare"
+ }
+
+
+STERGERE INCASARE
+Atentie! Aceasta metoda a fost decomisionata in 15.12.2020 pentru FGO Pro, fiind disponibila doar pentru
+Premium & Enterprise
+
+POST Request
+
+ Link: ROOT/factura/stergereincasare
+ Limitare 1 request la 1 secunda
+ Parametru                 Tip             Obligatoriu   Observatii
+ CodUnic                   string          x             CUI-ul companiei
+ Hash                      string          x             Vezi sectiunea „Cum se calculeaza HASH-ul” 3.b. de mai
+                                                         jos.
+ NumarFactura                 string(50)   x             Numarul facturii pentru care se adauga incasarea
+ SerieFactura                 string(50)   x             Seria facturii pentru care se adauga incasarea
+
+ SerieIncasare                string(50)   x             Seria incasarii pentru care se face stergerea
+ NumarIncasare                string(50)   x             Numarul incasarii pentru care se face stergerea
+ PlatformaUrl                 string       x             Adresa url (root) de la care se face apelul catre API FGO.
+                                                         Este recomandat ca url site-ului să fie introdus complet.
+                                                         Exemple: https://www.fgo.ro https://www.24edu.ro
+
+
+ Response
+ {
+   "Success": true,
+   "Message": "Incasarea a fost stearsa.",
+ }
+                                                         SAU
+ Response
+ {
+       "Success": false,
+       "Message": "Mesaj eroare"
+ }
+
+
+STORNARE FACTURA
+
+POST Request
+
+ Link: ROOT/factura/stornare
+ Limitare 1 request la 1 secunda
+ Parametru                 Tip             Obligatoriu   Observatii
+ CodUnic                   string        x             CUI-ul companiei
+ Hash                      string        x             Vezi sectiunea „Cum se calculeaza HASH-ul” 3.b. de mai
+                                                       jos.
+ Numar                     string(50)    x
+ Serie                     string(50)    x
+ SerieStorno               string(50)                  Serie factura storno
+ NumarStorno               string(50)                  Numar factura storno
+ DataEmitere               datetime                    Data emitere factura storno. Daca nu se trimite valoare,
+                                                       data implicita va fi data si ora apelului.
+                                                       Format yyyy-mm-dd
+ PlatformaUrl              string        x             Adresa url (root) de la care se face apelul catre API FGO.
+                                                       Este recomandat ca url site-ului să fie introdus complet.
+                                                       Exemple: https://www.fgo.ro https://www.24edu.ro
+
+
+Response
+{
+      "Success": true,
+      "Message": "",
+      "Factura": {
+              "Numar": "001",
+              "Serie": "BV",
+              "Link": ""
+      }
+}
+
+
+                                                       SAU
+
+Response
+{
+      "Success": false,
+      "Message": "Mesaj eroare"
+}
+
+
+AWB
+
+POST Request
+
+ Link: ROOT/factura/awb
+ Limitare 1 request la 1 secunda
+ Parametru                 Tip           Obligatoriu   Observatii
+ CodUnic                   string        x             CUI-ul companiei
+ Hash                      string        x             Vezi sectiunea „Cum se calculeaza HASH-ul” 3.b. de mai
+                                                       jos.
+ Numar                     string(50)    x
+ Serie                     string(50)    x
+ AWB                       String(128)   x             Numarul AWB de la curier
+ PlatformaUrl              string        x             Adresa url (root) de la care se face apelul catre API FGO.
+                                                       Este recomandat ca url site-ului să fie introdus complet.
+                                                       Exemple: https://www.fgo.ro https://www.24edu.ro
+ Response
+ {
+       "Success": true
+ }
+                                                         SAU
+
+ Response
+ {
+       "Success": false,
+       "Message": "Mesaj eroare"
+ }
+
+
+
+
+LIST FACTURI ASOCIATE
+Metoda disponibila doar cu pachetul ENTERPRISE incepand cu 01.03.2021
+
+POST Request
+
+ Link: ROOT/factura/listfacturiasociate
+ Limitare 1 request la 1 secunda
+ Parametru                 Tip           Obligatoriu     Observatii
+ CodUnic                   string        x               CUI-ul companiei
+ Hash                      string        x               Vezi sectiunea „Cum se calculeaza HASH-ul” 3.b. de mai
+                                                         jos.
+ Numar                     string(50)    x
+ Serie                     string(50)    x
+ PlatformaUrl              string        x               Adresa url (root) de la care se face apelul catre API FGO.
+                                                         Este recomandat ca url site-ului să fie introdus complet.
+                                                         Exemple: https://www.fgo.ro https://www.24edu.ro
+
+
+ Response
+ {
+       "Success": true,
+       "Facturi": [
+               {
+                          "Numar": "1",
+                          "Serie": "X",
+                          "Valoare": "167.69",
+                          "ValoareAchitata": "167.69",
+                          "DataEmitere": "2020-12-14"
+                 }
+         ]
+ }
+                                                         SAU
+
+                                    { Success = false, Message = ”Mesaj eroare” } }
+ARTICOLE
+
+LIST
+Metoda disponibila doar cu pachetul ENTERPRISE proiectata in scopul utilizarii pentru sincronizarea initiala sau alte
+sincronizari cu frecventa redusa.
+
+POST Request
+
+ Link: ROOT/articol/list
+ Limitare 1 request la 5 secunde (incepand cu 01.07.2023 se va modifica la 1 request la 30 secunde)
+ Parametru                 Tip           Obligatoriu Observatii
+ CodUnic                   string        x            CUI-ul companiei
+ Hash                      string        x            Vezi sectiunea „Cum se calculeaza HASH-ul” 3.b. de mai
+                                                      jos.
+ NrPagina                  int           x            Pentru calculul paginarii se va tine cont de parametrul
+                                                      Total din raspuns.
+ NrArticole                int           x            Reprezinta numarul de articole afisate pe request.
+                                                      Valoarea implicita este 10. Pentru paginare se va tine
+                                                      cont de parametrul Total din raspuns.
+ PlatformaUrl              string        x            Adresa url (root) de la care se face apelul catre API FGO.
+                                                      Este recomandat ca url site-ului să fie introdus complet.
+                                                      Exemple: https://www.fgo.ro https://www.24edu.ro
+
+
+
+
+ Response
+ {
+       "Result": {
+               "Total": 1335,
+               "NrPagina": 1,
+               "NrArticole": 1,
+               "List": [
+                         {
+                                  "Nume": " storno partial factura 036 servicii juridice",
+                                  "PretUnitar": 0,
+                                  "UM": "",
+                                  "CodConta": null,
+                                  "CotaTva": 0.19,
+                                  "Stoc": -4
+                           }
+                 ]
+         },
+         "Success": true
+ }
+                                                          SAU
+
+ Response
+ {
+       "Success": false,
+       "Message": "Mesaj eroare"
+ }
+GET
+
+POST Request
+
+ Link: ROOT/articol/get
+ Limitare 1 request la 5 secunde
+ Parametru                 Tip           Obligatoriu   Observatii
+ CodUnic                   string        x             CUI-ul companiei
+ Hash                      string        x             Vezi sectiunea „Cum se calculeaza HASH-ul” 3.b. de mai
+                                                       jos.
+ CodArticol                string        x             Codul de articol
+ PlatformaUrl              string        x             Adresa url (root) de la care se face apelul catre API FGO.
+                                                       Este recomandat ca url site-ului să fie introdus complet.
+                                                       Exemple: https://www.fgo.ro https://www.24edu.ro
+
+
+ Response
+ {
+       "Result": {
+               "Nume": " storno partial factura 036 servicii juridice",
+               "PretUnitar": 0,
+               "UM": "",
+               "CodConta": null,
+               "CotaTva": 0.19,
+               "Stoc": -4
+       },
+       "Success": true
+ }
+                                                      SAU
+
+ Response
+ {
+       "Success": false,
+       "Message": "Mesaj eroare"
+ }
+
+
+GETLIST
+Metoda va fi inlocuita cu ARTICOLEMODIFICATE incepand cu 01.07.2023
+
+POST Request
+
+ Link: ROOT/articol/getlist
+ Limitare 1 request la 5 secunde
+ Parametru                 Tip           Obligatoriu   Observatii
+ CodUnic                   string        x             CUI-ul companiei
+ Hash                      string        x             Vezi sectiunea „Cum se calculeaza HASH-ul” 3.b. de mai
+                                                       jos.
+ Coduri                    array         x             Coduri de articole, maxim 30
+ PlatformaUrl              string        x             Adresa url (root) de la care se face apelul catre API FGO.
+                                                       Este recomandat ca url site-ului să fie introdus complet.
+                                                       Exemple: https://www.fgo.ro https://www.24edu.ro
+
+
+ Response
+ {
+         "Result": [
+                 {
+                           "Nume": "Produs 1",
+                           "PretUnitar": 0,
+                           "CotaTva": 0.19,
+                           "UM": "BUC",
+                           "CodConta": "00000101",
+                           "Stoc": 0,
+                           "CodBare": null
+                 },
+                 {
+                           "Nume": "Produs 2",
+                           "PretUnitar": 0,
+                           "CotaTva": 0.19,
+                           "UM": "BUC",
+                           "CodConta": "00000102",
+                           "Stoc": 0,
+                           "CodBare": null
+                 },
+                 {
+                           "Nume": "Produs 3",
+                           "PretUnitar": 0,
+                           "CotaTva": 0.19,
+                           "UM": "BUC",
+                           "CodConta": "00000103",
+                           "Stoc": 0,
+                           "CodBare": null
+                }
+         ],
+         "Success": true
+ }
+                                                           SAU
+
+ Response
+ {
+       "Success": false,
+       "Message": "Mesaj eroare"
+ }
+
+
+ARTICOLEMODIFICATE
+Metoda disponibila doar cu pachetul ENTERPRISE. Puteti folosi aceasta metoda atunci cand doriti sa vedeti care
+articole au suferit modificari in ultimele 7 zile (de exemplu, pentru actualizarea stocurilor in functie de vanzarile din
+ultimele 7 zile).
+
+
+
+POST Request
+
+ Link: ROOT/articol/articolemodificate
+ Limitare 1 request la 30 minute
+ Parametru                 Tip             Obligatoriu    Observatii
+ CodUnic                   string          x              CUI-ul companiei
+ Hash                      string          x              Vezi sectiunea „Cum se calculeaza HASH-ul” 3.b. de mai
+                                                          jos.
+ NumarOre                   int           x             Numarul de ore implicit daca nu se transmite
+                                                        parametrul: 24. Numarul maxim de ore permis: 170 ore.
+ NumarOrePanaLa             Int                         Daca nu este furnizat se iau cele mai recente 200
+                                                        modifiari de la NumarOre (parametrul anterior) pana in
+                                                        prezent. Daca este furnizat se iau cele mai recente 200
+                                                        modificari de la NumarOre pana la NumarOrePanaLa.
+                                                        Mecanismul permite simularea paginarii in cazul in care
+                                                        sunt mai mult de 200 de articole modificate in intervalul
+                                                        ales.
+ PlatformaUrl               string        x             Adresa url (root) de la care se face apelul catre API FGO.
+                                                        Este recomandat ca url site-ului să fie introdus complet.
+                                                        Exemple: https://www.fgo.ro https://www.24edu.ro
+
+
+Exemplu:
+
+NumarOre=24, NumarOrePanaLa=20
+
+Daca requestul se face astazi la ora 12:00 Se vor lua in considerare toate articolele modificate, vandute sau
+achizitionate in intervalul ieri ora 12:00 – ieri ora 15:59:59 DAR NU MAI MULT DE 200
+
+ Response
+ {
+       "Result": [
+               {
+                           "Nume": "Produs 1",
+                           "CodConta": "00000101",
+                           "Stoc": 0,
+                           "CodBare": null,
+                           "UltimaUtilizare": "2023-03-15 20:45:00"
+                 },
+                 {
+                           "Nume": "Produs 2",
+                           "CodConta": "00000102",
+                           "Stoc": 0,
+                           "CodBare": null,
+                           "UltimaUtilizare": "2023-03-15 20:55:00"
+                 }
+         ],
+         "Success": true
+ }
+                                                         SAU
+
+
+
+ Response
+ {
+       "Success": false,
+       "Message": "Mesaj eroare"
+ }
+
+
+GESTIUNE
+
+POST Request
+ Link: ROOT/articol/gestiune
+ Limitare 1 request la 5 secunde
+ Parametru                 Tip                  Obligatoriu   Observatii
+ CodUnic                   string               x             CUI-ul companiei
+ Hash                      string               x             Vezi sectiunea „Cum se calculeaza HASH-ul” 3.b. de mai
+                                                              jos.
+ PlatformaUrl                   string          x             Adresa url (root) de la care se face apelul catre API FGO.
+                                                              Este recomandat ca url site-ului să fie introdus complet.
+                                                              Exemple: https://www.fgo.ro https://www.24edu.ro
+
+
+ Response
+ {
+       "Result": {
+               "List": [
+                            {
+                                         "CodGestiune": "Cod1",
+                                         "Nume": "Nume1"
+                            }
+                 ]
+          },
+          "Success": true
+ }
+                                                              SAU
+
+ Response
+ {
+       "Success": false,
+       "Message": "Mesaj eroare"
+ }
+
+
+CUM SE CALCULEAZA HASH-UL?
+
+Pentru orice request, se va construi un hash de tip SHA-1 Uppercase format din:
+
+     a. Emitere factura
+        Hash=Cod Unic Furnizor+Cheie Privata+Denumire Client
+        Ex:
+        - Cod Unic Furnizor: 2864518,
+        - Cheie Privata: 1234567890
+        - Denumire Client Beneficiar: Ionescu Popescu
+
+         Se face criptarea -> SHA-1(28645181234567890Ionescu Popescu)
+
+         Hash=8C3A7726804C121C6933F7D68494B439463996E2
+
+     b. Anulare, Stornare, Print, Incasare sau StergereIncasare, in locul denumirii clientului se va transmite numarul
+        facturii asa cum este intors de metoda de emitere (Ex. ”001”, ”123”) fara serie.
+        Ex:
+        - Cod Unic Furnizor: 2864518,
+        - Cheie Privata: 1234567890
+        - Numar Factura: 123
+
+         Se face criptarea -> SHA-1(28645181234567890123)
+c. Articole
+   Ex:
+   - Cod Unic Furnizor: 2864518,
+   - Cheie Privata: 1234567890
+
+   Se face criptarea -> SHA-1(28645181234567890)
+

@@ -10,6 +10,7 @@
     cargus:  { label: "Cargus",      pickupLabel: "Cargus Ship & Go", color: "#E20020", markerColor: "#E20020", letter: "C", badgeClass: "rc-badge-cargus"  },
     gls:     { label: "GLS",         pickupLabel: "GLS ParcelShop",   color: "#003591", markerColor: "#FFD700", letter: "G", badgeClass: "rc-badge-gls"     },
     packeta: { label: "Packeta",     pickupLabel: "Packeta / Z-BOX",  color: "#BA2025", markerColor: "#BA2025", letter: "P", badgeClass: "rc-badge-packeta" },
+    dpd:     { label: "DPD",         pickupLabel: "DPDbox",           color: "#DC0032", markerColor: "#DC0032", letter: "D", badgeClass: "rc-badge-dpd"     },
   };
 
   // ── Customer-facing translations ──────────────────────────────────────────────
@@ -34,6 +35,13 @@
       err_no_point:      "Alege un punct de ridicare de pe hartă!",
       points_count:      "{n} puncte",
       last_used:         "Ultima alegere",
+      free_left:         "Mai adaugă {amount} în coș și livrarea{scope} e gratuită",
+      free_done:         "Ai livrare gratuită{scope}!",
+      free_scope_pickup: " la locker",
+      eta:               "Livrare estimată: {date}",
+      eta_cutoff:        "Comandă în {time} și coletul pleacă azi",
+      months:            "ian.,feb.,mar.,apr.,mai,iun.,iul.,aug.,sept.,oct.,nov.,dec.",
+      days:              "duminică,luni,marți,miercuri,joi,vineri,sâmbătă",
     },
     en: {
       free:              "Free",
@@ -55,6 +63,13 @@
       err_no_point:      "Please select a pickup point from the map!",
       points_count:      "{n} points",
       last_used:         "Last used",
+      free_left:         "Add {amount} more for free delivery{scope}",
+      free_done:         "You've unlocked free delivery{scope}!",
+      free_scope_pickup: " to a locker",
+      eta:               "Estimated delivery: {date}",
+      eta_cutoff:        "Order within {time} and it ships today",
+      months:            "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec",
+      days:              "Sunday,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday",
     },
     de: {
       free:              "Kostenlos",
@@ -76,6 +91,13 @@
       err_no_point:      "Bitte wählen Sie einen Abholpunkt auf der Karte!",
       points_count:      "{n} Punkte",
       last_used:         "Zuletzt verwendet",
+      free_left:         "Noch {amount} bis zur kostenlosen Lieferung{scope}",
+      free_done:         "Du hast kostenlose Lieferung{scope}!",
+      free_scope_pickup: " an eine Packstation",
+      eta:               "Voraussichtliche Lieferung: {date}",
+      eta_cutoff:        "Bestelle in {time} und es geht heute raus",
+      months:            "Jan.,Feb.,März,Apr.,Mai,Juni,Juli,Aug.,Sept.,Okt.,Nov.,Dez.",
+      days:              "Sonntag,Montag,Dienstag,Mittwoch,Donnerstag,Freitag,Samstag",
     },
     hu: {
       free:              "Ingyenes",
@@ -97,6 +119,13 @@
       err_no_point:      "Kérjük, válasszon csomagpontot a térképen!",
       points_count:      "{n} pont",
       last_used:         "Utoljára használt",
+      free_left:         "Még {amount} és ingyenes a szállítás{scope}",
+      free_done:         "Ingyenes szállítás{scope}!",
+      free_scope_pickup: " csomagautomatába",
+      eta:               "Várható kézbesítés: {date}",
+      eta_cutoff:        "Rendelj {time} belül, és ma feladjuk",
+      months:            "jan.,febr.,márc.,ápr.,máj.,jún.,júl.,aug.,szept.,okt.,nov.,dec.",
+      days:              "vasárnap,hétfő,kedd,szerda,csütörtök,péntek,szombat",
     },
     cs: {
       free:              "Zdarma",
@@ -118,6 +147,13 @@
       err_no_point:      "Vyberte výdejní místo na mapě!",
       points_count:      "{n} míst",
       last_used:         "Naposledy použité",
+      free_left:         "Přidejte ještě {amount} a doprava{scope} je zdarma",
+      free_done:         "Máte dopravu zdarma{scope}!",
+      free_scope_pickup: " do boxu",
+      eta:               "Předpokládané doručení: {date}",
+      eta_cutoff:        "Objednejte do {time} a odešleme dnes",
+      months:            "led.,ún.,bře.,dub.,kvě.,čvn.,čvc.,srp.,zář.,říj.,lis.,pro.",
+      days:              "neděle,pondělí,úterý,středa,čtvrtek,pátek,sobota",
     },
   };
 
@@ -165,11 +201,14 @@
     // Fetch language override from app settings via App Proxy (same-origin, no CSP issues)
     fetch("/apps/rocourier/widget-config")
       .then((r) => r.json())
-      .then(({ widgetLanguage, fees }) => {
+      .then(({ widgetLanguage, fees, freeShipping, eta }) => {
         if (widgetLanguage && widgetLanguage !== "auto" && STRINGS[widgetLanguage] && widgetLanguage !== lang) {
           lang = widgetLanguage;
           translateUI();
         }
+        if (freeShipping) FREE = { threshold: Number(freeShipping.threshold) || 0, scope: freeShipping.scope || "all" };
+        if (eta) ETA = eta;
+        renderExtras();
         // App settings are what checkout actually charges — they override the block settings
         if (fees) {
           Object.keys(fees).forEach((c) => {
@@ -178,8 +217,8 @@
           const wasDefault = _method === "home_delivery" && _courier === defaultCourier;
           defaultCourier = cheapestHomeCourier();
           if (wasDefault) onHomeSelected();
-          else if (_method === "home_delivery" && homeFeeEl) homeFeeEl.textContent = feeLabel(FEES[_courier]?.home || 0);
-          else if (_method === "pickup_point" && pickupFeeEl) pickupFeeEl.textContent = feeLabel(FEES[_courier]?.pickup || 0);
+          else if (_method === "home_delivery" && homeFeeEl) homeFeeEl.textContent = feeLabel(feeFor(_courier, "home"));
+          else if (_method === "pickup_point" && pickupFeeEl) pickupFeeEl.textContent = feeLabel(feeFor(_courier, "pickup"));
         }
       })
       .catch(() => {});
@@ -226,6 +265,112 @@
       const shown = FX_RATE === 1 ? amount : Math.ceil(amount * FX_RATE);
       return shown.toLocaleString("ro-RO", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + " " + CURRENCY;
     }
+
+    // ── Free delivery threshold + delivery estimate (settings from the app) ───
+    let FREE = { threshold: 0, scope: "all" };
+    let ETA = null;          // { show, cutoffHour, processingDays }
+    let cartTotal = null;    // in the shopper's currency, major units
+
+    const freeApplies = (kind) => {
+      if (!FREE.threshold || cartTotal == null) return false;
+      if (cartTotal < FREE.threshold * FX_RATE) return false;
+      return FREE.scope === "pickup" ? kind === "pickup" : true;
+    };
+    function feeFor(c, kind) {
+      if (!c || !FEES[c]) return 0;
+      return freeApplies(kind) ? 0 : (FEES[c][kind] || 0);
+    }
+    function money(amount) {
+      return amount.toLocaleString("ro-RO", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + " " + CURRENCY;
+    }
+
+    // Same rules as app/utils/delivery-estimate.js: weekends + Romanian public holidays
+    function orthodoxEaster(y) {
+      const a = y % 4, b = y % 7, c = y % 19, d = (19 * c + 15) % 30, e = (2 * a + 4 * b - d + 34) % 7;
+      const m = Math.floor((d + e + 114) / 31), day = ((d + e + 114) % 31) + 1;
+      return new Date(Date.UTC(y, m - 1, day + 13));
+    }
+    function isWorkingDay(d) {
+      const dow = d.getUTCDay();
+      if (dow === 0 || dow === 6) return false;
+      const y = d.getUTCFullYear(), key = d.toISOString().slice(5, 10);
+      if (["01-01","01-02","01-06","01-07","01-24","05-01","06-01","08-15","11-30","12-01","12-25","12-26"].includes(key)) return false;
+      const easter = orthodoxEaster(y).getTime();
+      return ![-2, 0, 1, 49, 50].some((n) => new Date(easter + n * 864e5).toISOString().slice(0, 10) === d.toISOString().slice(0, 10));
+    }
+    function addWorkingDays(d, n) {
+      const x = new Date(d.getTime());
+      while (n > 0) { x.setUTCDate(x.getUTCDate() + 1); if (isWorkingDay(x)) n--; }
+      return x;
+    }
+    function roNow() {
+      const p = {};
+      new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Bucharest", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+        .formatToParts(new Date()).forEach((x) => { p[x.type] = x.value; });
+      return { date: new Date(Date.UTC(+p.year, +p.month - 1, +p.day)), hour: +p.hour, minute: +p.minute };
+    }
+    function etaText() {
+      if (!ETA || !ETA.show) return "";
+      const now = roNow();
+      const cutoff = Number(ETA.cutoffHour ?? 14);
+      let ship = now.date;
+      const shipsToday = isWorkingDay(ship) && now.hour < cutoff && !(ETA.processingDays > 0);
+      if (!isWorkingDay(ship) || now.hour >= cutoff) ship = addWorkingDays(ship, 1);
+      if (ETA.processingDays > 0) ship = addWorkingDays(ship, ETA.processingDays);
+      const from = addWorkingDays(ship, 1), to = addWorkingDays(ship, 2);
+      const months = t("months").split(","), days = t("days").split(",");
+      const fmt = (d) => `${days[d.getUTCDay()]}, ${d.getUTCDate()} ${months[d.getUTCMonth()]}`;
+      let text = t("eta", { date: from.getTime() === to.getTime() ? fmt(from) : `${fmt(from)} – ${fmt(to)}` });
+      if (shipsToday) {
+        const mins = (cutoff - now.hour) * 60 - now.minute;
+        if (mins > 0 && mins <= 6 * 60) text += " · " + t("eta_cutoff", { time: `${Math.floor(mins / 60)}h ${String(mins % 60).padStart(2, "0")}m` });
+      }
+      return text;
+    }
+
+    function renderExtras() {
+      const bar = $("rc-free-bar");
+      if (bar) {
+        if (!FREE.threshold || cartTotal == null) bar.hidden = true;
+        else {
+          const target = FREE.threshold * FX_RATE;
+          const scope = FREE.scope === "pickup" ? t("free_scope_pickup") : "";
+          const left = Math.max(0, target - cartTotal);
+          const textEl = $("rc-free-text"), fill = $("rc-free-fill");
+          if (textEl) textEl.textContent = left > 0 ? t("free_left", { amount: money(Math.ceil(left * 100) / 100), scope }) : t("free_done", { scope });
+          if (fill) fill.style.width = Math.min(100, (cartTotal / target) * 100).toFixed(1) + "%";
+          bar.classList.toggle("rc-free-done", left <= 0);
+          bar.hidden = false;
+        }
+      }
+      const etaEl = $("rc-eta");
+      if (etaEl) { const txt = etaText(); etaEl.textContent = txt; etaEl.hidden = !txt; }
+      // Fees shown next to the methods follow the free-delivery state
+      if (_method === "home_delivery" && homeFeeEl) homeFeeEl.textContent = feeLabel(feeFor(_courier, "home"));
+      else if (_method === "pickup_point" && pickupFeeEl) pickupFeeEl.textContent = feeLabel(feeFor(_courier, "pickup"));
+    }
+
+    function refreshCartTotal() {
+      fetch("/cart.js", { headers: { Accept: "application/json" } })
+        .then((r) => r.json())
+        .then((cart) => { cartTotal = (Number(cart.total_price) || 0) / 100; renderExtras(); })
+        .catch(() => {});
+    }
+    refreshCartTotal();
+    // Themes update the cart over AJAX — re-read the total after any cart change
+    ["cart:updated", "cart:refresh", "cart:change", "theme:cart:change", "on:cart:change"].forEach((ev) =>
+      document.addEventListener(ev, () => setTimeout(refreshCartTotal, 150)));
+    if (window.fetch && !window.__pickloCartHook) {
+      window.__pickloCartHook = true;
+      const origFetch = window.fetch;
+      window.fetch = function (input, init) {
+        const p = origFetch.apply(this, arguments);
+        const url = typeof input === "string" ? input : input?.url || "";
+        if (/\/cart\/(add|change|update|clear)/.test(url)) p.then(() => setTimeout(refreshCartTotal, 150)).catch(() => {});
+        return p;
+      };
+    }
+    setInterval(renderExtras, 60000); // keeps the cut-off countdown current
 
     // ── Build pickup sub-text dynamically from enabled couriers ───────────────
     const pickupSubEl = $("rc-pickup-sub");
@@ -308,7 +453,7 @@
       if (pickupFeeEl)   pickupFeeEl.textContent = "";
       hideError();
       if (defaultCourier) {
-        if (homeFeeEl) homeFeeEl.textContent = feeLabel(FEES[defaultCourier]?.home || 0);
+        if (homeFeeEl) homeFeeEl.textContent = feeLabel(feeFor(defaultCourier, "home"));
         _method  = "home_delivery";
         _courier = defaultCourier;
         _pid = _pname = _paddr = "";
@@ -353,7 +498,7 @@
     }
 
     function updatePickupFee(courier) {
-      if (pickupFeeEl) pickupFeeEl.textContent = feeLabel(FEES[courier]?.pickup || 0);
+      if (pickupFeeEl) pickupFeeEl.textContent = feeLabel(feeFor(courier, "pickup"));
     }
 
     // ── Modal ──────────────────────────────────────────────────────────────────
@@ -1104,7 +1249,7 @@
         const c = courier || defaultCourier;
         if (c) {
           selectRow("home");
-          if (homeFeeEl) homeFeeEl.textContent = feeLabel(FEES[c]?.home || 0);
+          if (homeFeeEl) homeFeeEl.textContent = feeLabel(feeFor(c, "home"));
           _method = "home_delivery"; _courier = c;
           _pid = _pname = _paddr = "";
         }

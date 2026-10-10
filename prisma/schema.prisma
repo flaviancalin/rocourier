@@ -76,7 +76,19 @@ model ShopSettings {
   // Get from: client.packeta.com → Settings → API → API password
   packetaApiKey      String?
   packetaEnabled     Boolean @default(false)
-  packetaLabelFormat String  @default("A6 on A4")  // "A6 on A4" | "A7 on A4"
+  packetaLabelFormat String  @default("A6 on A4")  // "A6 on A4" | "A6 on A6" | "A7 on A4" | "A7 on A7" | "A8 on A8"
+  packetaApiPassword String?  // 32-char API password (REST); packetaApiKey is the 16-char key (feeds)
+  packetaSender      String?  // "eshop" sender indication
+  packetaHomeCarrierId String? // carrier id for home delivery (empty = automatic)
+
+  // ── DPD Romania ──────────────────────────────────────────────────────────────
+  // Get from: DPD Romania account manager (API user + password, same as the DPD web portal user)
+  dpdUsername   String?
+  dpdPassword   String?
+  dpdEnabled    Boolean @default(false)
+  dpdServiceId  String?   // contract service used for AWBs (empty = auto-detect)
+  dpdClientId   String?   // contract client = pickup address (empty = account default)
+  dpdLabelSize  String  @default("A6")  // "A6" | "A4" | "A4_4xA6"
 
   // ── Billing / Plan ───────────────────────────────────────────────────────────
   planType          String    @default("trial")  // "trial" | "pro_monthly" | "pro_yearly" | "lifetime"
@@ -104,8 +116,18 @@ model ShopSettings {
   oblioCurrency       String?  @default("RON")
   oblioEnabled        Boolean  @default(false)
 
+  // ── FGO ───────────────────────────────────────────────────────────────────────
+  // Get from: fgo.ro → Setari → Utilizatori → utilizator API (cheie privata)
+  fgoCui         String?  // CUI-ul firmei (fara RO)
+  fgoPrivateKey  String?
+  fgoSeries      String?
+  fgoTVA         String?  @default("21")
+  fgoCurrency    String?  @default("RON")
+  fgoEnabled     Boolean  @default(false)
+  fgoSandbox     Boolean  @default(false)
+
   // ── Invoicing Settings (common) ──────────────────────────────────────────────
-  invoiceProvider        String?  // "smartbill" | "oblio" | null
+  invoiceProvider        String?  // "smartbill" | "oblio" | "fgo" | null
   autoSendInvoice        Boolean  @default(false)  // trimite factura dupa creare comanda
   autoInvoiceOnFulfill   Boolean  @default(false)  // trimite factura la fulfillment
 
@@ -148,6 +170,33 @@ model ShopSettings {
   glsPickupFee             Float  @default(0)
   packetaHomeDeliveryFee   Float  @default(0)
   packetaPickupFee         Float  @default(0)
+  dpdHomeDeliveryFee       Float  @default(0)
+  dpdPickupFee             Float  @default(0)
+
+  // ── Cart widget extras ───────────────────────────────────────────────────
+  freeShippingThreshold  Float?             // cart total for free delivery (null = off)
+  freeShippingScope      String  @default("all")  // all | pickup (free only to lockers)
+  showDeliveryEstimate   Boolean @default(true)
+  dispatchCutoffHour     Int     @default(14)      // orders after this hour leave next working day
+  processingDays         Int     @default(0)       // extra working days to pack an order
+
+  // ── Order checks ─────────────────────────────────────────────────────────
+  validateAddresses      Boolean @default(true)    // flag bad zip/city/phone before the AWB
+  refusalWarnThreshold   Int     @default(1)       // warn when the customer refused this many parcels
+  blockCodAfterRefusals  Int     @default(0)       // hide cash on delivery at checkout after N refusals (0 = off)
+
+  // ── Support ──────────────────────────────────────────────────────────────
+  supportAccess          Boolean @default(true)    // Picklo team may view and change this store's Picklo setup
+  routingRules           Json?                     // [{ when: {...}, courier }] evaluated in order
+
+  // ── Returns ──────────────────────────────────────────────────────────────
+  returnsEnabled         Boolean @default(false)
+  returnsWindowDays      Int     @default(14)
+  returnsCourier         String?                   // courier used for return AWBs
+  returnsInstructions    String?
+
+  // ── COD reconciliation ───────────────────────────────────────────────────
+  codSyncedAt            DateTime?
 
   // ── Checkout delivery options ────────────────────────────────────────────
   // "ccs" = Shopify asks Picklo for rates (carrier-calculated shipping available)
@@ -171,6 +220,66 @@ model ShopSettings {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ─── Activity log (who did what, when) ─────────────────────────────────────────
+model ActivityLog {
+  id        String   @id @default(cuid())
+  shop      String
+  orderId   String?
+  orderName String?
+  action    String   // awb_generated | awb_deleted | invoice_issued | return_requested | cod_reconciled …
+  message   String
+  actor     String?  // "automation" | staff email | "customer"
+  createdAt DateTime @default(now())
+
+  @@index([shop, createdAt])
+  @@index([orderId])
+}
+
+// ─── Return requests (customer portal) ─────────────────────────────────────────
+model ReturnRequest {
+  id               String   @id @default(cuid())
+  shop             String
+  orderId          String
+  shopifyOrderName String
+  customerName     String?
+  customerEmail    String?
+  customerPhone    String?
+  items            Json     // [{ name, sku, quantity }]
+  reason           String
+  comment          String?
+  method           String   @default("courier")  // courier (pickup from address) | locker | dropoff
+  pickupPointId    String?
+  pickupPointName  String?
+  iban             String?
+  status           String   @default("requested") // requested | approved | rejected | awb_generated | received | refunded
+  returnCourier    String?
+  returnAwbNumber  String?
+  dropoffPassword  String?  // Packeta returns: code the customer gives at the drop-off point
+  merchantNote     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([shop, status])
+  @@index([orderId])
+}
+
+// ─── COD payouts reported by couriers (ramburs) ────────────────────────────────
+model CodPayout {
+  id          String   @id @default(cuid())
+  shop        String
+  courier     String
+  awbNumber   String
+  amount      Float
+  currency    String   @default("RON")
+  paidAt      DateTime?
+  documentId  String?
+  orderId     String?   // matched Picklo order
+  createdAt   DateTime @default(now())
+
+  @@unique([shop, courier, awbNumber])
+  @@index([shop, paidAt])
 }
 
 // ─── Orders (synced from Shopify via webhook) ─────────────────────────────────
@@ -225,6 +334,20 @@ model Order {
   financialStatus   String?   // Shopify financial status (paid, pending, refunded…)
   shopifyCancelledAt DateTime?
 
+  // B2B (company on the order) — invoices go to the company
+  customerCompany  String?
+  customerVatCode  String?
+  customerRegCom   String?
+
+  // Shipping cost charged by the courier for this AWB (when the API returns it)
+  shippingCost     Float?
+  deliveredAt      DateTime?
+
+  // COD reconciliation — money transferred by the courier
+  codCollectedAmount Float?
+  codCollectedAt     DateTime?
+  codPayoutRef       String?
+
   // xConnector sync status
   xconnectorSynced  Boolean  @default(false)
   xconnectorSyncAt  DateTime?
@@ -241,6 +364,7 @@ model Order {
   @@index([shop])
   @@index([shop, awbStatus])
   @@index([shop, courierType])
+  @@index([shop, customerPhone])
   @@index([createdAt])
 }
 
@@ -262,7 +386,7 @@ model AwbEvent {
 model PickupPoint {
   id         String @id @default(cuid())
   externalId String  // ID from courier API
-  courier    String  // "fan" | "sameday" | "cargus" | "gls" | "packeta"
+  courier    String  // "fan" | "sameday" | "cargus" | "gls" | "packeta" | "dpd"
   name       String
   address    String
   city       String?
@@ -304,4 +428,53 @@ model DiscountCodeUsage {
   discountCode DiscountCode @relation(fields: [code], references: [code])
 
   @@unique([code, shop])
+}
+
+// ─── Support tickets (merchant ↔ Picklo team) ──────────────────────────────────
+model SupportTicket {
+  id              String   @id @default(cuid())
+  shop            String
+  subject         String
+  category        String   @default("question") // question | problem | setup | billing | feature
+  status          String   @default("open")     // open | waiting_merchant | resolved
+  priority        String   @default("normal")   // low | normal | high | urgent
+  contactName     String?
+  contactEmail    String?
+  assignedTo      String?                         // TeamMember email
+  unreadByTeam    Boolean  @default(true)
+  unreadByMerchant Boolean @default(false)
+  lastMessageAt   DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  messages        SupportMessage[]
+
+  @@index([shop, status])
+  @@index([status, lastMessageAt])
+}
+
+model SupportMessage {
+  id         String   @id @default(cuid())
+  ticketId   String
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author     String   // merchant | team
+  authorName String?
+  body       String
+  internal   Boolean  @default(false) // team-only note, never shown to the merchant
+  createdAt  DateTime @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+// ─── Picklo team accounts for the /hq dashboard ────────────────────────────────
+model TeamMember {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         String    @default("support") // admin | support
+  active       Boolean   @default(true)
+  failedLogins Int       @default(0)
+  lockedUntil  DateTime?
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
 }

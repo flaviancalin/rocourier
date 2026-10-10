@@ -19,11 +19,12 @@ export async function loader({ request }) {
   const isAdmin = process.env.ADMIN_SHOP ? session.shop === process.env.ADMIN_SHOP : false;
   const settings = await prisma.shopSettings.findUnique({ where: { shop: session.shop } });
   const setupCompleted = settings?.onboardingCompleted ?? false;
-  return json({ apiKey: process.env.SHOPIFY_API_KEY ?? "", isAdmin, setupCompleted });
+  const unreadHelp = await prisma.supportTicket.count({ where: { shop: session.shop, unreadByMerchant: true } });
+  return json({ apiKey: process.env.SHOPIFY_API_KEY ?? "", isAdmin, setupCompleted, unreadHelp });
 }
 
 function AppLayout() {
-  const { apiKey, isAdmin, setupCompleted } = useLoaderData();
+  const { apiKey, isAdmin, setupCompleted, unreadHelp } = useLoaderData();
   const { t } = useTranslation();
 
   return (
@@ -33,10 +34,15 @@ function AppLayout() {
         <Link to="/app" rel="home">{t("nav_dashboard")}</Link>
         {!setupCompleted && <Link to="/app/setup">{t("nav_setup")}</Link>}
         <Link to="/app/orders">{t("nav_orders")}</Link>
+        <Link to="/app/ship-today">{t("nav_ship_today")}</Link>
+        <Link to="/app/returns">{t("nav_returns")}</Link>
+        <Link to="/app/cod">{t("nav_cod")}</Link>
+        <Link to="/app/reports">{t("nav_reports")}</Link>
         <Link to="/app/settings">{t("nav_settings")}</Link>
         <Link to="/app/pickup-points">{t("nav_pickup_points")}</Link>
         <Link to="/app/widget">{t("nav_widget")}</Link>
         <Link to="/app/billing">{t("nav_billing")}</Link>
+        <Link to="/app/help">{unreadHelp ? `${t("nav_help")} (${unreadHelp})` : t("nav_help")}</Link>
         {isAdmin && <Link to="/app/admin-codes">{t("nav_admin_codes")}</Link>}
       </NavMenu>
 

@@ -4,6 +4,7 @@
 
 import { authenticate } from "../shopify.server.js";
 import { logError } from "../utils/log.server.js";
+import { codAmountFor } from "../models/order.server.js";
 import { prisma } from "../db.server.js";
 import { generateInvoiceForOrder } from "../services/invoice.server.js";
 import { onOrderRefunded } from "../services/automations.server.js";
@@ -46,7 +47,8 @@ export const action = async ({ request }) => {
       shippingCity:     order.shipping_address?.city     || existing.shippingCity,
       shippingCounty:   order.shipping_address?.province || existing.shippingCounty,
       shippingZip:      order.shipping_address?.zip      || existing.shippingZip,
-      codAmount:        parseFloat(order.total_price)    || existing.codAmount,
+      // Re-price COD only while there's no AWB (an existing AWB already carries its amount)
+      ...(existing.awbNumber ? {} : { codAmount: codAmountFor(order) }),
       orderTotal:       parseFloat(order.total_price)    || existing.orderTotal,
       financialStatus:  order.financial_status || existing.financialStatus,
       updatedAt:        new Date(),

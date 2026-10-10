@@ -1,0 +1,23 @@
+[[extensions]]
+name = "Shipment status changed"
+uid = "4ac2f566-c548-8084-3f0c-3aab2ff3cee9692affb9"
+type = "flow_trigger"
+handle = "picklo-shipment-status-changed"
+description = "The courier reported a new status for an order's parcel (picked up, in transit, out for delivery, delivered, returned, failed)."
+
+  [settings]
+
+  [[settings.fields]]
+  type = "order_reference"
+
+  [[settings.fields]]
+  type = "single_line_text_field"
+  key = "Status"
+
+  [[settings.fields]]
+  type = "single_line_text_field"
+  key = "AWB number"
+
+  [[settings.fields]]
+  type = "single_line_text_field"
+  key = "Courier"

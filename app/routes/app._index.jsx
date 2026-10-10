@@ -53,6 +53,7 @@ const COURIER_CONFIG = {
   cargus:  { label: "Cargus",       color: "#d32f2f" },
   gls:     { label: "GLS Romania",  color: "#f9a825" },
   packeta: { label: "Packeta",      color: "#e91e63" },
+  dpd:     { label: "DPD",          color: "#dc0032" },
 };
 
 const STATUS_TONES = {

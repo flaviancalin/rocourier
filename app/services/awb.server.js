@@ -3,16 +3,19 @@
 // and clears it from the order. Used by the "Delete AWB" button and by automations.
 import { prisma } from "../db.server.js";
 import { fanDeleteAwb, fanCreateAwb } from "./fan-courier.server.js";
-import { samedayDeleteAwb, samedayCreateAwb, samedayGetClientPickupPoints, samedayGetServices } from "./sameday.server.js";
+import { samedayDeleteAwb, samedayCreateAwb, samedayGetClientPickupPoints, samedayGetServices, samedayServiceFor } from "./sameday.server.js";
 import { cargusDeleteAwb, cargusCreateAwb, cargusGetSenderLocations } from "./cargus.server.js";
 import { glsDeleteAwb, glsCreateAwb } from "./gls.server.js";
-import { packetaDeletePacket, packetaCreatePacket } from "./packeta.server.js";
+import { packetaDeletePacket, packetaCreatePacket, packetaCredentials } from "./packeta.server.js";
+import { dpdDeleteAwb, dpdCreateAwb } from "./dpd.server.js";
+import { logActivity } from "./activity.server.js";
+import { flowAwbCreated } from "./flow.server.js";
 import { cancelFulfillmentsForAwb } from "./fulfillment.server.js";
 import { syncAwbToShopify, writeOrderMetafields } from "./xconnector.server.js";
 import { updateOrderAwb } from "../models/order.server.js";
 import { setStatusTag } from "./shopify-orders.server.js";
 
-export async function deleteAwbForOrder(admin, order, settings) {
+export async function deleteAwbForOrder(admin, order, settings, options = {}) {
   if (!order.awbNumber) throw new Error("No AWB to delete");
   const courier = order.courierType;
 
@@ -57,12 +60,17 @@ export async function deleteAwbForOrder(admin, order, settings) {
     });
 
   } else if (courier === "packeta") {
+    // awbPdfUrl = "packeta_id:<id>" or "packeta_id:<id>:hd" (home delivery)
     const packetId = order.awbPdfUrl?.startsWith("packeta_id:")
-      ? order.awbPdfUrl.replace("packeta_id:", "")
+      ? order.awbPdfUrl.replace("packeta_id:", "").split(":")[0]
       : order.awbNumber;
-    await packetaDeletePacket({
-      apiKey: settings.packetaApiKey,
-      packetId,
+    await packetaDeletePacket({ ...packetaCredentials(settings), packetId });
+
+  } else if (courier === "dpd") {
+    await dpdDeleteAwb({
+      username: settings.dpdUsername,
+      password: settings.dpdPassword,
+      awbNumber: order.awbNumber,
     });
 
   } else {
@@ -81,8 +89,9 @@ export async function deleteAwbForOrder(admin, order, settings) {
 
   await prisma.order.update({
     where: { id: order.id },
-    data: { awbNumber: null, awbStatus: "pending", awbPdfUrl: null },
+    data: { awbNumber: null, awbStatus: "pending", awbPdfUrl: null, shippingCost: null },
   });
+  await logActivity({ shop: order.shop, order, action: "awb_deleted", message: `AWB ${order.awbNumber} (${courier}) șters` , actor: options.actor || null });
 }
 
 // ── Generate ────────────────────────────────────────────────────────────────
@@ -217,8 +226,8 @@ export async function generateAwbForOrder(admin, shop, orderId, options = {}) {
       }
 
       const isLocker = !!effectivePickupId;
-      const serviceCode = serviceOverride || (isLocker ? "LN" : "T");
-      const service = services.find((s) => s.code === serviceCode) || services[0];
+      const service = samedayServiceFor(services, { override: serviceOverride, pointType: isLocker ? (lockerPoint?.type === "pudo" ? "pudo" : "easybox") : null });
+      if (!service) throw awbError("Contul Sameday nu are servicii active. Contactează Sameday.", 400);
 
       // county/city ID lookup removed — samedayCreateAwb now uses countyString/cityString
       // (plain strings accepted by all Sameday contract types without strict ID validation).
@@ -291,16 +300,39 @@ export async function generateAwbForOrder(admin, shop, orderId, options = {}) {
       });
 
     } else if (courier === "packeta") {
-      if (!settings.packetaApiKey) {
-        throw awbError("Packeta API key not configured", 400);
+      const packetaCreds = packetaCredentials(settings);
+      if (!packetaCreds.apiPassword) {
+        throw awbError("Packeta: lipsește parola API (32 de caractere) din Setări → Curieri → Packeta", 400);
       }
 
       awbResult = await packetaCreatePacket({
-        apiKey: settings.packetaApiKey,
+        ...packetaCreds,
         order: orderData,
         settings,
         pickupPointId: effectivePickupId,
       });
+
+    } else if (courier === "dpd") {
+      if (!settings.dpdUsername || !settings.dpdPassword) {
+        throw awbError("DPD API credentials not configured", 400);
+      }
+
+      awbResult = await dpdCreateAwb({
+        username: settings.dpdUsername,
+        password: settings.dpdPassword,
+        order: orderData,
+        settings,
+        pickupOfficeId: effectivePickupId,
+        serviceId: serviceOverride || null,
+        observations: observationsOverride || null,
+        openPackage: !!openPackage,
+        declaredValue: declaredValue ? parseFloat(declaredValue) : 0,
+        shipmentPayer: shipmentPayer || "recipient",
+        saturdayDelivery: !!saturdayDelivery,
+      });
+
+    } else {
+      throw awbError(`Unsupported courier: ${courier}`, 400);
     }
 
     if (!awbResult?.success) {
@@ -322,8 +354,14 @@ export async function generateAwbForOrder(admin, shop, orderId, options = {}) {
       // Packeta: store the numeric packetId (needed for packetLabelPdf — barcode won't work)
       ...(awbResult.labelBase64 ? { awbPdfUrl: `gls_label:${awbResult.labelBase64}` } :
           awbResult.parcelId    ? { awbPdfUrl: `gls_parcelid:${awbResult.parcelId}` } : {}),
-      ...(awbResult.packetId    ? { awbPdfUrl: `packeta_id:${awbResult.packetId}`   } : {}),
+      ...(awbResult.packetId    ? { awbPdfUrl: `packeta_id:${awbResult.packetId}${awbResult.homeDelivery ? ":hd" : ""}` } : {}),
+      ...(awbResult.parcelIds?.length > 1 ? { awbPdfUrl: `dpd_parcels:${awbResult.parcelIds.join(",")}` } : {}),
     });
+    if (awbResult.price != null) {
+      await prisma.order.update({ where: { id: order.id }, data: { shippingCost: Number(awbResult.price) } }).catch(() => {});
+    }
+    await logActivity({ shop, order, action: "awb_generated", message: `AWB ${awbResult.awbNumber} generat la ${courier}`, actor: options.actor || null });
+    flowAwbCreated(shop, admin, order, awbResult.awbNumber, courier);
 
     // Sync to Shopify fulfillment (makes xConnector compatible)
     try {
