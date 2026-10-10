@@ -223,9 +223,9 @@ export async function glsCreateAwb({
     success: true,
     awbNumber: String(info.ParcelNumber),
     parcelId: info.ParcelId,
-    pdfBase64: result.Labels ? Buffer.from(result.Labels, "base64") : null,
-    // Keep raw base64 string so generate-awb.js can store it in awbPdfUrl for direct download
-    labelBase64: result.Labels || null,
+    pdfBase64: labelBuffer(result.Labels),
+    // base64 of the PDF, stored with the order: GLS hands the label out only once
+    labelBase64: labelBuffer(result.Labels)?.toString("base64") || null,
     raw: result,
   };
 }
@@ -234,20 +234,60 @@ export async function glsCreateAwb({
 // Download label PDF by parcel number
 // POST /GetPrintedLabels
 // ─────────────────────────────────────────────────────────────────────────────
-export async function glsDownloadAwbPdf({ username, password, sandbox = false, awbNumber }) {
+// Order.awbPdfUrl for GLS: "gls:<parcelId>:<label base64>". GLS hands out the label only
+// once (GetPrintedLabels then answers "Parcel label is already generated"), so we keep it,
+// and the ParcelId is what DeleteLabels needs. Older rows hold only one of the two.
+export const glsStoreRef = (parcelId, labelBase64) => `gls:${parcelId || ""}:${labelBase64 || ""}`;
+export function glsParseRef(value) {
+  const v = String(value || "");
+  if (v.startsWith("gls:")) {
+    const rest = v.slice(4), i = rest.indexOf(":");
+    const id = i < 0 ? rest : rest.slice(0, i);
+    return { parcelId: Number.parseInt(id) || null, label: i < 0 ? null : rest.slice(i + 1) || null };
+  }
+  if (v.startsWith("gls_label:")) return { parcelId: null, label: v.slice(10) || null };
+  if (v.startsWith("gls_parcelid:")) return { parcelId: Number.parseInt(v.slice(13)) || null, label: null };
+  return { parcelId: null, label: null };
+}
+
+// GLS JSON sends Labels as a byte array (C# byte[]); accept a base64 string too
+function labelBuffer(labels) {
+  if (!labels) return null;
+  return Array.isArray(labels) ? Buffer.from(labels) : Buffer.from(String(labels), "base64");
+}
+
+const glsDate = (ms) => `/Date(${ms})/`;
+
+// ParcelNumber → ParcelId, from parcels printed in the last `days` days
+export async function glsFindParcelId({ username, password, sandbox = false, awbNumber, days = 60 }) {
   const base = getBase(sandbox);
   const auth = glsBuildAuth(username, password);
-
-  const result = await glsRequest(base, "GetPrintedLabels", {
-    ...auth,
-    TypeOfPrinter: 1,
-    ParcelList: [{ ParcelNumber: parseInt(awbNumber) || awbNumber }],
+  const now = Date.now();
+  const result = await glsRequest(base, "GetParcelList", {
+    ...auth, PrintDateFrom: glsDate(now - days * 864e5), PrintDateTo: glsDate(now + 864e5), PickupDateFrom: null, PickupDateTo: null,
   });
+  const hit = (result.PrintDataInfoList || []).find((p) => String(p.ParcelNumber) === String(awbNumber) || String(p.ParcelNumberWithCheckdigit) === String(awbNumber));
+  return hit?.ParcelId || null;
+}
 
-  if (!result.Labels) {
-    throw new Error(`GLS GetPrintedLabels: no label data returned`);
+// Only works for labels that were never printed — GLS prints a label once
+export async function glsDownloadAwbPdf({ username, password, sandbox = false, awbNumber, parcelId = null }) {
+  const base = getBase(sandbox);
+  const auth = glsBuildAuth(username, password);
+  const id = parcelId || await glsFindParcelId({ username, password, sandbox, awbNumber });
+  if (!id) throw new Error("GLS: coletul nu a fost găsit în contul GLS.");
+  const printOnce = "GLS dă eticheta o singură dată, la generare, iar aceasta nu a fost salvată. Descarc-o din MyGLS (mygls.ro → Colete).";
+  let result;
+  try {
+    result = await glsRequest(base, "GetPrintedLabels", {
+      ...auth, ParcelIdList: [id], PrintPosition: 1, ShowPrintDialog: false, TypeOfPrinter: "A4_2x2",
+    });
+  } catch (e) {
+    throw /error 18:/.test(e.message) ? new Error(printOnce) : e;
   }
-  return Buffer.from(result.Labels, "base64");
+  const pdf = labelBuffer(result.Labels);
+  if (!pdf) throw new Error("GLS GetPrintedLabels: fără etichetă");
+  return pdf;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

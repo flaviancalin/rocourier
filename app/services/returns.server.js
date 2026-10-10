@@ -5,7 +5,7 @@
 import { prisma } from "../db.server.js";
 import { logActivity } from "./activity.server.js";
 import { fanCreateAwb } from "./fan-courier.server.js";
-import { glsCreateAwb } from "./gls.server.js";
+import { glsCreateAwb, glsStoreRef } from "./gls.server.js";
 import { cargusCreateAwb, cargusGetSenderLocations } from "./cargus.server.js";
 import { dpdCreateReturnAwb } from "./dpd.server.js";
 import { packetaCreateReturn, packetaCredentials } from "./packeta.server.js";
@@ -139,7 +139,8 @@ export async function generateReturnAwb(shop, returnId, { actor = "staff" } = {}
 
   await prisma.returnRequest.update({
     where: { id: rr.id },
-    data: { status: "awb_generated", returnCourier: courier, returnAwbNumber: result.awbNumber, dropoffPassword: result.password || null },
+    data: { status: "awb_generated", returnCourier: courier, returnAwbNumber: result.awbNumber, dropoffPassword: result.password || null,
+      returnLabelRef: courier === "gls" ? glsStoreRef(result.parcelId, result.labelBase64) : courier === "packeta" && result.packetId ? `packeta_id:${result.packetId}` : null },
   });
   await logActivity({ shop, order, action: "return_awb", actor, message: `AWB retur ${result.awbNumber} (${courier}) pentru cererea din ${rr.createdAt.toISOString().slice(0, 10)}` });
   return { awbNumber: result.awbNumber, courier };

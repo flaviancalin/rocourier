@@ -20,7 +20,7 @@ export async function loader({ request }) {
     ]);
     if (!rr?.returnAwbNumber) return new Response("No return AWB", { status: 404 });
     try {
-      const pdf = await fetchLabelPdf({ courierType: rr.returnCourier, awbNumber: rr.returnAwbNumber, awbPdfUrl: null }, s);
+      const pdf = await fetchLabelPdf({ courierType: rr.returnCourier, awbNumber: rr.returnAwbNumber, awbPdfUrl: rr.returnLabelRef }, s);
       return new Response(pdf, { headers: { "Content-Type": "application/pdf", "Content-Disposition": `inline; filename="RETUR_${rr.returnAwbNumber}.pdf"` } });
     } catch (e) {
       return new Response(`Error: ${e.message}`, { status: 500 });

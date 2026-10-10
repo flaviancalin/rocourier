@@ -10,3 +10,4 @@ prisma/migrations/dev/
 .claude/launch.json
 .env.packeta-test
 .env.hq
+.env.gls-test

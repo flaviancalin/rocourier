@@ -5,7 +5,7 @@ import { prisma } from "../db.server.js";
 import { fanDeleteAwb, fanCreateAwb } from "./fan-courier.server.js";
 import { samedayDeleteAwb, samedayCreateAwb, samedayGetClientPickupPoints, samedayGetServices, samedayServiceFor } from "./sameday.server.js";
 import { cargusDeleteAwb, cargusCreateAwb, cargusGetSenderLocations } from "./cargus.server.js";
-import { glsDeleteAwb, glsCreateAwb } from "./gls.server.js";
+import { glsDeleteAwb, glsCreateAwb, glsStoreRef, glsParseRef, glsFindParcelId } from "./gls.server.js";
 import { packetaDeletePacket, packetaCreatePacket, packetaCredentials } from "./packeta.server.js";
 import { dpdDeleteAwb, dpdCreateAwb } from "./dpd.server.js";
 import { logActivity } from "./activity.server.js";
@@ -44,20 +44,11 @@ export async function deleteAwbForOrder(admin, order, settings, options = {}) {
     });
 
   } else if (courier === "gls") {
-    // GLS deletion requires the ParcelId (database ID), not the barcode
-    // We stored it as "gls_parcelid:{id}" in awbPdfUrl
-    const parcelIdStr = order.awbPdfUrl?.startsWith("gls_parcelid:")
-      ? order.awbPdfUrl.replace("gls_parcelid:", "")
-      : null;
-    if (!parcelIdStr) {
-      throw new Error("GLS ParcelId not found — cannot delete");
-    }
-    await glsDeleteAwb({
-      username: settings.glsUsername,
-      password: settings.glsPassword,
-      sandbox: !!settings.glsSandbox,
-      parcelId: parseInt(parcelIdStr),
-    });
+    // GLS deletion needs the ParcelId (database id), not the barcode
+    const glsAuth = { username: settings.glsUsername, password: settings.glsPassword, sandbox: !!settings.glsSandbox };
+    const parcelId = glsParseRef(order.awbPdfUrl).parcelId || await glsFindParcelId({ ...glsAuth, awbNumber: order.awbNumber });
+    if (!parcelId) throw new Error("GLS: coletul nu a fost găsit în contul GLS — șterge-l din MyGLS.");
+    await glsDeleteAwb({ ...glsAuth, parcelId });
 
   } else if (courier === "packeta") {
     // awbPdfUrl = "packeta_id:<id>" or "packeta_id:<id>:hd" (home delivery)
@@ -352,8 +343,7 @@ export async function generateAwbForOrder(admin, shop, orderId, options = {}) {
       courierType: courier,
       // GLS: store the label PDF (already returned by PrintLabels) so download works without GetPrintedLabels
       // Packeta: store the numeric packetId (needed for packetLabelPdf — barcode won't work)
-      ...(awbResult.labelBase64 ? { awbPdfUrl: `gls_label:${awbResult.labelBase64}` } :
-          awbResult.parcelId    ? { awbPdfUrl: `gls_parcelid:${awbResult.parcelId}` } : {}),
+      ...(courier === "gls" && (awbResult.labelBase64 || awbResult.parcelId) ? { awbPdfUrl: glsStoreRef(awbResult.parcelId, awbResult.labelBase64) } : {}),
       ...(awbResult.packetId    ? { awbPdfUrl: `packeta_id:${awbResult.packetId}${awbResult.homeDelivery ? ":hd" : ""}` } : {}),
       ...(awbResult.parcelIds?.length > 1 ? { awbPdfUrl: `dpd_parcels:${awbResult.parcelIds.join(",")}` } : {}),
     });

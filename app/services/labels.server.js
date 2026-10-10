@@ -3,7 +3,7 @@
 import { fanPrintAwb } from "./fan-courier.server.js";
 import { samedayDownloadAwbPdf } from "./sameday.server.js";
 import { cargusDownloadAwbPdf } from "./cargus.server.js";
-import { glsDownloadAwbPdf } from "./gls.server.js";
+import { glsDownloadAwbPdf, glsParseRef } from "./gls.server.js";
 import { packetaDownloadLabel, packetaCredentials } from "./packeta.server.js";
 import { dpdPrintAwb } from "./dpd.server.js";
 
@@ -20,9 +20,9 @@ export async function fetchLabelPdf(order, s) {
     case "cargus":
       return cargusDownloadAwbPdf({ subscriptionKey: s.cargusSubscriptionKey, username: s.cargusUsername, password: s.cargusPassword, awbNumber });
     case "gls": {
-      const stored = ref(order, "gls_label:");
-      if (stored) return Buffer.from(stored, "base64");   // label saved when the AWB was created
-      return glsDownloadAwbPdf({ username: s.glsUsername, password: s.glsPassword, sandbox: !!s.glsSandbox, awbNumber });
+      const { label, parcelId } = glsParseRef(order.awbPdfUrl);
+      if (label) return /^\d+(,\d+)+$/.test(label.slice(0, 40)) ? Buffer.from(label.split(",").map(Number)) : Buffer.from(label, "base64"); // saved at creation (older rows: byte list)
+      return glsDownloadAwbPdf({ username: s.glsUsername, password: s.glsPassword, sandbox: !!s.glsSandbox, awbNumber, parcelId });
     }
     case "packeta": {
       const [packetId, kind] = (ref(order, "packeta_id:") || awbNumber).split(":");

@@ -77,3 +77,35 @@ test("tracking: a cancelled Sameday shipment maps to cancelled", async () => {
     { description: "Expedierea a fost anulată. · Order canceled · The sender has cancelled the delivery", date: "2026-10-10T17:13:58Z" },
   ], "sameday"), "cancelled");
 });
+
+test("gls: parcel id and label are stored together; legacy refs still parse", async () => {
+  const { glsStoreRef, glsParseRef } = await import("../app/services/gls.server.js");
+  assert.deepEqual(glsParseRef(glsStoreRef(15836961, "JVBERi0=")), { parcelId: 15836961, label: "JVBERi0=" });
+  assert.deepEqual(glsParseRef(glsStoreRef(15836961, null)), { parcelId: 15836961, label: null });
+  assert.deepEqual(glsParseRef("gls_label:JVBERi0="), { parcelId: null, label: "JVBERi0=" });
+  assert.deepEqual(glsParseRef("gls_parcelid:42"), { parcelId: 42, label: null });
+  assert.deepEqual(glsParseRef(null), { parcelId: null, label: null });
+});
+
+test("gls: reprint looks the parcel up by number and explains the print-once rule", async () => {
+  const { glsDownloadAwbPdf } = await import("../app/services/gls.server.js");
+  const m = mockFetch((url) => url.endsWith("/GetParcelList") ? [200, { PrintDataInfoList: [{ ParcelId: 777, ParcelNumber: 6007503281 }] }]
+    : [200, { Labels: null, GetPrintedLabelsErrorList: [{ ErrorCode: 18, ErrorDescription: "Parcel label is already generated" }] }]);
+  try {
+    await assert.rejects(glsDownloadAwbPdf({ username: "u", password: "p", awbNumber: "6007503281" }), /o singură dată/);
+    const body = JSON.parse(m.calls.find((c) => c.url.endsWith("/GetPrintedLabels")).init.body);
+    assert.deepEqual(body.ParcelIdList, [777]);
+  } finally { m.restore(); }
+});
+
+test("gls: the label byte array from PrintLabels is stored as real PDF base64", async () => {
+  const { glsCreateAwb } = await import("../app/services/gls.server.js");
+  const pdf = [...Buffer.from("%PDF-1.4 test")];
+  const m = mockFetch(() => [200, { Labels: pdf, PrintLabelsErrorList: [], PrintLabelsInfoList: [{ ParcelId: 9, ParcelNumber: 6007500001 }] }]);
+  try {
+    const r = await glsCreateAwb({ username: "u", password: "p", clientNumber: 1, settings: { senderName: "S", senderCity: "Constanta", senderAddress: "Poporului 76" },
+      order: { shopifyOrderName: "#1", customerName: "A B", customerPhone: "0744555666", shippingAddress1: "Str X 1", shippingCity: "Craiova", shippingZip: "200585", weight: 1 } });
+    assert.equal(Buffer.from(r.labelBase64, "base64").toString().slice(0, 4), "%PDF");
+    assert.equal(r.parcelId, 9);
+  } finally { m.restore(); }
+});

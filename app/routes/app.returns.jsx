@@ -32,7 +32,7 @@ export async function loader({ request }) {
   const url = new URL(request.url);
   const tab = TABS.find((t) => t.id === url.searchParams.get("tab")) || TABS[0];
   const [returns, settings, counts] = await Promise.all([
-    prisma.returnRequest.findMany({ where: { shop: session.shop, status: { in: tab.statuses } }, orderBy: { createdAt: "desc" }, take: 100 }),
+    prisma.returnRequest.findMany({ where: { shop: session.shop, status: { in: tab.statuses } }, orderBy: { createdAt: "desc" }, take: 100, omit: { returnLabelRef: true } }),
     prisma.shopSettings.findUnique({ where: { shop: session.shop }, select: { returnsEnabled: true, returnsCourier: true } }),
     prisma.returnRequest.count({ where: { shop: session.shop, status: "requested" } }),
   ]);

@@ -257,6 +257,7 @@ model ReturnRequest {
   returnCourier    String?
   returnAwbNumber  String?
   dropoffPassword  String?  // Packeta returns: code the customer gives at the drop-off point
+  returnLabelRef   String?  // label reference, same format as Order.awbPdfUrl (GLS label + parcel id, Packeta id)
   merchantNote     String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
