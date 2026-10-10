@@ -9,3 +9,4 @@ prisma/migrations/dev/
 .env.fgo-test
 .claude/launch.json
 .env.packeta-test
+.env.hq
