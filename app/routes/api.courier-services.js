@@ -8,6 +8,7 @@ import { prisma } from "../db.server.js";
 import { fanGetServices } from "../services/fan-courier.server.js";
 import { samedayGetServices } from "../services/sameday.server.js";
 import { cargusGetServices } from "../services/cargus.server.js";
+import { dpdGetServices } from "../services/dpd.server.js";
 
 // GLS: service type is "Business Parcel" (no type param in MyGLS API).
 // Additional options (SAT, FDS, etc.) are service codes sent via ServiceList, handled separately as checkboxes.
@@ -61,15 +62,15 @@ export async function loader({ request }) {
         password: settings.samedayPassword,
         sandbox: !!settings.samedaySandbox,
       });
-      result.sameday = services.map((s) => ({
+      result.sameday = services.filter((s) => !/retur|redirect|crossborder/i.test(s.name || "")).map((s) => ({
         label: s.name || s.Name || s.code,
         value: s.code || s.Code,
       }));
     } catch (_) {
       result.sameday = [
-        { label: "Standard",            value: "T"  },
-        { label: "Locker (NextDay)",    value: "LN" },
-        { label: "Express",             value: "E"  },
+        { label: "24H (acasă)",          value: "24" },
+        { label: "Locker NextDay",       value: "LN" },
+        { label: "Pudo NextDay",         value: "PP" },
       ];
     }
   }
@@ -100,6 +101,16 @@ export async function loader({ request }) {
 
   if (settings.glsEnabled)     result.gls     = GLS_SERVICES;
   if (settings.packetaEnabled) result.packeta  = PACKETA_SERVICES;
+
+  if (settings.dpdEnabled && settings.dpdUsername) {
+    try {
+      const services = await dpdGetServices({ username: settings.dpdUsername, password: settings.dpdPassword });
+      result.dpd = services.map((s) => ({ label: `${s.name} (${s.id})`, value: String(s.id) }));
+    } catch (e) {
+      result.dpd = [];
+      result.dpdError = e.message;
+    }
+  }
 
   return json(result);
 }

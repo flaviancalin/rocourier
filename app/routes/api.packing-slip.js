@@ -9,6 +9,7 @@ const COURIER_LABELS = {
   cargus:  "Cargus",
   gls:     "GLS Romania",
   packeta: "Packeta",
+  dpd:     "DPD",
 };
 
 function escape(str) {

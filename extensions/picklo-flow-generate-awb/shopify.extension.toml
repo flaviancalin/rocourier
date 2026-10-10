@@ -1,0 +1,26 @@
+[[extensions]]
+name = "Generate AWB with Picklo"
+uid = "c3f6d5e1-163b-6f3c-7439-a60b57d683f83f7659ba"
+type = "flow_action"
+handle = "picklo-generate-awb"
+description = "Creates the courier AWB for the order with Picklo, using the courier the customer chose (or the one you set here)."
+runtime_url = "https://rocourier-production.up.railway.app/flow/generate-awb"
+
+  [settings]
+
+  [[settings.fields]]
+  type = "order_reference"
+  required = true
+
+  [[settings.fields]]
+  type = "single_line_text_field"
+  key = "courier"
+  name = "Courier (optional)"
+  description = "fan, sameday, cargus, gls, packeta or dpd. Leave empty to use the customer's choice."
+  required = false
+
+  [[settings.fields]]
+  type = "boolean"
+  key = "mark as shipped"
+  name = "Mark the order as fulfilled in Shopify"
+  required = false

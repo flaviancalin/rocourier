@@ -37,6 +37,12 @@ export async function upsertOrderFromWebhook(shop, shopifyOrder) {
   rcMethod  = rcMethod  || "home_delivery";
   rcCourier = rcCourier || "fan";
 
+  // Cash on delivery = what the customer still owes. Orders paid online must never get a
+  // COD amount on the AWB, or the courier would collect the money a second time.
+  const codAmount = codAmountFor(shopifyOrder);
+  const company = shopifyOrder.billing_address?.company || shopifyOrder.shipping_address?.company || "";
+  const vatAttr = Object.entries(attrs).find(([k]) => /^(cui|cif|vat|vat_number|cod fiscal|picklo_cui)$/i.test(k))?.[1] || "";
+
   const weightKg = (shopifyOrder.line_items || []).reduce(
     (sum, item) => sum + (item.grams || 0) * (item.quantity || 1), 0
   ) / 1000;
@@ -61,8 +67,10 @@ export async function upsertOrderFromWebhook(shop, shopifyOrder) {
     pickupPointId: rcPointId,
     pickupPointName: rcPointName,
     pickupPointAddress: rcPointAddr,
-    codAmount: parseFloat(shopifyOrder.total_price) || 0,
+    codAmount,
     orderTotal: parseFloat(shopifyOrder.total_price) || 0,
+    customerCompany: company || null,
+    customerVatCode: vatAttr ? String(vatAttr).replace(/\s/g, "").toUpperCase() : null,
     weight: weightKg > 0 ? weightKg : undefined,
     awbStatus: "pending",
     financialStatus: shopifyOrder.financial_status || null,
@@ -79,10 +87,20 @@ export async function upsertOrderFromWebhook(shop, shopifyOrder) {
       pickupPointAddress: data.pickupPointAddress,
       codAmount: data.codAmount,
       financialStatus: data.financialStatus,
+      customerCompany: data.customerCompany,
+      customerVatCode: data.customerVatCode,
       ...(weightKg > 0 ? { weight: weightKg } : {}),
     },
     create: { shop, shopifyOrderId: String(shopifyOrder.id), ...data },
   });
+}
+
+const PAID_STATUSES = new Set(["paid", "partially_refunded", "refunded", "voided"]);
+export function codAmountFor(shopifyOrder) {
+  if (PAID_STATUSES.has(shopifyOrder.financial_status)) return 0;
+  const outstanding = Number.parseFloat(shopifyOrder.total_outstanding);
+  if (Number.isFinite(outstanding)) return Math.max(0, outstanding);
+  return Number.parseFloat(shopifyOrder.total_price) || 0;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -183,14 +201,13 @@ export async function updateOrderAwb(id, { awbNumber, awbPdfUrl, awbStatus = "ge
 // Log tracking event
 // ─────────────────────────────────────────────────────────────────────────────
 export async function addTrackingEvent(orderId, { code, description, date, location }) {
+  // Deterministic id = one row per courier event, however often we poll
+  const id = `${orderId}_${code}_${new Date(date).getTime()}`;
   return prisma.awbEvent.upsert({
-    where: {
-      // Use composite unique — but since AwbEvent doesn't have @@unique, use create/ignore pattern
-      id: `${orderId}_${code}_${date}`,
-    },
+    where: { id },
     update: { eventDesc: description, location },
     create: {
-      id: `${orderId}_${code}_${new Date(date).getTime()}`,
+      id,
       orderId,
       eventCode: code,
       eventDesc: description,

@@ -7,6 +7,7 @@ export const COURIER_TRACKING = {
   cargus:  { company: "Cargus",      url: (awb) => `https://urgentcargus.ro/tracking/${awb}` },
   gls:     { company: "GLS Romania", url: (awb) => `https://gls-group.com/RO/en/parcel-tracking/?match=${awb}` },
   packeta: { company: "Packeta",     url: (awb) => `https://tracking.packeta.com/?id=${awb}` },
+  dpd:     { company: "DPD",         url: (awb) => `https://tracking.dpd.ro/?shipmentNumber=${awb}&language=ro` },
 };
 
 export function trackingFor(courierType, awbNumber) {

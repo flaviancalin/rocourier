@@ -1,0 +1,2068 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FGO API Documentation v7.0</title>
+    <link rel="stylesheet" href="Assets/testing.css">
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="header-left">
+            <div class="logo">FGO API</div>
+            <div class="version-badge">v7.0</div>
+        </div>
+        <div class="header-right">
+            <div class="lang-toggle">
+                <button class="lang-btn active" data-lang="en">EN</button>
+                <button class="lang-btn" data-lang="ro">RO</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="search-box">
+                <input type="text" id="sidebarSearch" placeholder="Search..." data-en="Search..." data-ro="Căutare...">
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title" data-en="Getting Started" data-ro="Introducere">Getting Started</div>
+                <a href="#introduction" class="sidebar-link" data-en="Introduction" data-ro="Introducere">Introduction</a>
+                <a href="#authentication" class="sidebar-link" data-en="Authentication" data-ro="Autentificare">Authentication</a>
+                <a href="#rate-limits" class="sidebar-link" data-en="Rate Limits" data-ro="Limitare Apeluri">Rate Limits</a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title" data-en="API Reference" data-ro="Referință API">API Reference</div>
+                <a href="#nomenclatures" class="sidebar-link" data-en="Nomenclatures" data-ro="Nomenclatoare">Nomenclatures</a>
+                <a href="#invoices" class="sidebar-link" data-en="Invoices" data-ro="Facturi">Invoices</a>
+                <a href="#articles" class="sidebar-link" data-en="Articles" data-ro="Articole">Articles</a>
+                <a href="#warehouse" class="sidebar-link" data-en="Warehouse" data-ro="Gestiune">Warehouse</a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title" data-en="Tools" data-ro="Instrumente">Tools</div>
+                <a href="#playground" class="sidebar-link" data-en="API Playground" data-ro="Testare API">API Playground</a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title" data-en="Resources" data-ro="Resurse">Resources</div>
+                <a href="#hash-calculation" class="sidebar-link" data-en="Hash Calculation" data-ro="Calcul Hash">Hash Calculation</a>
+                <a href="#examples" class="sidebar-link" data-en="Code Examples" data-ro="Exemple Cod">Code Examples</a>
+                <a href="#changelog" class="sidebar-link" data-en="Changelog" data-ro="Jurnal Schimbări">Changelog</a>
+            </div>
+
+
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Introduction Section -->
+            <section id="introduction">
+                <h1 data-en="FGO API Documentation" data-ro="Documentație API FGO">FGO API Documentation</h1>
+                <p data-en="Welcome to the FGO Invoicing API v7.0. This API allows you to programmatically create, manage, and retrieve invoices and related data." data-ro="Bun venit la API-ul de facturare FGO v7.0. Acest API vă permite să creați, gestionați și recuperați facturile și datele asociate prin programare.">Welcome to the FGO Invoicing API v7.0.</p>
+
+                <h3 data-en="Base URLs" data-ro="URL-uri de Bază">Base URLs</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th data-en="Environment" data-ro="Mediu">Environment</th>
+                            <th data-en="URL" data-ro="URL">URL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td data-en="Test" data-ro="Test">Test</td>
+                            <td><code>https://api-testuat.fgo.ro/v1</code></td>
+                        </tr>
+                        <tr>
+                            <td data-en="Production" data-ro="Producție">Production</td>
+                            <td><code>https://api.fgo.ro/v1</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="info-box">
+                    <p data-en="Note: The test and production environments are separate and do not sync. The test environment does not require a paid subscription." data-ro="Notă: Mediile de test și producție sunt separate și nu se sincronizează. Mediul de test nu necesită o abonament plătit.">Note: Test and production environments are separate and do not sync.</p>
+                </div>
+
+                <h3 data-en="Getting Started" data-ro="Primii Pași">Getting Started</h3>
+                <ol class="intro-steps">
+                    <li class="intro-step-item">
+                        <strong data-en="Create FGO Account" data-ro="Creați Cont FGO">Create FGO Account</strong>
+                        <ul class="intro-sub-list">
+                            <li data-en="Test: https://testuat.fgo.ro/inregistrare" data-ro="Test: https://testuat.fgo.ro/inregistrare">Test: https://testuat.fgo.ro/inregistrare</li>
+                            <li data-en="Production: https://www.fgo.ro/inregistrare" data-ro="Producție: https://www.fgo.ro/inregistrare">Production: https://www.fgo.ro/inregistrare</li>
+                        </ul>
+                    </li>
+                    <li class="intro-step-item">
+                        <strong data-en="Create API User" data-ro="Creați Utilizator API">Create API User</strong>
+                        <ul class="intro-sub-list">
+                            <li data-en="Go to FGO Settings → Users" data-ro="Accesați FGO Setări → Utilizatori">Go to FGO Settings → Users</li>
+                            <li data-en="Generate API user to obtain a Private Key" data-ro="Generați utilizator API pentru a obține o Cheie Privată">Generate API user to obtain a Private Key</li>
+                            <li data-en="Production requires PRO or PREMIUM subscription" data-ro="Producția necesită abonament PRO sau PREMIUM">Production requires PRO or PREMIUM subscription</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong data-en="Define Registry" data-ro="Definiți Registrul">Define Registry</strong>
+                        <ul class="intro-sub-list">
+                            <li data-en="In FGO Settings, verify the Registry is defined (common or per-user)" data-ro="În setările FGO, verificați că Registrul este definit (comun sau per utilizator)">In FGO Settings, verify Registry is defined</li>
+                            <li data-en="Go to "Serii Documente" tab" data-ro="Accesați fila "Serii Documente"">Go to "Serii Documente" tab</li>
+                        </ul>
+                    </li>
+                </ol>
+            </section>
+
+            <!-- Authentication Section -->
+            <section id="authentication">
+                <h2 data-en="Authentication" data-ro="Autentificare">Authentication</h2>
+                <p data-en="All API requests require the following authentication parameters:" data-ro="Toate cererile API necesită următorii parametri de autentificare:">All API requests require three authentication parameters:</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th data-en="Parameter" data-ro="Parametru">Parameter</th>
+                            <th data-en="Type" data-ro="Tip">Type</th>
+                            <th data-en="Description" data-ro="Descriere">Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>CodUnic</code></td>
+                            <td data-en="string" data-ro="string">string</td>
+                            <td data-en="Your company fiscal code (CUI)" data-ro="Codul fiscal al companiei dumneavoastră (CUI)">Your company fiscal code (CUI)</td>
+                        </tr>
+                        <tr>
+                            <td><code>Hash</code></td>
+                            <td data-en="string" data-ro="string">string</td>
+                            <td data-en="SHA-1 hash calculated from CodUnic, Private Key, and endpoint-specific data" data-ro="Hash SHA-1 calculat din CodUnic, Cheia Privată și datele specifice endpoint-ului">SHA-1 hash (see Hash Calculation section)</td>
+                        </tr>
+                        <tr>
+                            <td><code>PlatformaUrl</code></td>
+                            <td data-en="string" data-ro="string">string</td>
+                            <td data-en="Root URL of your application" data-ro="URL root al aplicației dumneavoastră">Root URL of your application</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 data-en="Request Format" data-ro="Formatul Cererii">Request Format</h3>
+                <p data-en="All POST requests must send a raw JSON body with the header Content-Type: application/json. The request body is the JSON object itself (see the examples below)." data-ro="Toate cererile POST trebuie să trimită un corp JSON brut, cu header-ul Content-Type: application/json. Corpul cererii este chiar obiectul JSON (vezi exemplele de mai jos).">All POST requests must send a raw JSON body with the header <code>Content-Type: application/json</code>.</p>
+
+                <div class="info-box warning">
+                    <p data-en="⚠️ Important: application/x-www-form-urlencoded and multipart/form-data are NOT supported. Sending form-encoded data (for example, passing a PHP array directly to CURLOPT_POSTFIELDS) can cause the request to fail. Always encode the payload with json_encode() and set the Content-Type: application/json header." data-ro="⚠️ Important: application/x-www-form-urlencoded și multipart/form-data NU sunt acceptate. Trimiterea datelor codificate ca formular (de exemplu, transmiterea unui array PHP direct în CURLOPT_POSTFIELDS) poate face cererea să eșueze. Codificați întotdeauna payload-ul cu json_encode() și setați header-ul Content-Type: application/json.">⚠️ Important: <code>application/x-www-form-urlencoded</code> and <code>multipart/form-data</code> are NOT supported. In PHP, passing an array directly to <code>CURLOPT_POSTFIELDS</code> sends form-encoded data and can crash the request — always use <code>json_encode()</code> with the <code>Content-Type: application/json</code> header.</p>
+                </div>
+            </section>
+
+            <!-- Rate Limits Section -->
+            <section id="rate-limits">
+                <h2 data-en="Rate Limits" data-ro="Limitare Apeluri">Rate Limits</h2>
+                <p data-en="The API enforces the following rate limits per API user:" data-ro="API-ul impune următoarele limite de rată pe utilizator API:">The API enforces the following rate limits per API user:</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th data-en="Endpoint Category" data-ro="Categoria Endpoint">Endpoint Category</th>
+                            <th data-en="Rate Limit" data-ro="Limita Rată">Rate Limit</th>
+                            <th data-en="Timeout" data-ro="Timeout">Timeout</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td data-en="Invoice/Payment" data-ro="Factură/Plată">Invoice/Payment</td>
+                            <td>1 request/second</td>
+                            <td>15 seconds</td>
+                        </tr>
+                        <tr>
+                            <td data-en="Articles" data-ro="Articole">Articles</td>
+                            <td>1 request/5 seconds (or 1/30s)</td>
+                            <td data-en="Standard" data-ro="Standard">Standard</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Nomenclatures Section -->
+            <section id="nomenclatures">
+                <h2 data-en="Nomenclatures" data-ro="Nomenclatoare">Nomenclatures</h2>
+                <p data-en="Nomenclatures are reference lists of valid values for various fields. Retrieve them using GET requests." data-ro="Nomenclatoarele sunt liste de referință ale valorilor valide pentru diverse câmpuri. Preluați-le folosind cererile GET.">Nomenclatures are reference lists of valid values for API fields.</p>
+
+                <div class="endpoint">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-get">GET</span>
+                        <span class="endpoint-url">/nomenclator/{type}</span>
+                    </div>
+                    <p data-en="Retrieve a nomenclature list by type." data-ro="Preluați o listă de nomenclatoare după tip.">Retrieve a nomenclature list by type.</p>
+
+                    <h3 data-en="Available Nomenclatures" data-ro="Nomenclatoare Disponibile">Available Nomenclatures</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-en="Type" data-ro="Tip">Type</th>
+                                <th data-en="Description" data-ro="Descriere">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>tara</code></td>
+                                <td data-en="Countries" data-ro="Țări">Countries</td>
+                            </tr>
+                            <tr>
+                                <td><code>judet</code></td>
+                                <td data-en="Counties" data-ro="Județe">Counties</td>
+                            </tr>
+                            <tr>
+                                <td><code>tva</code></td>
+                                <td data-en="VAT rates" data-ro="Rate TVA">VAT rates</td>
+                            </tr>
+                            <tr>
+                                <td><code>banca</code></td>
+                                <td data-en="Banks" data-ro="Bănci">Banks</td>
+                            </tr>
+                            <tr>
+                                <td><code>tipincasare</code></td>
+                                <td data-en="Payment types" data-ro="Tipuri plată">Payment types</td>
+                            </tr>
+                            <tr>
+                                <td><code>tipfactura</code></td>
+                                <td data-en="Invoice types" data-ro="Tipuri factură">Invoice types</td>
+                            </tr>
+                            <tr>
+                                <td><code>tipclient</code></td>
+                                <td data-en="Client types" data-ro="Tipuri client">Client types</td>
+                            </tr>
+                            <tr>
+                                <td><code>localitati?judet=CODE</code></td>
+                                <td data-en="Localities by county code" data-ro="Localități după codul județului">Localities by county</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3 data-en="Example Request" data-ro="Cerere Exemplu">Example Request</h3>
+                    <div class="code-block">
+                        <button class="code-copy" data-action="copy"></button>
+                        <code>GET /nomenclator/tipfactura HTTP/1.1
+Host: api-testuat.fgo.ro
+Content-Type: application/json
+
+{
+  "CodUnic": "2864518",
+  "Hash": "8C3A7726804C121C6933F7D68494B439463996E2",
+  "PlatformaUrl": "https://yourapp.com"
+}</code>
+                    </div>
+
+                    <h3 data-en="Example Response" data-ro="Răspuns Exemplu">Example Response</h3>
+                    <div class="code-block">
+                        <button class="code-copy" data-action="copy"></button>
+                        <code>{
+  "Success": true,
+  "List": [
+    {
+      "Nume": "Normal",
+      "Valoare": "Factura"
+    },
+    {
+      "Nume": "Simplified",
+      "Valoare": "FacturaSimplificata"
+    }
+  ]
+}</code>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Invoices Section -->
+            <section id="invoices">
+                <h2 data-en="Invoices" data-ro="Facturi">Invoices</h2>
+                <p data-en="Manage invoices through the following endpoints." data-ro="Gestionați facturile prin următoarele endpoint-uri.">Manage invoices through dedicated endpoints.</p>
+
+                <!-- Create Invoice -->
+                <h3 data-en="Create Invoice" data-ro="Creați Factură">Create Invoice</h3>
+                <div class="endpoint">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-post">POST</span>
+                        <span class="endpoint-url">/factura/emitere</span>
+                    </div>
+                    <p data-en="Create and emit a new invoice." data-ro="Creați și emiteți o factură nouă.">Create and emit a new invoice.</p>
+
+                    <div class="info-box">
+                        <p data-en="Rate limit: 1 request/second, 15 second timeout" data-ro="Limita rată: 1 cerere/secundă, timeout 15 secunde">Rate limit: 1 request/second, 15 second timeout</p>
+                    </div>
+
+                    <h3 data-en="Parameters" data-ro="Parametri">Parameters</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-en="Parameter" data-ro="Parametru">Parameter</th>
+                                <th data-en="Type" data-ro="Tip">Type</th>
+                                <th data-en="Status" data-ro="Stare">Status</th>
+                                <th data-en="Description" data-ro="Descriere">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>CodUnic</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Company fiscal code (CUI)" data-ro="Codul fiscal al companiei (CUI)">Company fiscal code (CUI)</td>
+                            </tr>
+                            <tr>
+                                <td><code>Hash</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="SHA-1 hash (see Hash Calculation section)" data-ro="Hash SHA-1 (a se vedea secțiunea Calcul Hash)">SHA-1 hash (see Hash Calculation)</td>
+                            </tr>
+                            <tr>
+                                <td><code>Serie</code></td>
+                                <td>string(50)</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Invoice series from FGO Settings" data-ro="Seria facturii din FGO Setări">Invoice series from FGO Settings</td>
+                            </tr>
+                            <tr>
+                                <td><code>Numar</code></td>
+                                <td>string(50)</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Invoice number. Auto-generated if not provided." data-ro="Numărul facturii. Generat automat dacă nu este furnizat.">Invoice number. Auto-generated if not provided.</td>
+                            </tr>
+                            <tr>
+                                <td><code>Valuta</code></td>
+                                <td>string(3)</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Currency code (e.g., RON, EUR, USD)" data-ro="Codul monedei (de ex., RON, EUR, USD)">Currency code (e.g., RON, EUR)</td>
+                            </tr>
+                            <tr>
+                                <td><code>TipFactura</code></td>
+                                <td>string(50)</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Invoice type from nomenclature. Defaults to X for OSS clients from EU countries." data-ro="Tipul de factură din nomenclatură. Implicit X pentru clienții OSS din țările UE.">Invoice type from nomenclature</td>
+                            </tr>
+                            <tr>
+                                <td><code>DataEmitere</code></td>
+                                <td>datetime</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Issue date (yyyy-mm-dd). Defaults to current date." data-ro="Data de emitere (yyyy-mm-dd). Implicit data curentă.">Issue date (yyyy-mm-dd)</td>
+                            </tr>
+                            <tr>
+                                <td><code>DataScadenta</code></td>
+                                <td>datetime</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Due date. Defaults to FGO settings." data-ro="Data scadenței. Implicit din setările FGO.">Due date from FGO settings</td>
+                            </tr>
+                            <tr>
+                                <td><code>Text</code></td>
+                                <td>string(2000)</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Additional info (e.g. delegate name shown on the invoice)" data-ro="Informații suplimentare (ex. numele delegatului afișat pe factură)">Additional info (e.g. delegate name shown on the invoice)</td>
+                            </tr>
+                            <tr>
+                                <td><code>Explicatii</code></td>
+                                <td>string(2000)</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Additional explanations shown on the invoice" data-ro="Explicații suplimentare care apar pe factură">Additional explanations shown on the invoice</td>
+                            </tr>
+                            <tr>
+                                <td><code>TvaLaIncasare</code></td>
+                                <td>bool</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="VAT on collection (true/false)" data-ro="TVA la încasare (true/false)">VAT on collection (true/false)</td>
+                            </tr>
+                            <tr>
+                                <td><code>VerificareDuplicat</code></td>
+                                <td>bool</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Duplicate check; only if true and IdExtern or Serie+Numar are sent" data-ro="Verificare duplicat; doar dacă true și se trimite IdExtern sau Serie+Numar">Duplicate check; only if true and IdExtern or Serie+Numar are sent</td>
+                            </tr>
+                            <tr>
+                                <td><code>ValideazaCodUnicRo</code></td>
+                                <td>bool</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Validate RO fiscal code for PJ clients. Defaults to true for RO PJ since 01.07.2024 (e-Factura)" data-ro="Validează codul unic pentru clienți PJ din RO. Implicit true pentru PJ din RO de la 01.07.2024 (e-Factura)">Validate RO fiscal code for PJ clients. Defaults to true for RO PJ since 01.07.2024 (e-Factura)</td>
+                            </tr>
+                            <tr>
+                                <td><code>IdExtern</code></td>
+                                <td>string(36)</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Order ID (from the online store) for which the invoice is generated" data-ro="ID-ul comenzii (din magazinul online) pentru care se generează factura">Order ID (from the online store) for which the invoice is generated</td>
+                            </tr>
+                            <tr>
+                                <td><code>Client[Denumire]</code></td>
+                                <td>string(255)</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Client name" data-ro="Numele clientului">Client name</td>
+                            </tr>
+                            <tr>
+                                <td><code>Client[CodUnic]</code></td>
+                                <td>string(128)</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Client fiscal code (CUI/CNP)" data-ro="Codul fiscal al clientului (CUI/CNP)">Client fiscal code (CUI/CNP)</td>
+                            </tr>
+                            <tr>
+                                <td><code>Client[Email]</code></td>
+                                <td>string(100)</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Client email" data-ro="Email-ul clientului">Client email</td>
+                            </tr>
+                            <tr>
+                                <td><code>Client[Telefon]</code></td>
+                                <td>string(100)</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Client phone" data-ro="Telefonul clientului">Client phone</td>
+                            </tr>
+                            <tr>
+                                <td><code>Client[Tara]</code></td>
+                                <td>string(128)</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Country from nomenclature" data-ro="Țara din nomenclatură">Country from nomenclature</td>
+                            </tr>
+                            <tr>
+                                <td><code>Client[Judet]</code></td>
+                                <td>string(100)</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="County (required if Country = RO)" data-ro="Județ (obligatoriu dacă Țara = RO)">County (required if Country = RO)</td>
+                            </tr>
+                            <tr>
+                                <td><code>Client[Localitate]</code></td>
+                                <td>string(100)</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Locality per nomenclature" data-ro="Localitate conform nomenclaturii">Locality per nomenclature</td>
+                            </tr>
+                            <tr>
+                                <td><code>Client[Adresa]</code></td>
+                                <td>string(500)</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Address (Str. [street], Nr. [no], Bl., Sc., Et., Ap.)" data-ro="Adresa (Str. [stradă], Nr. [nr], Bl., Sc., Et., Ap.)">Address format: Str., Nr., Bl., Sc., Et., Ap.</td>
+                            </tr>
+                            <tr>
+                                <td><code>Client[Tip]</code></td>
+                                <td>string(2)</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Client type: PF (individual) or PJ (legal entity)" data-ro="Tipul clientului: PF (persoană fizică) sau PJ (persoană juridică)">PF (individual) or PJ (legal entity)</td>
+                            </tr>
+                            <tr>
+                                <td><code>Client[NrRegCom]</code></td>
+                                <td>string(128)</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Client trade register number" data-ro="Număr registru comerț client">Client trade register number</td>
+                            </tr>
+                            <tr>
+                                <td><code>Client[IdExtern]</code></td>
+                                <td>int</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="External client identifier from a third-party app (must be &gt; 0)" data-ro="Identificator client din aplicația terță (trebuie &gt; 0)">External client identifier from a third-party app (must be &gt; 0)</td>
+                            </tr>
+                            <tr>
+                                <td><code>Client[Strain]</code></td>
+                                <td>bool</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Foreign client; allows any VAT rate in Continut[i][CotaTVA]" data-ro="Client străin; permite orice cotă TVA în Continut[i][CotaTVA]">Foreign client; allows any VAT rate in Continut[i][CotaTVA]</td>
+                            </tr>
+                            <tr>
+                                <td><code>Client[ContBancar]</code></td>
+                                <td>string(100)</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Client bank account" data-ro="Contul bancar al clientului">Client bank account</td>
+                            </tr>
+                            <tr>
+                                <td><code>Client[PlatitorTVA]</code></td>
+                                <td>bool</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="VAT payer (true/false); used for PJ clients" data-ro="Plătitor de TVA (true/false); folosit pentru clienți PJ">VAT payer (true/false); used for PJ clients</td>
+                            </tr>
+                            <tr>
+                                <td><code>Continut[i][Denumire]</code></td>
+                                <td>string(1000)</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Product/service name" data-ro="Denumire produs/serviciu">Product/service name</td>
+                            </tr>
+                            <tr>
+                                <td><code>Continut[i][CodArticol]</code></td>
+                                <td>string(128)</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Article code used to search/identify items" data-ro="Cod articol folosit pentru căutare/identificare">Article code used to search/identify items</td>
+                            </tr>
+                            <tr>
+                                <td><code>Continut[i][CodGestiune]</code></td>
+                                <td>string(128)</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Warehouse code for the article (for accounting)" data-ro="Cod gestiune pentru articol (pentru contabilitate)">Warehouse code for the article (for accounting)</td>
+                            </tr>
+                            <tr>
+                                <td><code>Continut[i][Descriere]</code></td>
+                                <td>string(4000)</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Line description; use [[descriere]] to keep the FGO product description" data-ro="Descriere linie; folosiți [[descriere]] pentru a păstra descrierea din FGO">Line description; use [[descriere]] to keep the FGO product description</td>
+                            </tr>
+                            <tr>
+                                <td><code>Continut[i][CodCentruCost]</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Cost center code for the product (from FGO settings)" data-ro="Cod centru de cost pentru produs (din setările FGO)">Cost center code for the product (from FGO settings)</td>
+                            </tr>
+                            <tr>
+                                <td><code>Continut[i][NrCrt]</code></td>
+                                <td>int</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Line index of the article on the invoice. Required only when printing receipts via cash registers." data-ro="Indexul articolului din factură. Necesar doar la tipărirea bonurilor prin case de marcat.">Line index of the article (cash register receipts).</td>
+                            </tr>
+                            <tr>
+                                <td><code>Continut[i][Tip]</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Line type: Articol or Discount. If Discount, also set Continut[i][NrCrtArticol]." data-ro="Tipul liniei: Articol sau Discount. Dacă este Discount, completați și Continut[i][NrCrtArticol].">Line type: Articol or Discount.</td>
+                            </tr>
+                            <tr>
+                                <td><code>Continut[i][NrCrtArticol]</code></td>
+                                <td>int</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Reference to the NrCrt of the article the discount applies to (used when Tip = Discount). For invoice-level discounts, only Tip: Discount is provided, without NrCrtArticol." data-ro="Referință la NrCrt al articolului căruia i se aplică discountul (folosit când Tip = Discount). Pentru discount la nivel de factură, se va transmite doar Tip: Discount, fără NrCrtArticol.">Reference to the NrCrt of the discounted article. For invoice-level discounts, only Tip: Discount is provided, without NrCrtArticol.</td>
+                            </tr>
+                            <tr>
+                                <td><code>Continut[i][NrProduse]</code></td>
+                                <td>decimal</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Quantity (must be ≠ 0, format XXXX.XXX)" data-ro="Cantitate (trebuie ≠ 0, format XXXX.XXX)">Quantity (format XXXX.XXX, ≠ 0)</td>
+                            </tr>
+                            <tr>
+                                <td><code>Continut[i][UM]</code></td>
+                                <td>string(5)</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Unit of measure (e.g., BUC, ORE, KG)" data-ro="Unitate de măsură (de ex., BUC, ORE, KG)">Unit of measure (e.g., BUC, ORE, KG)</td>
+                            </tr>
+                            <tr>
+                                <td><code>Continut[i][CotaTVA]</code></td>
+                                <td>decimal</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="VAT rate (e.g., 21 for 21%)" data-ro="Rata TVA (de ex., 21 pentru 21%)">VAT rate (e.g., 21 for 21%)</td>
+                            </tr>
+                            <tr>
+                                <td><code>Continut[i][PretUnitar]</code></td>
+                                <td>decimal</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Unit price (format XXXX.XX, for standard calculation)" data-ro="Preț unitar (format XXXX.XX, pentru calcul standard)">Unit price (for standard calculation)</td>
+                            </tr>
+                            <tr>
+                                <td><code>Continut[i][PretTotal]</code></td>
+                                <td>decimal</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Total price including VAT (for reverse calculation)" data-ro="Preț total inclusiv TVA (pentru calcul invers)">Total price including VAT (for reverse calc)</td>
+                            </tr>
+                            <tr>
+                                <td><code>PlatformaUrl</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Root URL of your application" data-ro="URL root al aplicației dumneavoastră">Root URL of your application</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3 data-en="Example Request" data-ro="Cerere Exemplu">Example Request</h3>
+                    <div class="code-block">
+                        <button class="code-copy" data-action="copy"></button>
+                        <code>POST /factura/emitere HTTP/1.1
+Host: api-testuat.fgo.ro
+Content-Type: application/json
+
+{
+  "CodUnic": "2864518",
+  "Hash": "8C3A7726804C121C6933F7D68494B439463996E2",
+  "Serie": "BV",
+  "Numar": "123",
+  "Valuta": "RON",
+  "TipFactura": "Factura",
+  "DataEmitere": "2024-03-25",
+  "Client": {
+    "Denumire": "Ionescu Popescu",
+    "Tara": "RO",
+    "Judet": "Bucuresti",
+    "Tip": "PF"
+  },
+  "Continut": [
+    {
+      "Denumire": "Servicii Consultanta",
+      "NrProduse": 2,
+      "UM": "ORE",
+      "CotaTVA": 21,
+      "PretUnitar": 100.00
+    }
+  ],
+  "PlatformaUrl": "https://yourapp.com"
+}</code>
+                    </div>
+
+                    <h3 data-en="Example Response (Success)" data-ro="Răspuns Exemplu (Succes)">Example Response (Success)</h3>
+                    <div class="code-block">
+                        <button class="code-copy" data-action="copy"></button>
+                        <code>{
+  "Success": true,
+  "Message": "",
+  "Factura": {
+    "Numar": "001",
+    "Serie": "BV",
+    "Link": "https://fgo.ro/facturi/001_BV.pdf",
+    "LinkPlata": "https://fgo.ro/plata/001_BV"
+  },
+  "InfoStoc": [
+    {
+      "CodConta": "A1",
+      "Nume": "Produs 1",
+      "Stoc": 10.0
+    }
+  ]
+}</code>
+                    </div>
+
+                    <h3 data-en="Example Response (Error)" data-ro="Răspuns Exemplu (Eroare)">Example Response (Error)</h3>
+                    <div class="code-block">
+                        <button class="code-copy" data-action="copy"></button>
+                        <code>{
+  "Success": false,
+  "Message": "Client name is required"
+}</code>
+                    </div>
+                </div>
+
+                <!-- Print Invoice -->
+                <h3 data-en="Print Invoice" data-ro="Tipărire Factură">Print Invoice</h3>
+                <div class="endpoint">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-post">POST</span>
+                        <span class="endpoint-url">/factura/print</span>
+                    </div>
+                    <p data-en="Generate a PDF of an existing invoice." data-ro="Generați un PDF al unei facturi existente.">Generate a PDF of an existing invoice.</p>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-en="Parameter" data-ro="Parametru">Parameter</th>
+                                <th data-en="Type" data-ro="Tip">Type</th>
+                                <th data-en="Status" data-ro="Stare">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>CodUnic</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>Hash</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>Numar</code></td>
+                                <td>string(50)</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>Serie</code></td>
+                                <td>string(50)</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>PlatformaUrl</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3 data-en="Example Response" data-ro="Răspuns Exemplu">Example Response</h3>
+                    <div class="code-block">
+                        <button class="code-copy" data-action="copy"></button>
+                        <code>{
+  "Success": true,
+  "Message": "",
+  "Factura": {
+    "Numar": "001",
+    "Serie": "BV",
+    "Link": "https://fgo.ro/facturi/001_BV.pdf"
+  }
+}</code>
+                    </div>
+                </div>
+
+                <!-- Delete Invoice -->
+                <h3 data-en="Delete Invoice" data-ro="Ștergere Factură">Delete Invoice</h3>
+                <div class="endpoint">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-post">POST</span>
+                        <span class="endpoint-url">/factura/stergere</span>
+                    </div>
+                    <p data-en="Permanently delete an invoice." data-ro="Ștergți permanent o factură.">Permanently delete an invoice.</p>
+
+                    <p data-en="Required parameters: CodUnic, Hash, Numar, Serie, PlatformaUrl" data-ro="Parametri obligatori: CodUnic, Hash, Numar, Serie, PlatformaUrl">Required parameters: CodUnic, Hash, Numar, Serie, PlatformaUrl</p>
+
+                    <h3 data-en="Example Response" data-ro="Răspuns Exemplu">Example Response</h3>
+                    <div class="code-block">
+                        <button class="code-copy" data-action="copy"></button>
+                        <code>{
+  "Success": true,
+  "Message": "Invoice deleted successfully"
+}</code>
+                    </div>
+                </div>
+
+                <!-- Cancel Invoice -->
+                <h3 data-en="Cancel Invoice" data-ro="Anulare Factură">Cancel Invoice</h3>
+                <div class="endpoint">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-post">POST</span>
+                        <span class="endpoint-url">/factura/anulare</span>
+                    </div>
+                    <p data-en="Cancel an invoice (keeps it in history)." data-ro="Anulați o factură (o păstrează în istoric).">Cancel an invoice (keeps it in history).</p>
+
+                    <p data-en="Required parameters: CodUnic, Hash, Numar, Serie, PlatformaUrl" data-ro="Parametri obligatori: CodUnic, Hash, Numar, Serie, PlatformaUrl">Required parameters: CodUnic, Hash, Numar, Serie, PlatformaUrl</p>
+
+                    <h3 data-en="Example Response" data-ro="Răspuns Exemplu">Example Response</h3>
+                    <div class="code-block">
+                        <button class="code-copy" data-action="copy"></button>
+                        <code>{
+  "Success": true,
+  "Message": "Invoice cancelled successfully"
+}</code>
+                    </div>
+                </div>
+
+                <!-- Get Invoice Status -->
+                <h3 data-en="Get Invoice Status" data-ro="Obțineți Status Factură">Get Invoice Status</h3>
+                <div class="endpoint">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-post">POST</span>
+                        <span class="endpoint-url">/factura/getstatus</span>
+                    </div>
+                    <p data-en="Retrieve the current status of an invoice." data-ro="Preluați starea curentă a unei facturi.">Retrieve the current status of an invoice.</p>
+
+                    <p data-en="Required parameters: CodUnic, Hash, Numar, Serie, PlatformaUrl" data-ro="Parametri obligatori: CodUnic, Hash, Numar, Serie, PlatformaUrl">Required parameters: CodUnic, Hash, Numar, Serie, PlatformaUrl</p>
+
+                    <h3 data-en="Example Response" data-ro="Răspuns Exemplu">Example Response</h3>
+                    <div class="code-block">
+                        <button class="code-copy" data-action="copy"></button>
+                        <code>{
+  "Success": true,
+  "Factura": {
+    "Numar": "1",
+    "Serie": "X",
+    "Valoare": "167.69",
+    "ValoareAchitata": "167.69"
+  }
+}</code>
+                    </div>
+                </div>
+
+                <!-- Add Payment (Deprecated) -->
+                <h3 data-en="Add Payment" data-ro="Adăugare Plată">Add Payment</h3>
+                <div class="endpoint">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-post">POST</span>
+                        <span class="endpoint-url">/factura/incasare</span>
+                    </div>
+                    <div class="info-box warning">
+                        <p data-en="⚠️ Decommissioned for FGO Pro from 15.12.2020. Available only for PREMIUM & ENTERPRISE." data-ro="⚠️ Decomisionat pentru FGO Pro din 15.12.2020. Disponibil doar pentru PREMIUM & ENTERPRISE.">⚠️ Decommissioned for FGO Pro. Available only for PREMIUM & ENTERPRISE.</p>
+                    </div>
+                    <p data-en="Record a payment/collection for an invoice." data-ro="Înregistrați o plată/încasare pentru o factură.">Record a payment/collection for an invoice.</p>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-en="Parameter" data-ro="Parametru">Parameter</th>
+                                <th data-en="Type" data-ro="Tip">Type</th>
+                                <th data-en="Status" data-ro="Stare">Status</th>
+                                <th data-en="Description" data-ro="Descriere">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>CodUnic</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Company fiscal code (CUI)" data-ro="Codul fiscal al companiei (CUI)">Company fiscal code (CUI)</td>
+                            </tr>
+                            <tr>
+                                <td><code>Hash</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="SHA-1 hash (see Hash Calculation section)" data-ro="Hash SHA-1 (a se vedea secțiunea Calcul Hash)">SHA-1 hash (see Hash Calculation section)</td>
+                            </tr>
+                            <tr>
+                                <td><code>NumarFactura</code></td>
+                                <td>string(50)</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Invoice number" data-ro="Numărul facturii">Invoice number</td>
+                            </tr>
+                            <tr>
+                                <td><code>SerieFactura</code></td>
+                                <td>string(50)</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Invoice series" data-ro="Seria facturii">Invoice series</td>
+                            </tr>
+                            <tr>
+                                <td><code>SerieChitanta</code></td>
+                                <td>string(50)</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Receipt series (if multiple series exist)" data-ro="Seria chitanței (dacă există mai multe serii)">Receipt series (if multiple series exist)</td>
+                            </tr>
+                            <tr>
+                                <td><code>ContIncasare</code></td>
+                                <td>string(50)</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Collection account from FGO Settings -&gt; Collection" data-ro="Contul de încasare din FGO Setări -&gt; Încasare">Collection account from FGO Settings -&gt; Collection</td>
+                            </tr>
+                            <tr>
+                                <td><code>TipIncasare</code></td>
+                                <td>string(50)</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Payment type from nomenclature" data-ro="Tipul de plată din nomenclatură">Payment type (from nomenclature)</td>
+                            </tr>
+                            <tr>
+                                <td><code>SumaIncasata</code></td>
+                                <td>decimal</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Payment amount (format XXXX.XX)" data-ro="Suma de plată (format XXXX.XX)">Amount (format XXXX.XX)</td>
+                            </tr>
+                            <tr>
+                                <td><code>DataIncasare</code></td>
+                                <td>datetime</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Payment date (yyyy-mm-dd hh:mm:ss)" data-ro="Data plății (yyyy-mm-dd hh:mm:ss)">Payment date (yyyy-mm-dd hh:mm:ss)</td>
+                            </tr>
+                            <tr>
+                                <td><code>TipFactura</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Invoice type, if the same series is used for different document types" data-ro="Tip factură, dacă aceeași serie e folosită pentru tipuri de documente diferite">Invoice type, if the same series is used for different document types</td>
+                            </tr>
+                            <tr>
+                                <td><code>PlatformaUrl</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Root URL of your application" data-ro="URL root al aplicației dumneavoastră">Root URL of your application</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Delete Payment -->
+                <h3 data-en="Delete Payment" data-ro="Ștergere Încasare">Delete Payment</h3>
+                <div class="endpoint">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-post">POST</span>
+                        <span class="endpoint-url">/factura/stergereincasare</span>
+                    </div>
+                    <div class="info-box warning">
+                        <p data-en="⚠️ Decommissioned for FGO Pro from 15.12.2020. Available only for PREMIUM &amp; ENTERPRISE." data-ro="⚠️ Decomisionat pentru FGO Pro din 15.12.2020. Disponibil doar pentru PREMIUM &amp; ENTERPRISE.">⚠️ Decommissioned for FGO Pro. Available only for PREMIUM &amp; ENTERPRISE.</p>
+                    </div>
+                    <p data-en="Delete a previously recorded payment/collection from an invoice." data-ro="Ștergeți o încasare înregistrată anterior pentru o factură.">Delete a recorded payment/collection from an invoice.</p>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-en="Parameter" data-ro="Parametru">Parameter</th>
+                                <th data-en="Type" data-ro="Tip">Type</th>
+                                <th data-en="Status" data-ro="Stare">Status</th>
+                                <th data-en="Description" data-ro="Descriere">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>CodUnic</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Company fiscal code (CUI)" data-ro="Codul fiscal al companiei (CUI)">Company fiscal code (CUI)</td>
+                            </tr>
+                            <tr>
+                                <td><code>Hash</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="SHA-1 hash (see Hash Calculation section)" data-ro="Hash SHA-1 (a se vedea secțiunea Calcul Hash)">SHA-1 hash (see Hash Calculation section)</td>
+                            </tr>
+                            <tr>
+                                <td><code>NumarFactura</code></td>
+                                <td>string(50)</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Invoice number the collection belongs to" data-ro="Numărul facturii pentru care se face ștergerea">Invoice number the collection belongs to</td>
+                            </tr>
+                            <tr>
+                                <td><code>SerieFactura</code></td>
+                                <td>string(50)</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Invoice series the collection belongs to" data-ro="Seria facturii pentru care se face ștergerea">Invoice series the collection belongs to</td>
+                            </tr>
+                            <tr>
+                                <td><code>SerieIncasare</code></td>
+                                <td>string(50)</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Series of the collection to delete" data-ro="Seria încasării de șters">Series of the collection to delete</td>
+                            </tr>
+                            <tr>
+                                <td><code>NumarIncasare</code></td>
+                                <td>string(50)</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Number of the collection to delete" data-ro="Numărul încasării de șters">Number of the collection to delete</td>
+                            </tr>
+                            <tr>
+                                <td><code>PlatformaUrl</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Root URL of your application" data-ro="URL root al aplicației dumneavoastră">Root URL of your application</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3 data-en="Example Response" data-ro="Răspuns Exemplu">Example Response</h3>
+                    <div class="code-block">
+                        <button class="code-copy" data-action="copy"></button>
+                        <code>{
+  "Success": true,
+  "Message": ""
+}</code>
+                    </div>
+                </div>
+
+                <!-- Reverse Invoice -->
+                <h3 data-en="Reverse Invoice" data-ro="Stornare Factură">Reverse Invoice</h3>
+                <div class="endpoint">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-post">POST</span>
+                        <span class="endpoint-url">/factura/stornare</span>
+                    </div>
+                    <p data-en="Create a reversal/credit note for an invoice." data-ro="Creați o stornare/notă de credit pentru o factură.">Create a reversal/credit note for an invoice.</p>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-en="Parameter" data-ro="Parametru">Parameter</th>
+                                <th data-en="Status" data-ro="Stare">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>CodUnic</code>, <code>Hash</code>, <code>Numar</code>, <code>Serie</code></td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>SerieStorno</code>, <code>NumarStorno</code>, <code>DataEmitere</code></td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>PlatformaUrl</code></td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Add AWB -->
+                <h3 data-en="Add Tracking Number (AWB)" data-ro="Adăugare Număr Urmărire (AWB)">Add Tracking Number (AWB)</h3>
+                <div class="endpoint">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-post">POST</span>
+                        <span class="endpoint-url">/factura/awb</span>
+                    </div>
+                    <p data-en="Attach a courier tracking number to an invoice." data-ro="Atașați un număr de urmărire curier la o factură.">Attach a courier tracking number to an invoice.</p>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-en="Parameter" data-ro="Parametru">Parameter</th>
+                                <th data-en="Type" data-ro="Tip">Type</th>
+                                <th data-en="Status" data-ro="Stare">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>CodUnic</code>, <code>Hash</code>, <code>Numar</code>, <code>Serie</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>AWB</code></td>
+                                <td>string(128)</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>PlatformaUrl</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Associated Invoices -->
+                <h3 data-en="Associated Invoices List" data-ro="Lista Facturi Asociate">Associated Invoices List</h3>
+                <div class="endpoint">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-post">POST</span>
+                        <span class="endpoint-url">/factura/listfacturiasociate</span>
+                    </div>
+                    <div class="info-box warning">
+                        <p data-en="⚠️ ENTERPRISE plan only (from 01.03.2021)" data-ro="⚠️ Doar plan ENTERPRISE (din 01.03.2021)">⚠️ ENTERPRISE plan only</p>
+                    </div>
+                    <p data-en="List all invoices associated with a given invoice." data-ro="Listați toate facturile asociate unei facturi date.">List all invoices associated with a given invoice.</p>
+
+                    <p data-en="Required parameters: CodUnic, Hash, Numar, Serie, PlatformaUrl" data-ro="Parametri obligatorii: CodUnic, Hash, Numar, Serie, PlatformaUrl">Required parameters: CodUnic, Hash, Numar, Serie, PlatformaUrl</p>
+
+                    <h3 data-en="Example Response" data-ro="Răspuns Exemplu">Example Response</h3>
+                    <div class="code-block">
+                        <button class="code-copy" data-action="copy"></button>
+                        <code>{
+  "Success": true,
+  "Facturi": [
+    {
+      "Numar": "1",
+      "Serie": "X",
+      "Valoare": "167.69",
+      "ValoareAchitata": "167.69",
+      "DataEmitere": "2024-03-25"
+    }
+  ]
+}</code>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Articles Section -->
+            <section id="articles">
+                <h2 data-en="Articles" data-ro="Articole">Articles</h2>
+                <p data-en="Manage your product and service catalog through these endpoints." data-ro="Gestionați catalogul de produse și servicii prin aceste endpoint-uri.">Manage your product and service catalog.</p>
+
+                <!-- List Articles -->
+                <h3 data-en="List Articles" data-ro="Lista Articole">List Articles</h3>
+                <div class="endpoint">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-post">POST</span>
+                        <span class="endpoint-url">/articol/list</span>
+                    </div>
+                    <div class="info-box warning">
+                        <p data-en="⚠️ ENTERPRISE plan only. Returns only articles with stock flag." data-ro="⚠️ Doar plan ENTERPRISE. Returnează doar articole cu marcajul de stoc.">⚠️ ENTERPRISE only. Returns articles with stock flag.</p>
+                    </div>
+
+                    <div class="info-box">
+                        <p data-en="Rate limit: 1 request/5 seconds (from 01.07.2023: 1 request/30 seconds)" data-ro="Limita rată: 1 cerere/5 secunde (din 01.07.2023: 1 cerere/30 secunde)">Rate limit: 1 request/5 seconds (or 1/30sec from 01.07.2023)</p>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-en="Parameter" data-ro="Parametru">Parameter</th>
+                                <th data-en="Type" data-ro="Tip">Type</th>
+                                <th data-en="Status" data-ro="Stare">Status</th>
+                                <th data-en="Description" data-ro="Descriere">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>CodUnic</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Company fiscal code" data-ro="Codul fiscal al companiei">Company fiscal code</td>
+                            </tr>
+                            <tr>
+                                <td><code>Hash</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="SHA-1 hash" data-ro="Hash SHA-1">SHA-1 hash</td>
+                            </tr>
+                            <tr>
+                                <td><code>NrPagina</code></td>
+                                <td>int</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Page number (1-indexed)" data-ro="Numărul paginii (indexat din 1)">Page number (1-indexed)</td>
+                            </tr>
+                            <tr>
+                                <td><code>NrArticole</code></td>
+                                <td>int</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Items per page (default 50, max 200)" data-ro="Articole per pagină (implicit 50, max 200)">Items per page (default 50, max 200)</td>
+                            </tr>
+                            <tr>
+                                <td><code>PlatformaUrl</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Platform URL" data-ro="URL platformă">Platform URL</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3 data-en="Example Response" data-ro="Răspuns Exemplu">Example Response</h3>
+                    <div class="code-block">
+                        <button class="code-copy" data-action="copy"></button>
+                        <code>{
+  "Result": {
+    "Total": 1335,
+    "NrPagina": 1,
+    "NrArticole": 1,
+    "List": [
+      {
+        "Nume": "Product 1",
+        "PretUnitar": 100.00,
+        "UM": "BUC",
+        "CodConta": "00000101",
+        "CotaTva": 0.19,
+        "Stoc": 50
+      }
+    ]
+  },
+  "Success": true
+}</code>
+                    </div>
+                </div>
+
+                <!-- Get Article -->
+                <h3 data-en="Get Article" data-ro="Obțineți Articol">Get Article</h3>
+                <div class="endpoint">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-post">POST</span>
+                        <span class="endpoint-url">/articol/get</span>
+                    </div>
+                    <p data-en="Retrieve details of a specific article by code." data-ro="Preluați detaliile unui articol specific după cod.">Retrieve details of a specific article by code.</p>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-en="Parameter" data-ro="Parametru">Parameter</th>
+                                <th data-en="Type" data-ro="Tip">Type</th>
+                                <th data-en="Status" data-ro="Stare">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>CodUnic</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>Hash</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>CodArticol</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>PlatformaUrl</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Get List (Deprecated) -->
+                <h3 data-en="Get List" data-ro="Obțineți Lista">Get List</h3>
+                <div class="endpoint">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-post">POST</span>
+                        <span class="endpoint-url">/articol/getlist</span>
+                    </div>
+                    <div class="info-box warning">
+                        <p data-en="⚠️ DEPRECATED - Replaced by ARTICOLEMODIFICATE from 01.07.2023" data-ro="⚠️ DEPRECAT - Înlocuit de ARTICOLEMODIFICATE din 01.07.2023">⚠️ DEPRECATED - Use ARTICOLEMODIFICATE instead</p>
+                    </div>
+
+                    <p data-en="Retrieve multiple articles by code list (max 30)." data-ro="Preluați mai multe articole după lista de coduri (max 30).">Retrieve multiple articles by code (max 30).</p>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-en="Parameter" data-ro="Parametru">Parameter</th>
+                                <th data-en="Type" data-ro="Tip">Type</th>
+                                <th data-en="Status" data-ro="Stare">Status</th>
+                                <th data-en="Description" data-ro="Descriere">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>CodUnic</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Company fiscal code (CUI)" data-ro="Codul fiscal al companiei (CUI)">Company fiscal code (CUI)</td>
+                            </tr>
+                            <tr>
+                                <td><code>Hash</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="SHA-1 hash (see Hash Calculation section)" data-ro="Hash SHA-1 (a se vedea secțiunea Calcul Hash)">SHA-1 hash (see Hash Calculation section)</td>
+                            </tr>
+                            <tr>
+                                <td><code>Coduri</code></td>
+                                <td>array</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Article codes to retrieve, max 30" data-ro="Coduri de articole de preluat, maxim 30">Article codes to retrieve, max 30</td>
+                            </tr>
+                            <tr>
+                                <td><code>PlatformaUrl</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Root URL of your application" data-ro="URL root al aplicației dumneavoastră">Root URL of your application</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Modified Articles -->
+                <h3 data-en="Modified Articles" data-ro="Articole Modificate">Modified Articles</h3>
+                <div class="endpoint">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-post">POST</span>
+                        <span class="endpoint-url">/articol/articolemodificate</span>
+                    </div>
+                    <div class="info-box warning">
+                        <p data-en="⚠️ ENTERPRISE plan only" data-ro="⚠️ Doar plan ENTERPRISE">⚠️ ENTERPRISE only</p>
+                    </div>
+
+                    <div class="info-box">
+                        <p data-en="Rate limit: 1 request/30 minutes" data-ro="Limita rată: 1 cerere/30 minute">Rate limit: 1 request/30 minutes</p>
+                    </div>
+
+                    <p data-en="Retrieve articles modified within a specified time window (up to 200 articles). Use Sters=true to return deleted articles or Sters=false to return active articles; when omitted, all articles are returned." data-ro="Preluați articolele modificate într-o fereastră de timp specifică (până la 200 articole). Folosiți Sters=true pentru articole șterse sau Sters=false pentru articole active; când lipsește, se returnează toate articolele.">Retrieve articles modified within a time window (up to 200). Use Sters=true for deleted articles or Sters=false for active articles; when omitted, all articles are returned.</p>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-en="Parameter" data-ro="Parametru">Parameter</th>
+                                <th data-en="Type" data-ro="Tip">Type</th>
+                                <th data-en="Status" data-ro="Stare">Status</th>
+                                <th data-en="Description" data-ro="Descriere">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>CodUnic</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Company fiscal code" data-ro="Codul fiscal al companiei">Company fiscal code</td>
+                            </tr>
+                            <tr>
+                                <td><code>Hash</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="SHA-1 hash" data-ro="Hash SHA-1">SHA-1 hash</td>
+                            </tr>
+                            <tr>
+                                <td><code>NumarOre</code></td>
+                                <td>int</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Hours lookback (default 24, max 170)" data-ro="Ore în urmă (implicit 24, max 170)">Hours lookback (default 24, max 170)</td>
+                            </tr>
+                            <tr>
+                                <td><code>NumarOrePanaLa</code></td>
+                                <td>int</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="End of time window (enables pagination)" data-ro="Sfârșitul ferestrei de timp (permite paginație)">End of window (enables pagination)</td>
+                            </tr>
+                            <tr>
+                                <td><code>Sters</code></td>
+                                <td>bool</td>
+                                <td><span class="badge badge-optional" data-en="Optional" data-ro="Opțional">Optional</span></td>
+                                <td data-en="Deleted flag: true returns deleted articles, false returns active articles; omitted returns all articles" data-ro="Flag șters: true returnează articolele șterse, false returnează articolele active; dacă lipsește, returnează toate articolele">Deleted flag: true returns deleted articles, false returns active articles; omitted returns all articles</td>
+                            </tr>
+                            <tr>
+                                <td><code>PlatformaUrl</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                                <td data-en="Platform URL" data-ro="URL platformă">Platform URL</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3 data-en="Example Response" data-ro="Răspuns Exemplu">Example Response</h3>
+                    <div class="code-block">
+                        <button class="code-copy" data-action="copy"></button>
+                        <code>{
+  "Result": [
+    {
+      "Nume": "Product Updated",
+      "CodConta": "00000101",
+      "Stoc": 75,
+      "CodBare": "1234567890",
+      "UltimaUtilizare": "2024-03-25 20:45:00",
+      "Sters": false
+    }
+  ],
+  "Success": true
+}</code>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Warehouse Section -->
+            <section id="warehouse">
+                <h2 data-en="Warehouse" data-ro="Gestiune">Warehouse</h2>
+                <p data-en="Retrieve warehouse/storage location information." data-ro="Preluați informații despre depozit/locurile de depozitare.">Retrieve warehouse/storage location information.</p>
+
+                <div class="endpoint">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-post">POST</span>
+                        <span class="endpoint-url">/articol/gestiune</span>
+                    </div>
+                    <p data-en="List all warehouses configured in your FGO account." data-ro="Listați toate depozitele configurate în contul dvs. FGO.">List all warehouses configured in your account.</p>
+
+                    <div class="info-box">
+                        <p data-en="Rate limit: 1 request/5 seconds" data-ro="Limita rată: 1 cerere/5 secunde">Rate limit: 1 request/5 seconds</p>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-en="Parameter" data-ro="Parametru">Parameter</th>
+                                <th data-en="Type" data-ro="Tip">Type</th>
+                                <th data-en="Status" data-ro="Stare">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>CodUnic</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>Hash</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>PlatformaUrl</code></td>
+                                <td>string</td>
+                                <td><span class="badge badge-required" data-en="Required" data-ro="Obligatoriu">Required</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3 data-en="Example Response" data-ro="Răspuns Exemplu">Example Response</h3>
+                    <div class="code-block">
+                        <button class="code-copy" data-action="copy"></button>
+                        <code>{
+  "Result": {
+    "List": [
+      {
+        "CodGestiune": "WH001",
+        "Nume": "Main Warehouse"
+      },
+      {
+        "CodGestiune": "WH002",
+        "Nume": "Secondary Storage"
+      }
+    ]
+  },
+  "Success": true
+}</code>
+                    </div>
+                </div>
+            </section>
+
+            <!-- API Playground Section -->
+            <section id="playground">
+                <h2 data-en="API Playground" data-ro="Testare API">API Playground</h2>
+                <p data-en="Test API endpoints directly from this page. Select your environment and fill in the parameters." data-ro="Testează endpoint-urile API direct din această pagină. Selectează mediul și completează parametrii.">Test API endpoints directly.</p>
+
+                <div class="info-box">
+                    <p data-en="These forms send JSON requests directly to the FGO API. Make sure you have a valid account and API credentials." data-ro="Aceste formulare trimit cereri JSON direct către API-ul FGO. Asigură-te că ai un cont valid și credențiale API.">Forms send JSON to FGO API.</p>
+                </div>
+
+                <h3 data-en="Environment" data-ro="Mediu">Environment</h3>
+                <div class="pg-env-select">
+                    <button class="pg-env-btn active" data-env="https://api-testuat.fgo.ro/v1">Test (UAT)</button>
+                    <button class="pg-env-btn" data-env="https://api.fgo.ro/v1">Producție</button>
+                </div>
+
+                <h3 data-en="Live Nomenclatures" data-ro="Nomenclatoare Live">Live Nomenclatures</h3>
+                <p data-en="Click to view nomenclature data directly from the API:" data-ro="Click pentru a vedea datele nomenclatoarelor direct din API:">Click to view nomenclatures:</p>
+                <div class="nomenclature-links" id="nomenclatureLinks">
+                    <a href="https://api-testuat.fgo.ro/v1/nomenclator/tara" target="_blank">Țări</a>
+                    <a href="https://api-testuat.fgo.ro/v1/nomenclator/judet" target="_blank">Județe</a>
+                    <a href="https://api-testuat.fgo.ro/v1/nomenclator/banca" target="_blank">Bănci</a>
+                    <a href="https://api-testuat.fgo.ro/v1/nomenclator/valuta" target="_blank">Valută</a>
+                    <a href="https://api-testuat.fgo.ro/v1/nomenclator/tva" target="_blank">TVA</a>
+                    <a href="https://api-testuat.fgo.ro/v1/nomenclator/tipincasare" target="_blank">TipIncasare</a>
+                    <a href="https://api-testuat.fgo.ro/v1/nomenclator/tipfactura" target="_blank">TipFactura</a>
+                    <a href="https://api-testuat.fgo.ro/v1/nomenclator/tipclient" target="_blank">TipClient</a>
+                </div>
+
+                <h3 data-en="Test Forms" data-ro="Formulare de Test">Test Forms</h3>
+                <div class="playground-grid">
+
+                    <!-- Emitere -->
+                    <div class="playground-card">
+                        <div class="playground-card-header">
+                            <span class="method-badge method-post">POST</span>
+                            <h4>Emitere</h4>
+                            <small>/factura/emitere</small>
+                        </div>
+                        <div class="playground-card-body">
+                            <label data-en="Security" data-ro="Securitate">Securitate</label>
+                            <input type="text" class="pg-input" id="pg-emit-codUnic" placeholder="CodUnic">
+                            <input type="text" class="pg-input" id="pg-emit-hash" placeholder="Hash">
+                            <label data-en="Invoice Data" data-ro="Date Facturare">Date Facturare</label>
+                            <div class="pg-row">
+                                <input type="text" class="pg-input" id="pg-emit-serie" placeholder="Serie">
+                                <input type="text" class="pg-input" id="pg-emit-tipFactura" placeholder="TipFactura" value="Factura">
+                            </div>
+                            <div class="pg-row">
+                                <input type="text" class="pg-input" id="pg-emit-valuta" placeholder="Valuta" value="RON">
+                                <input type="text" class="pg-input" id="pg-emit-dataEmitere" placeholder="DataEmitere (yyyy-mm-dd)">
+                            </div>
+                            <label>Client</label>
+                            <input type="text" class="pg-input" id="pg-emit-clientDenumire" placeholder="Client[Denumire]">
+                            <div class="pg-row">
+                                <input type="text" class="pg-input" id="pg-emit-clientTip" placeholder="Client[Tip] PF/PJ">
+                                <input type="text" class="pg-input" id="pg-emit-clientCodUnic" placeholder="Client[CodUnic]">
+                            </div>
+                            <div class="pg-row">
+                                <input type="text" class="pg-input" id="pg-emit-clientTara" placeholder="Client[Tara]">
+                                <input type="text" class="pg-input" id="pg-emit-clientJudet" placeholder="Client[Judet]">
+                            </div>
+                            <input type="text" class="pg-input" id="pg-emit-clientAdresa" placeholder="Client[Adresa]">
+                            <label data-en="Item Content" data-ro="Conținut Factură">Conținut Factură</label>
+                            <input type="text" class="pg-input" id="pg-emit-denumire" placeholder="Continut[0][Denumire]">
+                            <div class="pg-row">
+                                <input type="text" class="pg-input" id="pg-emit-pretUnitar" placeholder="PretUnitar">
+                                <input type="text" class="pg-input" id="pg-emit-pretTotal" placeholder="PretTotal (calcul invers)">
+                            </div>
+                            <div class="pg-row">
+                                <input type="text" class="pg-input" id="pg-emit-um" placeholder="UM">
+                                <input type="text" class="pg-input" id="pg-emit-nrProduse" placeholder="NrProduse">
+                            </div>
+                            <input type="text" class="pg-input" id="pg-emit-cotaTva" placeholder="CotaTVA (ex: 21)">
+                            <label>PlatformaUrl</label>
+                            <input type="text" class="pg-input" id="pg-emit-platforma" placeholder="https://yourapp.com">
+                            <button class="pg-submit" data-pg="emitere" data-en="Send Request" data-ro="Trimite Cererea">Trimite Cererea</button>
+                            <div class="pg-response" id="pg-emit-response"></div>
+                        </div>
+                    </div>
+
+                    <!-- Incasare -->
+                    <div class="playground-card">
+                        <div class="playground-card-header">
+                            <span class="method-badge method-post">POST</span>
+                            <h4 data-en="Payment" data-ro="Încasare">Încasare</h4>
+                            <small>/factura/incasare</small>
+                        </div>
+                        <div class="playground-card-body">
+                            <label data-en="Security" data-ro="Securitate">Securitate</label>
+                            <input type="text" class="pg-input" id="pg-inc-codUnic" placeholder="CodUnic">
+                            <input type="text" class="pg-input" id="pg-inc-hash" placeholder="Hash">
+                            <label data-en="Invoice" data-ro="Factură">Factură</label>
+                            <div class="pg-row">
+                                <input type="text" class="pg-input" id="pg-inc-numarFactura" placeholder="NumarFactura">
+                                <input type="text" class="pg-input" id="pg-inc-serieFactura" placeholder="SerieFactura">
+                            </div>
+                            <label data-en="Payment Details" data-ro="Detalii Încasare">Detalii Încasare</label>
+                            <div class="pg-row">
+                                <input type="text" class="pg-input" id="pg-inc-sumaIncasata" placeholder="SumaIncasata">
+                                <input type="text" class="pg-input" id="pg-inc-tipIncasare" placeholder="TipIncasare">
+                            </div>
+                            <input type="text" class="pg-input" id="pg-inc-dataIncasare" placeholder="DataIncasare (yyyy-mm-dd hh:mm:ss)">
+                            <label>PlatformaUrl</label>
+                            <input type="text" class="pg-input" id="pg-inc-platforma" placeholder="https://yourapp.com">
+                            <button class="pg-submit" data-pg="incasare" data-en="Send Request" data-ro="Trimite Cererea">Trimite Cererea</button>
+                            <div class="pg-response" id="pg-inc-response"></div>
+                        </div>
+                    </div>
+
+                    <!-- Print -->
+                    <div class="playground-card">
+                        <div class="playground-card-header">
+                            <span class="method-badge method-post">POST</span>
+                            <h4 data-en="Print" data-ro="Printare">Printare</h4>
+                            <small>/factura/print</small>
+                        </div>
+                        <div class="playground-card-body">
+                            <label data-en="Security" data-ro="Securitate">Securitate</label>
+                            <input type="text" class="pg-input" id="pg-print-codUnic" placeholder="CodUnic">
+                            <input type="text" class="pg-input" id="pg-print-hash" placeholder="Hash">
+                            <label data-en="Invoice" data-ro="Factură">Factură</label>
+                            <div class="pg-row">
+                                <input type="text" class="pg-input" id="pg-print-numar" placeholder="Numar">
+                                <input type="text" class="pg-input" id="pg-print-serie" placeholder="Serie">
+                            </div>
+                            <label>PlatformaUrl</label>
+                            <input type="text" class="pg-input" id="pg-print-platforma" placeholder="https://yourapp.com">
+                            <button class="pg-submit" data-pg="print" data-en="Send Request" data-ro="Trimite Cererea">Trimite Cererea</button>
+                            <div class="pg-response" id="pg-print-response"></div>
+                        </div>
+                    </div>
+
+                    <!-- Anulare -->
+                    <div class="playground-card">
+                        <div class="playground-card-header">
+                            <span class="method-badge method-post">POST</span>
+                            <h4 data-en="Cancel" data-ro="Anulare">Anulare</h4>
+                            <small>/factura/anulare</small>
+                        </div>
+                        <div class="playground-card-body">
+                            <label data-en="Security" data-ro="Securitate">Securitate</label>
+                            <input type="text" class="pg-input" id="pg-anul-codUnic" placeholder="CodUnic">
+                            <input type="text" class="pg-input" id="pg-anul-hash" placeholder="Hash">
+                            <label data-en="Invoice" data-ro="Factură">Factură</label>
+                            <div class="pg-row">
+                                <input type="text" class="pg-input" id="pg-anul-numar" placeholder="Numar">
+                                <input type="text" class="pg-input" id="pg-anul-serie" placeholder="Serie">
+                            </div>
+                            <label>PlatformaUrl</label>
+                            <input type="text" class="pg-input" id="pg-anul-platforma" placeholder="https://yourapp.com">
+                            <button class="pg-submit" data-pg="anulare" data-en="Send Request" data-ro="Trimite Cererea">Trimite Cererea</button>
+                            <div class="pg-response" id="pg-anul-response"></div>
+                        </div>
+                    </div>
+
+                    <!-- Stergere -->
+                    <div class="playground-card">
+                        <div class="playground-card-header">
+                            <span class="method-badge method-post">POST</span>
+                            <h4 data-en="Delete" data-ro="Ștergere">Ștergere</h4>
+                            <small>/factura/stergere</small>
+                        </div>
+                        <div class="playground-card-body">
+                            <label data-en="Security" data-ro="Securitate">Securitate</label>
+                            <input type="text" class="pg-input" id="pg-sterg-codUnic" placeholder="CodUnic">
+                            <input type="text" class="pg-input" id="pg-sterg-hash" placeholder="Hash">
+                            <label data-en="Invoice" data-ro="Factură">Factură</label>
+                            <div class="pg-row">
+                                <input type="text" class="pg-input" id="pg-sterg-numar" placeholder="Numar">
+                                <input type="text" class="pg-input" id="pg-sterg-serie" placeholder="Serie">
+                            </div>
+                            <label>PlatformaUrl</label>
+                            <input type="text" class="pg-input" id="pg-sterg-platforma" placeholder="https://yourapp.com">
+                            <button class="pg-submit" data-pg="stergere" data-en="Send Request" data-ro="Trimite Cererea">Trimite Cererea</button>
+                            <div class="pg-response" id="pg-sterg-response"></div>
+                        </div>
+                    </div>
+
+                    <!-- Stornare -->
+                    <div class="playground-card">
+                        <div class="playground-card-header">
+                            <span class="method-badge method-post">POST</span>
+                            <h4 data-en="Reverse" data-ro="Stornare">Stornare</h4>
+                            <small>/factura/stornare</small>
+                        </div>
+                        <div class="playground-card-body">
+                            <label data-en="Security" data-ro="Securitate">Securitate</label>
+                            <input type="text" class="pg-input" id="pg-storn-codUnic" placeholder="CodUnic">
+                            <input type="text" class="pg-input" id="pg-storn-hash" placeholder="Hash">
+                            <label data-en="Invoice" data-ro="Factură">Factură</label>
+                            <div class="pg-row">
+                                <input type="text" class="pg-input" id="pg-storn-numar" placeholder="Numar">
+                                <input type="text" class="pg-input" id="pg-storn-serie" placeholder="Serie">
+                            </div>
+                            <label>PlatformaUrl</label>
+                            <input type="text" class="pg-input" id="pg-storn-platforma" placeholder="https://yourapp.com">
+                            <button class="pg-submit" data-pg="stornare" data-en="Send Request" data-ro="Trimite Cererea">Trimite Cererea</button>
+                            <div class="pg-response" id="pg-storn-response"></div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- Code Examples Section -->
+            <section id="examples">
+                <h2 data-en="Code Examples" data-ro="Exemple Cod">Code Examples</h2>
+                <p data-en="Implementation examples for various programming languages." data-ro="Exemple de implementare în diverse limbaje de programare.">Implementation examples.</p>
+
+                <h3>PHP</h3>
+                <div class="code-block">
+                    <button class="code-copy" data-action="copy"></button>
+                    <code>&lt;?php
+$apiUrl = "https://api.fgo.ro/v1/factura/emitere";
+
+$data = [
+    "CodUnic"     =&gt; "2864518",
+    "Hash"        =&gt; strtoupper(sha1("2864518" . "CHEIE_PRIVATA" . "Ionescu Popescu")),
+    "Serie"       =&gt; "BV",
+    "Valuta"      =&gt; "RON",
+    "TipFactura"  =&gt; "Factura",
+    "PlatformaUrl"=&gt; "https://yourapp.com",
+    "Client" =&gt; [
+        "Denumire" =&gt; "Ionescu Popescu",
+        "Tip"      =&gt; "PF",
+        "Tara"     =&gt; "RO",
+        "Judet"    =&gt; "Bucuresti"
+    ],
+    "Continut" =&gt; [
+        [
+            "Denumire"   =&gt; "Servicii Consultanta",
+            "NrProduse"  =&gt; 2,
+            "UM"         =&gt; "ORE",
+            "CotaTVA"    =&gt; 21,
+            "PretUnitar" =&gt; 100.00
+        ]
+    ]
+];
+
+$ch = curl_init($apiUrl);
+curl_setopt($ch, CURLOPT_POST, true);
+// IMPORTANT: send raw JSON, never application/x-www-form-urlencoded.
+// Set the JSON header and pass json_encode($data) - NOT the array directly,
+// otherwise cURL sends form-encoded data and the request may fail.
+curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+
+$response = curl_exec($ch);
+$result = json_decode($response, true);
+
+if ($result['Success']) {
+    echo "Factura emisa: " . $result['Factura']['Serie'] . $result['Factura']['Numar'];
+} else {
+    echo "Eroare: " . $result['Message'];
+}
+curl_close($ch);</code>
+                </div>
+
+                <h3>JavaScript (Node.js)</h3>
+                <div class="code-block">
+                    <button class="code-copy" data-action="copy"></button>
+                    <code>const crypto = require('crypto');
+
+const API_URL = 'https://api.fgo.ro/v1/factura/emitere';
+const codUnic = '2864518';
+const cheiePrivata = 'CHEIE_PRIVATA';
+const clientDenumire = 'Ionescu Popescu';
+
+const hash = crypto.createHash('sha1')
+    .update(codUnic + cheiePrivata + clientDenumire)
+    .digest('hex').toUpperCase();
+
+const body = {
+    CodUnic: codUnic,
+    Hash: hash,
+    Serie: 'BV',
+    Valuta: 'RON',
+    TipFactura: 'Factura',
+    PlatformaUrl: 'https://yourapp.com',
+    Client: {
+        Denumire: clientDenumire,
+        Tip: 'PF',
+        Tara: 'RO',
+        Judet: 'Bucuresti'
+    },
+    Continut: [{
+        Denumire: 'Servicii Consultanta',
+        NrProduse: 2,
+        UM: 'ORE',
+        CotaTVA: 21,
+        PretUnitar: 100.00
+    }]
+};
+
+const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+});
+const result = await res.json();
+console.log(result);</code>
+                </div>
+            </section>
+
+            <!-- Hash Calculation Section -->
+            <section id="hash-calculation">
+                <h2 data-en="Hash Calculation" data-ro="Calcul Hash">Hash Calculation</h2>
+                <p data-en="All API requests require a SHA-1 hash for authentication. The hash is calculated differently depending on the endpoint." data-ro="Toate cererile API necesită un hash SHA-1 pentru autentificare. Hash-ul se calculează diferit în funcție de endpoint.">All API requests require a SHA-1 hash. The hash varies by endpoint.</p>
+
+                <h3 data-en="For Invoice Creation (Emitere)" data-ro="Pentru Crearea Facturii (Emitere)">For Invoice Creation (Emitere)</h3>
+                <p data-en="Use the client name in the hash:" data-ro="Utilizați numele clientului în hash:">Use the client name in the hash:</p>
+                <div class="code-block">
+                    <button class="code-copy" data-action="copy"></button>
+                    <code>Hash = SHA1(CodUnic + PrivateKey + ClientName)</code>
+                </div>
+
+                <h3 data-en="Example" data-ro="Exemplu">Example</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th data-en="Parameter" data-ro="Parametru">Parameter</th>
+                            <th data-en="Value" data-ro="Valoare">Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>CodUnic</code></td>
+                            <td>2864518</td>
+                        </tr>
+                        <tr>
+                            <td><code>PrivateKey</code></td>
+                            <td>1234567890</td>
+                        </tr>
+                        <tr>
+                            <td><code>ClientName</code></td>
+                            <td>Ionescu Popescu</td>
+                        </tr>
+                        <tr>
+                            <td><code>Hash</code></td>
+                            <td>8C3A7726804C121C6933F7D68494B439463996E2</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 data-en="For Other Invoice Operations" data-ro="Pentru Alte Operații Factură">For Other Invoice Operations</h3>
+                <p data-en="For Anulare, Stornare, Print, Incasare, and StergereIncasare:" data-ro="Pentru Anulare, Stornare, Print, Incasare și StergereIncasare:">For Anulare, Stornare, Print, Incasare, StergereIncasare:</p>
+                <div class="code-block">
+                    <button class="code-copy" data-action="copy"></button>
+                    <code>Hash = SHA1(CodUnic + PrivateKey + InvoiceNumber)</code>
+                </div>
+
+                <h3 data-en="Example" data-ro="Exemplu">Example</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th data-en="Parameter" data-ro="Parametru">Parameter</th>
+                            <th data-en="Value" data-ro="Valoare">Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>CodUnic</code></td>
+                            <td>2864518</td>
+                        </tr>
+                        <tr>
+                            <td><code>PrivateKey</code></td>
+                            <td>1234567890</td>
+                        </tr>
+                        <tr>
+                            <td><code>InvoiceNumber</code></td>
+                            <td>123</td>
+                        </tr>
+                        <tr>
+                            <td><code>Hash</code></td>
+                            <td>SHA1("28645181234567890123")</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 data-en="For Articles" data-ro="Pentru Articole">For Articles</h3>
+                <p data-en="No additional data - just the CodUnic and PrivateKey:" data-ro="Fără date suplimentare - doar CodUnic și PrivateKey:">No additional data required:</p>
+                <div class="code-block">
+                    <button class="code-copy" data-action="copy"></button>
+                    <code>Hash = SHA1(CodUnic + PrivateKey)</code>
+                </div>
+
+                <div class="info-box">
+                    <p data-en="Note: All hashes are uppercase SHA-1 hashes. Use a SHA-1 library in your programming language to calculate them." data-ro="Notă: Toate hash-urile sunt hash-uri SHA-1 cu majuscule. Utilizați o bibliotecă SHA-1 în limbajul dvs. de programare pentru a le calcula.">Note: All hashes are uppercase SHA-1. Use a SHA-1 library in your language.</p>
+                </div>
+            </section>
+
+            <!-- Changelog Section -->
+            <section id="changelog">
+                <h2 data-en="Changelog" data-ro="Jurnal Schimbări">Changelog</h2>
+                <p data-en="Version history and updates to the FGO API." data-ro="Istoric versiunilor și actualizări la API-ul FGO.">Version history and updates to the FGO API.</p>
+
+                <div class="changelog-entry">
+                    <div class="collapsible" data-action="toggle">
+                        <span>
+                            <strong class="changelog-version" data-en="v7.0" data-ro="v7.0">v7.0</strong>
+                            <span class="changelog-date" data-en="(Current)" data-ro="(Curent)">(Current)</span>
+                        </span>
+                        <span class="chevron">▾</span>
+                    </div>
+                    <div class="collapsible-content">
+                        <ul class="changelog-list">
+                            <li data-en="Major API restructuring and documentation improvements" data-ro="Restructurare majoră a API-ului și îmbunătățiri ale documentației">Major API restructuring</li>
+                            <li data-en="Enhanced error reporting and validation" data-ro="Raportare și validare de erori îmbunătățite">Enhanced error reporting</li>
+                            <li data-en="Performance optimizations" data-ro="Optimizări de performanță">Performance optimizations</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="changelog-entry">
+                    <div class="collapsible" data-action="toggle">
+                        <span>
+                            <strong class="changelog-version" data-en="v6.5" data-ro="v6.5">v6.5</strong>
+                            <span class="changelog-date" data-en="2024-01-15" data-ro="2024-01-15">2024-01-15</span>
+                        </span>
+                        <span class="chevron">▾</span>
+                    </div>
+                    <div class="collapsible-content">
+                        <ul class="changelog-list">
+                            <li data-en="Added articolemodificate endpoint for ENTERPRISE users" data-ro="Adăugat endpoint articolemodificate pentru utilizatorii ENTERPRISE">Added articolemodificate endpoint</li>
+                            <li data-en="Rate limit adjustments" data-ro="Ajustări ale limitelor de rată">Rate limit adjustments</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="changelog-entry">
+                    <div class="collapsible" data-action="toggle">
+                        <span>
+                            <strong class="changelog-version" data-en="v6.0" data-ro="v6.0">v6.0</strong>
+                            <span class="changelog-date" data-en="2023-07-01" data-ro="2023-07-01">2023-07-01</span>
+                        </span>
+                        <span class="chevron">▾</span>
+                    </div>
+                    <div class="collapsible-content">
+                        <ul class="changelog-list">
+                            <li data-en="Deprecated getlist endpoint" data-ro="Endpoint getlist depreciat">Deprecated getlist endpoint</li>
+                            <li data-en="New rate limits for articles" data-ro="Noi limite de rată pentru articole">New rate limits</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="changelog-entry">
+                    <div class="collapsible" data-action="toggle">
+                        <span>
+                            <strong class="changelog-version" data-en="v5.0" data-ro="v5.0">v5.0</strong>
+                            <span class="changelog-date" data-en="2022-06-01" data-ro="2022-06-01">2022-06-01</span>
+                        </span>
+                        <span class="chevron">▾</span>
+                    </div>
+                    <div class="collapsible-content">
+                        <ul class="changelog-list">
+                            <li data-en="Enhanced invoice creation with additional validation" data-ro="Crearea facturii îmbunătățite cu validare suplimentară">Enhanced invoice creation</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="changelog-entry">
+                    <div class="collapsible" data-action="toggle">
+                        <span>
+                            <strong class="changelog-version" data-en="v4.0" data-ro="v4.0">v4.0</strong>
+                            <span class="changelog-date" data-en="2021-03-01" data-ro="2021-03-01">2021-03-01</span>
+                        </span>
+                        <span class="chevron">▾</span>
+                    </div>
+                    <div class="collapsible-content">
+                        <ul class="changelog-list">
+                            <li data-en="Added listfacturiasociate for ENTERPRISE users" data-ro="Adăugat listfacturiasociate pentru utilizatorii ENTERPRISE">Added listfacturiasociate endpoint</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="changelog-entry">
+                    <div class="collapsible" data-action="toggle">
+                        <span>
+                            <strong class="changelog-version" data-en="v3.0" data-ro="v3.0">v3.0</strong>
+                            <span class="changelog-date" data-en="2020-12-15" data-ro="2020-12-15">2020-12-15</span>
+                        </span>
+                        <span class="chevron">▾</span>
+                    </div>
+                    <div class="collapsible-content">
+                        <ul class="changelog-list">
+                            <li data-en="Decommissioned incasare endpoint for FGO Pro" data-ro="Decomisionat endpoint incasare pentru FGO Pro">Deprecated incasare for Pro plan</li>
+                            <li data-en="Stornare (reversal) functionality added" data-ro="Funcționalitate Stornare (stornare) adăugată">Added stornare (reversal) feature</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="changelog-entry">
+                    <div class="collapsible" data-action="toggle">
+                        <span>
+                            <strong class="changelog-version">v2.4</strong>
+                            <span class="changelog-date">19.12.2018</span>
+                        </span>
+                        <span class="chevron">▾</span>
+                    </div>
+                    <div class="collapsible-content">
+                        <ul class="changelog-list">
+                            <li data-en="Added StergereIncasare method" data-ro="Adăugare metodă StergereIncasare">Adăugare metodă StergereIncasare</li>
+                            <li data-en="Added article listing method /articol/list" data-ro="Adăugare metodă listare articole /articol/list">Adăugare metodă listare articole /articol/list</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="changelog-entry">
+                    <div class="collapsible" data-action="toggle">
+                        <span>
+                            <strong class="changelog-version">v2.3</strong>
+                            <span class="changelog-date">14.12.2018</span>
+                        </span>
+                        <span class="chevron">▾</span>
+                    </div>
+                    <div class="collapsible-content">
+                        <ul class="changelog-list">
+                            <li data-en="Emitere: show Serie, NrFactura and download link when duplicate invoice exists" data-ro="Emitere: afișare Serie, NrFactura și link download când factura există deja">Emitere: afișare Serie, NrFactura și link download când factura există deja</li>
+                            <li data-en="Articles: added list method" data-ro="Articole: adăugare metodă list">Articole: adăugare metodă list</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="changelog-entry">
+                    <div class="collapsible" data-action="toggle">
+                        <span>
+                            <strong class="changelog-version">v2.2</strong>
+                            <span class="changelog-date">11.12.2018</span>
+                        </span>
+                        <span class="chevron">▾</span>
+                    </div>
+                    <div class="collapsible-content">
+                        <ul class="changelog-list">
+                            <li data-en="Emitere: added optional Client[Strain] field (true/false)" data-ro="Emitere: adăugare câmp opțional Client[Strain] (true/false)">Emitere: adăugare câmp opțional Client[Strain] (true/false)</li>
+                            <li data-en="Bug fix: stock update" data-ro="Bug fix: actualizare stocuri">Bug fix: actualizare stocuri</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="changelog-entry">
+                    <div class="collapsible" data-action="toggle">
+                        <span>
+                            <strong class="changelog-version">v2.1</strong>
+                            <span class="changelog-date">29.11.2018</span>
+                        </span>
+                        <span class="chevron">▾</span>
+                    </div>
+                    <div class="collapsible-content">
+                        <ul class="changelog-list">
+                            <li data-en="Emitere: added optional VerificareDuplicat field (true/false)" data-ro="Emitere: adăugare câmp opțional VerificareDuplicat (true/false)">Emitere: adăugare câmp opțional VerificareDuplicat (true/false)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="changelog-entry">
+                    <div class="collapsible" data-action="toggle">
+                        <span>
+                            <strong class="changelog-version">v2.0</strong>
+                            <span class="changelog-date">26.10.2018</span>
+                        </span>
+                        <span class="chevron">▾</span>
+                    </div>
+                    <div class="collapsible-content">
+                        <ul class="changelog-list">
+                            <li data-en="Added Stornare (reverse invoice) method" data-ro="Adăugare metodă Stornare">Adăugare metodă Stornare</li>
+                            <li data-en="Added optional DataScadenta field" data-ro="Adăugare câmp opțional DataScadenta">Adăugare câmp opțional DataScadenta</li>
+                            <li data-en="Extended TipFactura nomenclature (Avize)" data-ro="Extindere nomenclator TipFactura (Avize)">Extindere nomenclator TipFactura (Avize)</li>
+                            <li data-en="Extended Tara nomenclature with country abbreviations" data-ro="Extindere nomenclator Țară cu abrevieri">Extindere nomenclator Țară cu abrevieri</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="changelog-entry">
+                    <div class="collapsible" data-action="toggle">
+                        <span>
+                            <strong class="changelog-version">v1.9</strong>
+                            <span class="changelog-date">07.02.2018</span>
+                        </span>
+                        <span class="chevron">▾</span>
+                    </div>
+                    <div class="collapsible-content">
+                        <ul class="changelog-list">
+                            <li data-en="Emitere: added optional TvaLaIncasare field" data-ro="Emitere: adăugare câmp opțional TvaLaIncasare">Emitere: adăugare câmp opțional TvaLaIncasare</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="changelog-entry">
+                    <div class="collapsible" data-action="toggle">
+                        <span>
+                            <strong class="changelog-version">v1.8</strong>
+                            <span class="changelog-date">20.11.2017</span>
+                        </span>
+                        <span class="chevron">▾</span>
+                    </div>
+                    <div class="collapsible-content">
+                        <ul class="changelog-list">
+                            <li data-en="Emitere: added optional Client[IdExtern] for third-party client identification" data-ro="Emitere: adăugare câmp opțional Client[IdExtern] pentru identificare client din aplicație terță">Emitere: adăugare câmp opțional Client[IdExtern]</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="changelog-entry">
+                    <div class="collapsible" data-action="toggle">
+                        <span>
+                            <strong class="changelog-version">v1.7</strong>
+                            <span class="changelog-date">26.07.2017</span>
+                        </span>
+                        <span class="chevron">▾</span>
+                    </div>
+                    <div class="collapsible-content">
+                        <ul class="changelog-list">
+                            <li data-en="Emitere: added optional Client[Tip] field (PF/PJ)" data-ro="Emitere: adăugare câmp opțional Client[Tip] (PF/PJ)">Emitere: adăugare câmp opțional Client[Tip] (PF/PJ)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="changelog-entry">
+                    <div class="collapsible" data-action="toggle">
+                        <span>
+                            <strong class="changelog-version">v1.6</strong>
+                            <span class="changelog-date">16.06.2017</span>
+                        </span>
+                        <span class="chevron">▾</span>
+                    </div>
+                    <div class="collapsible-content">
+                        <ul class="changelog-list">
+                            <li data-en="Emitere: added optional Serie and Numar fields for custom invoice numbering" data-ro="Emitere: adăugare câmpuri opționale Serie și Numar pentru numerotare personalizată">Emitere: adăugare câmpuri opționale Serie și Numar</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="changelog-entry">
+                    <div class="collapsible" data-action="toggle">
+                        <span>
+                            <strong class="changelog-version">v1.5</strong>
+                            <span class="changelog-date">26.04.2017</span>
+                        </span>
+                        <span class="chevron">▾</span>
+                    </div>
+                    <div class="collapsible-content">
+                        <ul class="changelog-list">
+                            <li data-en="Emitere: added optional Continut[i][Descriere] and Continut[i][CodArticol] fields" data-ro="Emitere: adăugare câmpuri opționale Continut[i][Descriere] și Continut[i][CodArticol]">Emitere: adăugare Continut[i][Descriere] și Continut[i][CodArticol]</li>
+                            <li data-en="Increased max field sizes for Text, Explicatii, Client[Denumire], Client[Adresa], Continut[i][Denumire]" data-ro="Mărire dimensiuni maxime pentru Text, Explicatii, Client[Denumire], Client[Adresa], Continut[i][Denumire]">Mărire dimensiuni maxime câmpuri</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="changelog-entry">
+                    <div class="collapsible" data-action="toggle">
+                        <span>
+                            <strong class="changelog-version">v1.4</strong>
+                            <span class="changelog-date">07.04.2017</span>
+                        </span>
+                        <span class="chevron">▾</span>
+                    </div>
+                    <div class="collapsible-content">
+                        <ul class="changelog-list">
+                            <li data-en="Added invoice payment (Încasare) method" data-ro="Adăugare metodă încasare factură">Adăugare metodă încasare factură</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="changelog-entry">
+                    <div class="collapsible" data-action="toggle">
+                        <span>
+                            <strong class="changelog-version">v1.3</strong>
+                            <span class="changelog-date">28.03.2017</span>
+                        </span>
+                        <span class="chevron">▾</span>
+                    </div>
+                    <div class="collapsible-content">
+                        <ul class="changelog-list">
+                            <li data-en="Renamed Destinatar to Text parameter" data-ro="Redenumire parametru Destinatar în Text">Redenumire parametru Destinatar în Text</li>
+                            <li data-en="Added Continut[i][PretTotal] for reverse calculation" data-ro="Adăugare Continut[i][PretTotal] pentru calcul invers">Adăugare Continut[i][PretTotal] pentru calcul invers</li>
+                            <li data-en="Added DataEmitere and TipFactura parameters" data-ro="Adăugare parametri DataEmitere și TipFactura">Adăugare parametri DataEmitere și TipFactura</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="changelog-entry">
+                    <div class="collapsible" data-action="toggle">
+                        <span>
+                            <strong class="changelog-version">v1.2</strong>
+                            <span class="changelog-date">23.03.2017</span>
+                        </span>
+                        <span class="chevron">▾</span>
+                    </div>
+                    <div class="collapsible-content">
+                        <ul class="changelog-list">
+                            <li data-en="Added client parameters: Email, Telefon, Tara, Adresa" data-ro="Adăugare parametri client: Email, Telefon, Tara, Adresa">Adăugare parametri client: Email, Telefon, Tara, Adresa</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Footer -->
+            <footer>
+                <p data-en="FGO API Documentation v7.0 • Last updated March 25, 2026" data-ro="Documentație API FGO v7.0 • Ultima actualizare 25 martie 2026">FGO API Documentation v7.0 • Last updated March 25, 2026</p>
+                <p class="footer-support" data-en="For support, contact: api-support@fgo.ro" data-ro="Pentru suport, contactați: api-support@fgo.ro">For support, contact: api-support@fgo.ro</p>
+            </footer>
+        </main>
+    </div>
+
+    <script src="Assets/testing.js"></script>
+</body>
+</html>

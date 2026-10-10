@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+  /* Tema se alege o singura data, pentru ghiduri, pagina de start si Scalar: aceeasi cheie
+     `colorMode` din localStorage pe care o citeste Scalar. Fara alegere explicita, tema sistemului.
+     Sta inaintea CSS-ului, ca pagina sa nu clipeasca alb in modul intunecat. */
+  (function () {
+    try {
+      var m = localStorage.getItem('colorMode');
+      if (m !== 'dark' && m !== 'light') { m = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; }
+      document.documentElement.setAttribute('data-tema', m);
+    } catch (e) { }
+  })();
+</script>
+<title>Erori, limite și reluări — FGO API</title>
+<link rel="icon" href="../favicon.ico">
+<style>
+  /* Fara fonturi si fara scripturi externe: pagina trebuie sa arate la fel si in retele care
+     blocheaza CDN-uri, si sa nu depinda de un tert ca sa fie lizibila. Aceeasi regula ca la Scalar. */
+  /* Paleta este exact cea a temei implicite Scalar (`--scalar-background-1/2`, `--scalar-color-1/2`,
+     `--scalar-border-color`, `--scalar-color-accent`), in ambele moduri, ca fundalul si textul sa nu
+     se schimbe la trecerea dintr-un tab in altul. Daca se schimba tema Scalar, se schimba si aici. */
+  :root {
+    color-scheme: light dark;
+    --fundal: #ffffff;
+    --fundal-2: #f6f6f6;
+    --text: #1b1b1b;
+    --text-secundar: #757575;
+    --linie: #dfdfdf;
+    --accent: #0099ff;
+    --cod-fundal: #f6f6f6;
+    --cod-text: #b3134f;
+    --nota-fundal: #fff8e1;
+    --nota-linie: #f2c94c;
+  }
+  :root[data-tema="light"] { color-scheme: light; }
+  :root[data-tema="dark"] {
+    color-scheme: dark;
+      --fundal: #0f0f0f;
+      --fundal-2: #1a1a1a;
+      --text: #e7e7e7;
+      --text-secundar: #a4a4a4;
+      --linie: #2d2d2d;
+      --accent: #00aeff;
+      --cod-fundal: #1a1a1a;
+      --cod-text: #ff9bc2;
+      --nota-fundal: #2a2410;
+      --nota-linie: #8a6d1a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-tema="light"]) {
+      --fundal: #0f0f0f;
+      --fundal-2: #1a1a1a;
+      --text: #e7e7e7;
+      --text-secundar: #a4a4a4;
+      --linie: #2d2d2d;
+      --accent: #00aeff;
+      --cod-fundal: #1a1a1a;
+      --cod-text: #ff9bc2;
+      --nota-fundal: #2a2410;
+      --nota-linie: #8a6d1a;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--fundal); color: var(--text); }
+  /* Aceleasi stive de fonturi ca `--scalar-font` / `--scalar-font-code` din Scalar (fara Inter si
+     JetBrains Mono descarcate: `DefaultFonts = false`), ca textul sa arate la fel in ambele taburi. */
+  body {
+    font: 16px/1.65 "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    display: flex; min-height: 100vh; flex-direction: column;
+  }
+
+  /* Ca la developers.trendyol.com: marca, meniul lateral si textul stau intr-un container
+     centrat de 1440px; bara de sus ramane pe toata latimea, dar continutul ei are aceeasi
+     margine ca meniul de dedesubt. Aceeasi bara si acelasi container sunt puse si peste
+     Scalar (Program.cs, HeadContent), ca trecerea dintr-un tab in altul sa nu miste nimic. */
+  .interior { width: 100%; max-width: 1440px; margin: 0 auto; }
+
+  .taburi {
+    border-bottom: 1px solid var(--linie);
+    background: var(--fundal); position: sticky; top: 0; z-index: 2;
+    font-size: 15px; line-height: 24px;
+  }
+  .taburi .interior { display: flex; align-items: center; gap: 4px; padding: 0 20px; height: 52px; }
+  .taburi .marca { font-weight: 600; margin-right: 16px; color: var(--text); text-decoration: none; }
+  .taburi a.tab {
+    display: inline-flex; align-items: center; height: 52px; padding: 0 14px;
+    color: var(--text-secundar); text-decoration: none; border-bottom: 2px solid transparent;
+  }
+  .taburi a.tab.activ { color: var(--text); border-bottom-color: var(--accent); }
+  .taburi a.tab:hover { color: var(--text); }
+
+  .corp { display: flex; flex: 1; min-height: 0; }
+  nav.lateral {
+    width: 260px; flex: none; padding: 20px 12px; border-right: 1px solid var(--linie);
+    position: sticky; top: 52px; height: calc(100vh - 52px); overflow-y: auto;
+  }
+  nav.lateral ol { list-style: none; margin: 0; padding: 0; }
+  nav.lateral li a {
+    display: block; padding: 7px 10px; border-radius: 6px; color: var(--text-secundar);
+    text-decoration: none; font-size: 14.5px;
+  }
+  nav.lateral li a:hover { color: var(--text); background: var(--cod-fundal); }
+  nav.lateral li a.activ { color: var(--text); background: var(--cod-fundal); font-weight: 600; }
+  nav.lateral li.sectiune { margin: 18px 10px 6px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-secundar); }
+  nav.lateral li.sectiune:first-child { margin-top: 4px; }
+  nav.lateral li a.extern::after { content: " \2197"; color: var(--text-secundar); font-size: 12px; }
+
+  main { flex: 1; min-width: 0; padding: 36px 56px 80px; }
+  main h1 { font-size: 30px; line-height: 1.2; margin: 0 0 20px; letter-spacing: -0.01em; }
+  main h2 { font-size: 21px; margin: 40px 0 12px; padding-top: 8px; border-top: 1px solid var(--linie); }
+  main h3 { font-size: 17px; margin: 28px 0 8px; }
+  main p, main li { max-width: 72ch; }
+  main a { color: var(--accent); }
+  main code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.9em;
+    background: var(--cod-fundal); color: var(--cod-text); padding: 0 4px; border-radius: 4px;
+  }
+  main pre {
+    background: var(--fundal-2); color: var(--text); border: 1px solid var(--linie); padding: 14px 16px;
+    border-radius: 8px; overflow-x: auto; font-size: 13.5px; line-height: 1.5; max-width: 100%;
+  }
+  main pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
+  .exemplu-cod { margin: 1em 0; border: 1px solid var(--linie); border-radius: 8px; overflow: hidden; background: var(--fundal-2); }
+  .exemplu-cod pre { margin: 0; border: 0; border-radius: 0; }
+  .bara-cod { display: flex; justify-content: flex-end; padding: 6px 10px; border-bottom: 1px solid var(--linie); }
+  .copiaza-cod { font: inherit; font-size: 13px; color: var(--text); background: var(--fundal); border: 1px solid var(--linie); border-radius: 5px; padding: 4px 10px; cursor: pointer; }
+  .copiaza-cod:hover { border-color: var(--text-secundar); }
+  .copiaza-cod:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  main table { border-collapse: collapse; margin: 12px 0 20px; display: block; overflow-x: auto; max-width: 100%; }
+  main th, main td { border: 1px solid var(--linie); padding: 7px 12px; text-align: left; vertical-align: top; font-size: 14.5px; }
+  main th { background: var(--fundal-2); }
+  main blockquote {
+    margin: 16px 0; padding: 10px 16px; border-left: 4px solid var(--nota-linie);
+    background: var(--nota-fundal); border-radius: 0 6px 6px 0;
+  }
+  main blockquote p { margin: 6px 0; }
+  main hr { border: 0; border-top: 1px solid var(--linie); margin: 32px 0; }
+
+  @media (max-width: 860px) {
+    .corp { flex-direction: column; }
+    nav.lateral { width: auto; position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--linie); }
+    main { padding: 24px 20px 60px; }
+  }
+  /* Comutatorul de tema: aceeasi pozitie in toate barele (ghiduri, start, Scalar). */
+  .tema { margin-left: auto; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--linie);
+    background: var(--fundal); color: var(--text); cursor: pointer; font: inherit; font-size: 16px; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+  .tema:hover { border-color: var(--text-secundar); }
+  .tema::before { content: "\263E"; }
+  :root[data-tema="dark"] .tema::before { content: "\2600"; }
+</style>
+</head>
+<body>
+<header class="taburi">
+  <div class="interior">
+    <a class="marca" href="../">FGO API</a>
+    <a class="tab activ" href="inceput-rapid" aria-current="page">Ghiduri</a>
+    <a class="tab" href="../scalar/">Referință API</a>
+    <button class="tema" type="button" aria-label="Schimbă tema" title="Schimbă tema"></button>
+  </div>
+</header>
+<div class="corp interior">
+  <nav class="lateral" aria-label="Ghiduri">
+    <ol>
+<li class="sectiune">API v2</li>
+<li><a href="inceput-rapid">Primii pași</a></li>
+<li><a href="autentificare">Autentificare</a></li>
+<li><a href="emiterea-unei-facturi">Emiterea unei facturi</a></li>
+<li><a href="erori-si-reluari" class="activ" aria-current="page">Erori, limite și reluări</a></li>
+<li><a href="liste-si-paginare">Liste, paginare și fields</a></li>
+<li><a href="formate">Date, ore și numere</a></li>
+<li><a href="identificatori">Identificatori</a></li>
+<li><a href="compatibilitate-si-retragere">Depreciere și retragere</a></li>
+<li><a href="migrare-de-la-v1">Migrarea de la v1</a></li>
+<li class="sectiune">MCP</li>
+<li><a href="mcp-conectare">Conectare</a></li>
+
+    </ol>
+  </nav>
+  <main>
+    <h1>Erori, limite și reluări</h1>
+<p>O eroare are altă formă decât un răspuns reușit. Nu vine în <code>data</code>; vine ca <code>application/problem+json</code>, după RFC 9457, cu un <code>type</code> stabil pe care poți ramifica.</p>
+<pre><code class="language-json">{
+  &quot;type&quot;: &quot;urn:fgo:api:v2:problem:validation&quot;,
+  &quot;title&quot;: &quot;Cererea nu a trecut validarea.&quot;,
+  &quot;status&quot;: 400,
+  &quot;detail&quot;: &quot;Corectati campurile indicate in validation_errors si retrimiteti cererea.&quot;,
+  &quot;instance&quot;: &quot;urn:trace:00-8f3a1c2e6b7d4e219c0a2f1d3e4b5a6c-5f2a9c1d3e4b6a7c-01&quot;,
+  &quot;meta&quot;: { &quot;timestamp&quot;: &quot;2026-09-03T12:00:00+03:00&quot; },
+  &quot;validation_errors&quot;: [
+    {
+      &quot;location&quot;: &quot;body&quot;,
+      &quot;pointer&quot;: &quot;/articole&quot;,
+      &quot;issues&quot;: [
+        { &quot;code&quot;: &quot;invalid_value&quot;, &quot;message&quot;: &quot;Campul 'articole' trebuie sa contina cel putin un articol.&quot; }
+      ]
+    }
+  ]
+}
+</code></pre>
+<p>Ramifică pe <code>type</code> și pe <code>status</code>. <code>title</code> și <code>detail</code> sunt pentru oameni și se pot schimba fără o versiune nouă.</p>
+<h2 id="categoriile">Categoriile</h2>
+<table>
+<thead>
+<tr>
+<th><code>type</code> (sufixul)</th>
+<th>Status</th>
+<th>Înseamnă</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>validation</code></td>
+<td>400</td>
+<td>cererea e greșită: câmp lipsă, format, valoare din afara nomenclatorului, parametru necunoscut</td>
+</tr>
+<tr>
+<td><code>invalid-state</code></td>
+<td>400</td>
+<td>cererea e corectă, dar starea resursei nu permite operația — o factură încasată nu se șterge</td>
+</tr>
+<tr>
+<td><code>invalid-cursor</code></td>
+<td>400</td>
+<td>cursorul de paginare nu e al nostru sau nu mai e valabil</td>
+</tr>
+<tr>
+<td><code>unauthenticated</code></td>
+<td>401</td>
+<td>cheia lipsește, e expirată sau revocată</td>
+</tr>
+<tr>
+<td><code>forbidden</code></td>
+<td>403</td>
+<td>cheia n-are dreptul, abonamentul nu include operația, sau <code>Fgo-Cod-Unic</code> nu e firma cheii</td>
+</tr>
+<tr>
+<td><code>resource-not-found</code></td>
+<td>404</td>
+<td>factura, clientul, arhiva nu există — sau sunt ale altei firme, ceea ce arată identic</td>
+</tr>
+<tr>
+<td><code>url-not-found</code></td>
+<td>404</td>
+<td>adresa nu există</td>
+</tr>
+<tr>
+<td><code>unsupported-media-type</code></td>
+<td>415</td>
+<td>corpul nu e <code>application/json</code></td>
+</tr>
+<tr>
+<td><code>rate-limited</code></td>
+<td>429</td>
+<td>prea multe apeluri; vezi <code>Retry-After</code></td>
+</tr>
+<tr>
+<td><code>internal</code></td>
+<td>500</td>
+<td>eroare internă; trimite-ne valorile headerelor <code>Server-Timing</code> și <code>x-fapi-interaction-id</code></td>
+</tr>
+<tr>
+<td><code>maintenance</code></td>
+<td>503</td>
+<td>mentenanță planificată; API-ul e închis temporar, vezi <code>Retry-After</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="validation_errors"><code>validation_errors</code></h2>
+<p>Apare numai pe <code>validation</code> și spune exact ce e greșit, câmp cu câmp. Fiecare element are <code>location</code> — <code>body</code>, <code>query</code>, <code>path</code>, <code>header</code> — și, după caz, <code>pointer</code> (JSON Pointer în corp, ca <code>/articole/0/cota_tva</code>) sau <code>name</code> (numele parametrului sau al headerului). <code>issues</code> are codul stabil al problemei și un mesaj.</p>
+<p>Codurile din <code>issues[].code</code> sunt extensibile: pot apărea coduri noi. Pentru un cod necunoscut, tratează răspunsul ca eroare de validare și folosește mesajul pentru diagnosticare. Codurile existente sunt:</p>
+<table>
+<thead>
+<tr>
+<th><code>code</code></th>
+<th>Înseamnă</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>required</code></td>
+<td>elementul obligatoriu lipsește sau e gol</td>
+</tr>
+<tr>
+<td><code>invalid_format</code></td>
+<td>valoarea nu se poate citi în tipul sau forma așteptată: dată, număr, identificator, JSON stricat, tipar nerespectat</td>
+</tr>
+<tr>
+<td><code>out_of_range</code></td>
+<td>număr sau lungime în afara limitelor; limitele vin în <code>args</code>: <code>min</code>, <code>max</code>, <code>exclusive</code>, <code>value</code> pentru numere, <code>min_length</code>, <code>max_length</code>, <code>length</code> pentru texte și liste</td>
+</tr>
+<tr>
+<td><code>subfields_required</code></td>
+<td>un câmp compus a fost cerut în <code>fields</code> fără subcâmpuri, de exemplu <code>incasari</code> în loc de <code>incasari(suma_incasata)</code></td>
+</tr>
+<tr>
+<td><code>invalid_value</code></td>
+<td>orice altă regulă: valoare din afara nomenclatorului, parametru sau câmp necunoscut</td>
+</tr>
+</tbody>
+</table>
+<p>De exemplu, o serie de storno prea lungă:</p>
+<pre><code class="language-json">{ &quot;code&quot;: &quot;out_of_range&quot;, &quot;message&quot;: &quot;Dimensiunea valorii transmise pentru 'serie_storno' nu trebuie sa depaseasca 50 caractere.&quot;, &quot;args&quot;: { &quot;max_length&quot;: 50, &quot;length&quot;: 60 } }
+</code></pre>
+<p>O cerere cu trei câmpuri greșite primește un singur <code>400</code> cu trei elemente, nu trei runde de încercări.</p>
+<p>Validarea e strictă în amândouă direcțiile: un parametru de query sau o proprietate JSON pe care nu o documentăm e <code>400</code>, nu e ignorată. Așa afli de o greșeală de tastare din prima, nu după ce filtrul „n-a mers&quot;.</p>
+<h2 id="motiv"><code>motiv</code></h2>
+<p>Pe <code>403</code> și pe <code>invalid-state</code>, <code>motiv.cod</code> spune de ce:</p>
+<pre><code class="language-json">{
+  &quot;type&quot;: &quot;urn:fgo:api:v2:problem:forbidden&quot;,
+  &quot;status&quot;: 403,
+  &quot;detail&quot;: &quot;Nu ai suficiente drepturi, vezi motiv.&quot;,
+  &quot;motiv&quot;: { &quot;cod&quot;: &quot;drept_lipsa&quot;, &quot;mesaj&quot;: &quot;Cheia API nu are dreptul de a face aceasta operatie.&quot; }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th><code>motiv.cod</code></th>
+<th>Răspuns</th>
+<th>Înseamnă</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>drept_lipsa</code></td>
+<td><code>403 forbidden</code></td>
+<td>cheia nu are dreptul cerut sau abonamentul nu include operația</td>
+</tr>
+<tr>
+<td><code>cod_unic_neasociat</code></td>
+<td><code>403 forbidden</code></td>
+<td><code>Fgo-Cod-Unic</code> nu corespunde firmei asociate cheii API</td>
+</tr>
+<tr>
+<td><code>factura_duplicata</code></td>
+<td><code>400 invalid-state</code></td>
+<td>cu <code>verificare_duplicat=true</code>, a fost găsită o factură după <code>id_extern</code> sau, dacă acesta lipsește, după serie și număr; nu se emite o factură nouă</td>
+</tr>
+<tr>
+<td><code>stare_nepermisa</code></td>
+<td><code>400 invalid-state</code></td>
+<td>regulile de business sau starea resursei nu permit operația; explicația este în <code>motiv.mesaj</code></td>
+</tr>
+</tbody>
+</table>
+<p>De exemplu, o emitere oprită de verificarea duplicatelor:</p>
+<pre><code class="language-json">{
+  &quot;type&quot;: &quot;urn:fgo:api:v2:problem:invalid-state&quot;,
+  &quot;title&quot;: &quot;Starea curenta nu permite operatia&quot;,
+  &quot;status&quot;: 400,
+  &quot;detail&quot;: &quot;Factura FGO 1201 exista deja salvata.&quot;,
+  &quot;instance&quot;: &quot;urn:trace:00-8f3a1c2e6b7d4e219c0a2f1d3e4b5a6c-5f2a9c1d3e4b6a7c-01&quot;,
+  &quot;meta&quot;: { &quot;timestamp&quot;: &quot;2026-09-03T12:00:00+03:00&quot; },
+  &quot;motiv&quot;: {
+    &quot;cod&quot;: &quot;factura_duplicata&quot;,
+    &quot;mesaj&quot;: &quot;Factura FGO 1201 exista deja salvata.&quot;
+  }
+}
+</code></pre>
+<p>Criteriile verificării sunt descrise în <a href="emiterea-unei-facturi#verificarea-duplicatelor">Emiterea unei facturi</a>.</p>
+<p>Codurile din <code>motiv.cod</code> sunt extensibile. Pentru un cod necunoscut, tratează refuzul folosind <code>status</code> și <code>type</code>, fără să presupui că operația a reușit.</p>
+<h2 id="limitele-de-apeluri">Limitele de apeluri</h2>
+<p>Fiecare operație acceptă un apel la un interval fix, pe firmă. A doua cerere pe aceeași operație, înainte să treacă intervalul, primește <code>429</code>. Operațiile diferite nu se influențează: poți citi articolele și gestiunile în aceeași secundă. Intervalele, pe fiecare operație:</p>
+<table>
+<thead>
+<tr>
+<th>Operație</th>
+<th>Interval</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /v2/identitate</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>POST /v2/facturi</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>GET /v2/facturi</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>GET /v2/facturi/{serie}/{numar}</code></td>
+<td>1 s, împărțit cu <code>trimite-in-spv</code></td>
+</tr>
+<tr>
+<td><code>GET /v2/facturi/{serie}/{numar}/efactura</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>POST /v2/facturi/{serie}/{numar}/genereaza-link-de-descarcare</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>POST /v2/facturi/{serie}/{numar}/genereaza-link-de-plata</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>PUT /v2/facturi/{serie}/{numar}/awb</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>POST /v2/facturi/{serie}/{numar}/anuleaza</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>POST /v2/facturi/{serie}/{numar}/storneaza</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>POST /v2/facturi/{serie}/{numar}/repune-in-vigoare-factura-stornata</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>DELETE /v2/facturi/{serie}/{numar}</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>POST /v2/facturi/{serie}/{numar}/incasari</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>DELETE /v2/facturi/{serie}/{numar}/incasari</code></td>
+<td>1 s, împărțit cu ștergerea unei singure încasări</td>
+</tr>
+<tr>
+<td><code>DELETE /v2/facturi/{serie}/{numar}/incasari/{serie_incasare}/{numar_incasare}</code></td>
+<td>1 s, împărțit cu ștergerea tuturor încasărilor</td>
+</tr>
+<tr>
+<td><code>POST /v2/facturi/{serie}/{numar}/trimite-in-spv</code></td>
+<td>1 s, împărțit cu citirea facturii</td>
+</tr>
+<tr>
+<td><code>POST /v2/facturi/{serie}/{numar}/trimite-pe-email</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>GET /v2/facturi/{serie}/{numar}/asociate</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>GET /v2/facturi/facturi-restante</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>GET /v2/facturi-furnizori</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>GET /v2/clienti</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>GET /v2/clienti/{id_client}/sold</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>GET /v2/clienti/clienti-cu-restante</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>GET /v2/furnizori</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>GET /v2/furnizori/{id_furnizor}/sold</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>POST /v2/fise-partener</code></td>
+<td>10 s</td>
+</tr>
+<tr>
+<td><code>GET /v2/articole</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>GET /v2/gestiuni</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>GET /v2/stocuri/stoc-gestiune-articol</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>GET /v2/stocuri/stoc-gestiune</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>GET /v2/stocuri/stoc-articol</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>GET /v2/rapoarte/totaluri-vanzari</code></td>
+<td>10 s</td>
+</tr>
+<tr>
+<td><code>GET /v2/rapoarte/vanzari-lunare</code></td>
+<td>10 s</td>
+</tr>
+<tr>
+<td><code>GET /v2/rapoarte/vanzari-achizitii-articole</code></td>
+<td>10 s</td>
+</tr>
+<tr>
+<td><code>GET /v2/solduri-conturi-bancare</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td><code>GET /v2/balante/balanta-indicatori-financiari</code></td>
+<td>10 s</td>
+</tr>
+<tr>
+<td><code>GET /v2/balante/balanta-contabila</code></td>
+<td>10 s</td>
+</tr>
+<tr>
+<td><code>GET /v2/firme/pozitie-anaf</code></td>
+<td>10 s</td>
+</tr>
+<tr>
+<td><code>POST /v2/arhive-pdf</code></td>
+<td>30 s</td>
+</tr>
+<tr>
+<td><code>POST /v2/arhive-pdf/verifica-limite</code></td>
+<td>5 s</td>
+</tr>
+<tr>
+<td><code>GET /v2/arhive-pdf/{id_arhiva}</code></td>
+<td>5 s</td>
+</tr>
+<tr>
+<td><code>POST /v2/arhive-pdf/{id_arhiva}/genereaza-link-de-descarcare</code></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td>nomenclatoarele, de exemplu <code>GET /v2/nomenclatoare/judete</code></td>
+<td>1 s</td>
+</tr>
+</tbody>
+</table>
+<p>Aceleași intervale sunt scrise și în referință, la răspunsul <code>429</code> al fiecărei operații. Listele paginate nu au un interval separat pentru pagini: fiecare pagină e un apel, la o secundă de precedenta.</p>
+<p>Limitele se pot modifica. La depășirea limitei, răspunsul indică timpul de așteptare:</p>
+<pre><code class="language-http">HTTP/1.1 429 Too Many Requests
+Retry-After: 1
+</code></pre>
+<p>Așteaptă cel puțin numărul de secunde din <code>Retry-After</code> înainte de a reîncerca. Pentru apeluri în lot, respectă intervalul operației și ajustează pauza după acest header.</p>
+<h2 id="ce-reincerci-si-ce-nu">Ce reîncerci și ce nu</h2>
+<p><strong>Citirile</strong> (<code>GET</code>) se reîncearcă în siguranță. La <code>5xx</code>, reîncearcă de câteva ori cu pauză crescătoare — o secundă, două, patru — apoi oprește-te.</p>
+<p><strong>Scrierile</strong> nu se reîncearcă automat, decât acolo unde documentația operației spune că e sigur. Atașarea AWB-ului e idempotentă: același AWB de două ori lasă factura în aceeași stare. Emiterea nu e: fiecare apel reușit produce o factură. Ce faci când nu primești răspuns la emitere e descris în <a href="emiterea-unei-facturi">Emiterea unei facturi</a>.</p>
+<p>La <code>429</code> sau <code>503 maintenance</code> returnat de FGO API, reîncearcă după intervalul indicat de <code>Retry-After</code>: cererea nu a fost procesată. <code>503 maintenance</code> înseamnă mentenanță planificată: documentația rămâne disponibilă, API-ul nu. Pentru un alt răspuns <code>503</code>, inclusiv unul generat de un proxy, nu presupune că cererea nu a fost procesată; aplică regulile de reluare ale operației.</p>
+<h2 id="identificarea-unei-cereri">Identificarea unei cereri</h2>
+<p>Fiecare răspuns conține headerul <code>x-fapi-interaction-id</code>, identificatorul cererii:</p>
+<pre><code class="language-http">x-fapi-interaction-id: 7b0f11d5-6e52-4b57-beca-15f47bf3f808
+</code></pre>
+<p>UUID (numit și GUID) este un identificator de 128 de biți, definit de <a href="https://www.rfc-editor.org/rfc/rfc9562.html">RFC 9562</a>. Folosește forma cu cratime din exemplu. Poți trimite tu un UUID în acest header; dacă lipsește sau nu este valid, îl generăm noi și îl întoarcem în răspuns. Păstrează-l în logurile tale.</p>
+<p>Când semnalezi o problemă suportului, trimite valorile headerelor <code>Server-Timing</code> și <code>x-fapi-interaction-id</code> din răspunsul primit. Dacă nu ai primit niciun răspuns, trimite UUID-ul generat de tine.</p>
+
+  </main>
+</div>
+<script>
+  document.querySelectorAll('main pre > code').forEach(function (cod) {
+    var pre = cod.parentElement;
+    var exemplu = document.createElement('div');
+    exemplu.className = 'exemplu-cod';
+    var bara = document.createElement('div');
+    bara.className = 'bara-cod';
+    var buton = document.createElement('button');
+    buton.type = 'button';
+    buton.className = 'copiaza-cod';
+    buton.textContent = 'Copiază';
+    buton.setAttribute('aria-label', 'Copiază exemplul de cod');
+    buton.setAttribute('aria-live', 'polite');
+    bara.appendChild(buton);
+    pre.before(exemplu);
+    exemplu.append(bara, pre);
+    var resetare;
+    buton.addEventListener('click', async function () {
+      clearTimeout(resetare);
+      buton.disabled = true;
+      try {
+        await navigator.clipboard.writeText(cod.textContent);
+        buton.textContent = 'Copiat!';
+        buton.setAttribute('aria-label', 'Cod copiat');
+      } catch (e) {
+        var selectie = window.getSelection();
+        var interval = document.createRange();
+        interval.selectNodeContents(cod);
+        selectie.removeAllRanges();
+        selectie.addRange(interval);
+        buton.textContent = 'Copiază manual';
+        buton.setAttribute('aria-label', 'Copierea nu a reușit. Copiază manual codul selectat.');
+      } finally {
+        buton.disabled = false;
+        resetare = setTimeout(function () {
+          buton.textContent = 'Copiază';
+          buton.setAttribute('aria-label', 'Copiază exemplul de cod');
+        }, 3000);
+      }
+    });
+  });
+  document.querySelector('.tema').addEventListener('click', function () {
+    var m = document.documentElement.getAttribute('data-tema') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-tema', m);
+    try { localStorage.setItem('colorMode', m); } catch (e) { }
+  });
+</script>
+</body>
+</html>

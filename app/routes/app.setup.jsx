@@ -11,6 +11,7 @@ import { useLoaderData, useNavigate, useSubmit, useNavigation, useActionData, us
 import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
 import { setupCheckout } from "../services/checkout-setup.server.js";
+import { inspectTheme } from "../services/theme.server.js";
 import {
   Page,
   Layout,
@@ -31,27 +32,9 @@ import { useTranslation } from "../context/i18n.jsx";
 const CLIENT_ID = process.env.SHOPIFY_API_KEY || "";
 // Theme app extension block: extensions/rocourier-cart/blocks/shipping-selector.liquid
 const APP_BLOCK_HANDLE = "shipping-selector";
-const COURIERS = ["fan", "sameday", "cargus", "gls", "packeta"];
+const COURIERS = ["fan", "sameday", "cargus", "gls", "packeta", "dpd"];
 
 const numericId = (gid) => String(gid).split("/").pop();
-
-// Cart template of a theme: does it exist (Online Store 2.0) and does it hold Picklo's block?
-async function inspectTheme(admin, themeId) {
-  const res = await admin.graphql(
-    `query CartTemplate($themeId: ID!) {
-      theme(id: $themeId) {
-        files(filenames: ["templates/cart.json"], first: 1) {
-          nodes { body { ... on OnlineStoreThemeFileBodyText { content } } }
-        }
-      }
-    }`,
-    { variables: { themeId } }
-  );
-  const data = await res.json();
-  const file = data.data?.theme?.files?.nodes?.[0];
-  const content = file?.body?.content || "";
-  return { supportsAppBlocks: !!file, blockAdded: content.includes(`/blocks/${APP_BLOCK_HANDLE}/`) };
-}
 
 // ─── Loader ──────────────────────────────────────────────────────────────────
 export async function loader({ request }) {
@@ -310,6 +293,22 @@ export default function SetupWizard() {
                   </InlineStack>
                 </>
               )}
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="200">
+              <Text variant="headingMd" as="h2">{t("migrate_title")}</Text>
+              <Text tone="subdued">{t("migrate_intro")}</Text>
+              <BlockStack gap="100">
+                <Text>1. {t("migrate_s1")}</Text>
+                <Text>2. {t("migrate_s2")}</Text>
+                <Text>3. {t("migrate_s3")}</Text>
+                <Text>4. {t("migrate_s4")}</Text>
+                <Text>5. {t("migrate_s5")}</Text>
+              </BlockStack>
             </BlockStack>
           </Card>
         </Layout.Section>

@@ -35,7 +35,7 @@ export async function loader({ request }) {
     return json({ error: "Missing shop parameter" }, { status: 400, headers: corsHeaders(origin) });
   }
 
-  const allCouriers = ["fan", "sameday", "cargus", "gls", "packeta"];
+  const allCouriers = ["fan", "sameday", "cargus", "gls", "packeta", "dpd"];
   // Widget sends comma-separated list of couriers it has enabled in block settings
   const couriers = courierParam === "all"
     ? allCouriers

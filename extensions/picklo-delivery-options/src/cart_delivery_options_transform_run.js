@@ -18,6 +18,7 @@ const POINT_LABELS = {
   cargus: "Cargus Ship & Go",
   gls: "GLS ParcelShop",
   packeta: "Packeta / Z-BOX",
+  dpd: "DPDbox / Punct DPD",
 };
 
 /** @type {CartDeliveryOptionsTransformRunResult} */

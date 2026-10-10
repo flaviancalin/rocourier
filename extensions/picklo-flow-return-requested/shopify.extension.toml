@@ -1,0 +1,15 @@
+[[extensions]]
+name = "Return requested"
+uid = "152b2ff5-eff4-07fd-c800-b16c6326ef3f0128b72c"
+type = "flow_trigger"
+handle = "picklo-return-requested"
+description = "A customer filed a return request from the Picklo return form."
+
+  [settings]
+
+  [[settings.fields]]
+  type = "order_reference"
+
+  [[settings.fields]]
+  type = "single_line_text_field"
+  key = "Reason"

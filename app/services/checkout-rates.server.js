@@ -2,6 +2,7 @@
 // Builds the carrier-calculated shipping rates (see routes/carrier-service.js).
 import { COURIER_LABELS } from "../utils/couriers.js";
 import { locateAddress, findNearestPoints } from "./nearest-points.server.js";
+import { estimateDelivery } from "../utils/delivery-estimate.js";
 
 const COURIERS = Object.keys(COURIER_LABELS);
 const LOOKUP_BUDGET_MS = 2500; // Shopify falls back to backup rates if we're slow
@@ -15,12 +16,16 @@ const toCents = (amount) => String(Math.round((parseFloat(amount) || 0) * 100));
 const safeCode = (s) => String(s).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 40);
 export const pointServiceCode = (courier, externalId) => `RC_PP_${courier}_${safeCode(externalId)}`;
 
-function deliveryDate(daysFromNow) {
-  const d = new Date();
-  d.setDate(d.getDate() + daysFromNow);
-  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
-  return d.toISOString();
+// Free delivery once the cart reaches the merchant's threshold (all methods, or lockers only)
+export function freeShippingApplies(settings, cartTotal, kind) {
+  const threshold = Number(settings.freeShippingThreshold);
+  if (!threshold || threshold <= 0 || !(cartTotal >= threshold)) return false;
+  return settings.freeShippingScope === "pickup" ? kind === "pickup" : true;
 }
+
+// Cart value from the carrier-service request (cents → major units)
+export const cartTotalOf = (rate) =>
+  (rate.items || []).reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.quantity) || 1), 0) / 100;
 
 const withTimeout = (promise, ms) =>
   Promise.race([promise, new Promise((resolve) => setTimeout(() => resolve(null), ms))]);
@@ -30,6 +35,10 @@ export async function buildRates({ rate, settings }) {
   const t = String(rate.locale || "ro").toLowerCase().startsWith("ro") ? TEXT.ro : TEXT.en;
   const dest = rate.destination || {};
   const enabled = COURIERS.filter((c) => settings[`${c}Enabled`]);
+  const cartTotal = cartTotalOf(rate);
+  const fee = (c, kind) => (freeShippingApplies(settings, cartTotal, kind) ? 0 : settings[`${c}${kind === "home" ? "HomeDeliveryFee" : "PickupFee"}`]);
+  const eta = estimateDelivery({ cutoffHour: settings.dispatchCutoffHour ?? 14, processingDays: settings.processingDays ?? 0 });
+  const dates = { min_delivery_date: eta.minDate.toISOString(), max_delivery_date: eta.maxDate.toISOString() };
 
   const attrs = {};
   (rate.cart_attributes || []).forEach((a) => { attrs[a.name] = a.value; });
@@ -45,20 +54,20 @@ export async function buildRates({ rate, settings }) {
     service_name: `${COURIER_LABELS[c].name} — ${t.home}`,
     service_code: `RC_${c.toUpperCase()}_HOME`,
     description:  t.homeDesc,
-    total_price:  toCents(settings[`${c}HomeDeliveryFee`]),
+    total_price:  toCents(fee(c, "home")),
     currency,
     phone_required: true, // couriers need it; lockers send the pickup code by SMS
-    min_delivery_date: deliveryDate(1), max_delivery_date: deliveryDate(3),
+    ...dates,
   }));
 
   const pointRate = (p, distance) => ({
     service_name: `${COURIER_LABELS[p.courier].point} — ${p.name}${distance != null ? ` · ${distance.toFixed(1)} ${t.km}` : ""}`,
     service_code: pointServiceCode(p.courier, p.externalId),
     description:  p.address || t.point,
-    total_price:  toCents(settings[`${p.courier}PickupFee`]),
+    total_price:  toCents(fee(p.courier, "pickup")),
     currency,
     phone_required: true, // couriers need it; lockers send the pickup code by SMS
-    min_delivery_date: deliveryDate(1), max_delivery_date: deliveryDate(2),
+    ...dates,
   });
 
   // Locate the address and find the nearest points within the time budget
@@ -98,10 +107,10 @@ export async function buildRates({ rate, settings }) {
         service_name: `${COURIER_LABELS[c].point} — ${t.point}`,
         service_code: `RC_${c.toUpperCase()}_POINT`,
         description:  t.point,
-        total_price:  toCents(settings[`${c}PickupFee`]),
+        total_price:  toCents(fee(c, "pickup")),
         currency,
     phone_required: true, // couriers need it; lockers send the pickup code by SMS
-        min_delivery_date: deliveryDate(1), max_delivery_date: deliveryDate(2),
+        ...dates,
       });
     }
   }

@@ -1,6 +1,8 @@
 // app/locales/translations.js
 // Internal admin UI translations — 5 languages
 
+import { T2 } from "./translations-v2.js";
+
 export const T = {
   ro: {
     setup_progress: "{done} / 3 finalizați",
@@ -2806,5 +2808,8 @@ export const T = {
     setup_all_done:            "Vše nastaveno! Nyní můžete generovat AWB.",
   },
 };
+
+// Strings added with DPD, FGO, returns and the other v2 features
+for (const lang of Object.keys(T2)) Object.assign(T[lang], T2[lang]);
 
 export default T;

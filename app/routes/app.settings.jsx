@@ -9,9 +9,12 @@ import { fanAuthenticate } from "../services/fan-courier.server.js";
 import { samedayAuthenticate } from "../services/sameday.server.js";
 import { cargusAuthenticate } from "../services/cargus.server.js";
 import { glsTestConnection } from "../services/gls.server.js";
-import { packetaTestConnection } from "../services/packeta.server.js";
+import { packetaTestConnection, packetaCredentials } from "../services/packeta.server.js";
 import { smartbillTestConnection } from "../services/smartbill.server.js";
 import { oblioTestConnection } from "../services/oblio.server.js";
+import { dpdTestConnection, dpdGetServices } from "../services/dpd.server.js";
+import { fgoTestConnection } from "../services/fgo.server.js";
+import { syncCodGuard } from "../services/cod-guard.server.js";
 import { refreshPickupPointsCache } from "../models/pickup-points.server.js";
 import { useState, useCallback, useEffect } from "react";
 import {
@@ -34,7 +37,26 @@ export async function loader({ request }) {
     const res = await admin.graphql(`{ shop { currencyCode } }`);
     currency = (await res.json()).data?.shop?.currencyCode || currency;
   } catch (_) {}
-  return json({ settings: settings || {}, shop: session.shop, currency });
+  // DPD contract services and pickup addresses, so the merchant picks from real values
+  let dpd = null;
+  if (settings?.dpdUsername && settings?.dpdPassword) {
+    try {
+      const [services, conn] = await Promise.all([
+        dpdGetServices({ username: settings.dpdUsername, password: settings.dpdPassword }),
+        dpdTestConnection({ username: settings.dpdUsername, password: settings.dpdPassword }),
+      ]);
+      dpd = { services, clients: conn.clients };
+    } catch (e) {
+      dpd = { error: e.message };
+    }
+  }
+  // Never send stored secrets to the browser
+  const {
+    dpdPassword, fgoPrivateKey, fanPassword, samedayPassword, cargusPassword, glsPassword,
+    packetaApiKey, packetaApiPassword, smartbillToken, oblioSecret, xconnectorApiKey, fanToken, samedayToken, ...safe
+  } = settings || {};
+  return json({ settings: { ...safe, hasDpdPassword: !!dpdPassword, hasFgoKey: !!fgoPrivateKey,
+    ...(() => { const c = packetaCredentials({ packetaApiKey, packetaApiPassword }); return { hasPacketaKey: !!c.apiKey, hasPacketaPassword: !!c.apiPassword }; })() }, shop: session.shop, currency, dpd });
 }
 
 // ─── Action ───────────────────────────────────────────────────────────────────
@@ -86,7 +108,7 @@ export async function action({ request }) {
   if (intent === "test-packeta") {
     const settings = await prisma.shopSettings.findUnique({ where: { shop: session.shop } });
     try {
-      await packetaTestConnection({ apiKey: settings.packetaApiKey });
+      await packetaTestConnection(packetaCredentials(settings));
       return json({ testResult: { courier: "packeta", success: true } });
     } catch (e) {
       return json({ testResult: { courier: "packeta", success: false, error: e.message } });
@@ -110,6 +132,26 @@ export async function action({ request }) {
       return json({ testResult: { courier: "oblio", success: true } });
     } catch (e) {
       return json({ testResult: { courier: "oblio", success: false, error: e.message } });
+    }
+  }
+
+  if (intent === "test-dpd") {
+    const settings = await prisma.shopSettings.findUnique({ where: { shop: session.shop } });
+    try {
+      const r = await dpdTestConnection({ username: settings.dpdUsername, password: settings.dpdPassword });
+      return json({ testResult: { courier: "dpd", success: true, detail: r.clients.map((c) => c.name).join("; ") } });
+    } catch (e) {
+      return json({ testResult: { courier: "dpd", success: false, error: e.message } });
+    }
+  }
+
+  if (intent === "test-fgo") {
+    const settings = await prisma.shopSettings.findUnique({ where: { shop: session.shop } });
+    try {
+      await fgoTestConnection({ cui: String(settings.fgoCui || "").replace(/^RO/i, "").trim(), privateKey: settings.fgoPrivateKey, sandbox: !!settings.fgoSandbox });
+      return json({ testResult: { courier: "fgo", success: true } });
+    } catch (e) {
+      return json({ testResult: { courier: "fgo", success: false, error: e.message } });
     }
   }
 
@@ -158,17 +200,42 @@ export async function action({ request }) {
       glsSandbox:      get("glsSandbox") === "true",
       packetaEnabled:     get("packetaEnabled") === "true",
       packetaLabelFormat: get("packetaLabelFormat") || "A6 on A4",
+      packetaSender:      (get("packetaSender") || "").trim() || null,
+      packetaHomeCarrierId: (get("packetaHomeCarrierId") || "").replace(/\D/g, "") || null,
+      dpdUsername:   get("dpdUsername") || "",
+      dpdEnabled:    get("dpdEnabled") === "true",
+      dpdServiceId:  get("dpdServiceId") || null,
+      dpdClientId:   get("dpdClientId") || null,
+      dpdLabelSize:  get("dpdLabelSize") || "A6",
+      fgoCui:        (get("fgoCui") || "").trim(),
+      fgoSeries:     get("fgoSeries") || "",
+      fgoTVA:        get("fgoTVA") || "21",
+      fgoCurrency:   get("fgoCurrency") || "RON",
+      fgoEnabled:    get("fgoEnabled") === "true",
+      fgoSandbox:    get("fgoSandbox") === "true",
+      freeShippingThreshold: parseFloat(get("freeShippingThreshold")) > 0 ? parseFloat(get("freeShippingThreshold")) : null,
+      freeShippingScope:     get("freeShippingScope") === "pickup" ? "pickup" : "all",
+      showDeliveryEstimate:  get("showDeliveryEstimate") === "true",
+      dispatchCutoffHour:    Math.min(23, Math.max(0, parseInt(get("dispatchCutoffHour"), 10) || 14)),
+      processingDays:        Math.min(10, Math.max(0, parseInt(get("processingDays"), 10) || 0)),
+      validateAddresses:     get("validateAddresses") === "true",
+      refusalWarnThreshold:  Math.max(0, parseInt(get("refusalWarnThreshold"), 10) || 0),
+      blockCodAfterRefusals: Math.max(0, parseInt(get("blockCodAfterRefusals"), 10) || 0),
+      returnsEnabled:        get("returnsEnabled") === "true",
+      returnsWindowDays:     Math.min(90, Math.max(1, parseInt(get("returnsWindowDays"), 10) || 14)),
+      returnsCourier:        get("returnsCourier") || null,
+      returnsInstructions:   get("returnsInstructions") || null,
       xconnectorEnabled: get("xconnectorEnabled") === "true",
       smartbillEmail:      get("smartbillEmail")      || "",
       smartbillCompanyCIF: get("smartbillCompanyCIF") || "",
       smartbillSeries:     get("smartbillSeries")     || "",
-      smartbillTVA:        get("smartbillTVA")        || "19",
+      smartbillTVA:        get("smartbillTVA")        || "21",
       smartbillCurrency:   get("smartbillCurrency")   || "RON",
       smartbillEnabled:    get("smartbillEnabled") === "true",
       oblioEmail:    get("oblioEmail")    || "",
       oblioCIF:      get("oblioCIF")      || "",
       oblioSeries:   get("oblioSeries")   || "",
-      oblioTVA:      get("oblioTVA")      || "19",
+      oblioTVA:      get("oblioTVA")      || "21",
       oblioCurrency: get("oblioCurrency") || "RON",
       oblioEnabled:  get("oblioEnabled") === "true",
       invoiceProvider:      get("invoiceProvider")      || null,
@@ -201,6 +268,8 @@ export async function action({ request }) {
       glsPickupFee:            parseFloat(get("glsPickupFee"))            || 0,
       packetaHomeDeliveryFee:  parseFloat(get("packetaHomeDeliveryFee"))  || 0,
       packetaPickupFee:        parseFloat(get("packetaPickupFee"))        || 0,
+      dpdHomeDeliveryFee:      parseFloat(get("dpdHomeDeliveryFee"))      || 0,
+      dpdPickupFee:            parseFloat(get("dpdPickupFee"))            || 0,
       checkoutLockerCount:     Math.min(10, Math.max(1, parseInt(get("checkoutLockerCount"), 10) || 5)),
     };
     const fanPw = get("fanPassword");
@@ -212,14 +281,26 @@ export async function action({ request }) {
     const glsPw = get("glsPassword");
     if (glsPw) data.glsPassword = glsPw;
     const packetaKey = get("packetaApiKey");
-    if (packetaKey) data.packetaApiKey = packetaKey;
+    if (packetaKey) data.packetaApiKey = packetaKey.trim();
+    const packetaPw = get("packetaApiPassword");
+    if (packetaPw) data.packetaApiPassword = packetaPw.trim();
     const xPw = get("xconnectorApiKey");
     if (xPw) data.xconnectorApiKey = xPw;
     const smartbillToken = get("smartbillToken");
     if (smartbillToken) data.smartbillToken = smartbillToken;
     const oblioSecret = get("oblioSecret");
     if (oblioSecret) data.oblioSecret = oblioSecret;
+    const dpdPw = get("dpdPassword");
+    if (dpdPw) data.dpdPassword = dpdPw;
+    const fgoKey = get("fgoPrivateKey");
+    if (fgoKey) data.fgoPrivateKey = fgoKey;
+    // Routing rules arrive as JSON from the rules editor
+    const rules = get("routingRules");
+    if (rules != null) {
+      try { data.routingRules = rules ? JSON.parse(rules) : null; } catch (_) { /* keep the stored rules */ }
+    }
 
+    const settingsBefore = await prisma.shopSettings.findUnique({ where: { shop: session.shop }, select: { blockCodAfterRefusals: true } });
     await prisma.shopSettings.upsert({
       where:  { shop: session.shop },
       update: data,
@@ -232,7 +313,18 @@ export async function action({ request }) {
     } catch (e) {
       console.error("[settings] rate resync failed:", e.message);
     }
-    return json({ saved: true, ratesSynced: !!ratesSynced });
+    // Refusal protection: refresh the hidden-COD list (and turn the checkout rule on)
+    let codGuard = null;
+    if (data.blockCodAfterRefusals > 0 || settingsBefore?.blockCodAfterRefusals > 0) {
+      try { codGuard = await syncCodGuard(session.shop, admin); }
+      catch (e) {
+        // admin.graphql throws a Response (not an Error) when Shopify refuses the call
+        const msg = e?.message || (e?.status ? `Shopify a răspuns ${e.status}` : String(e));
+        console.error("[settings] cod guard sync failed:", msg);
+        codGuard = { error: msg };
+      }
+    }
+    return json({ saved: true, ratesSynced: !!ratesSynced, codGuard });
   }
 
   return json({ error: "Unknown intent" }, { status: 400 });
@@ -240,7 +332,7 @@ export async function action({ request }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function Settings() {
-  const { settings, shop, currency } = useLoaderData();
+  const { settings, shop, currency, dpd } = useLoaderData();
   const actionData = useActionData();
   const nav = useNavigation();
   const submit = useSubmit();
@@ -281,7 +373,41 @@ export default function Settings() {
 
   const [packetaEnabled,     setPacketaEnabled]     = useState(!!settings.packetaEnabled);
   const [packetaApiKey,      setPacketaApiKey]      = useState("");
+  const [packetaApiPassword, setPacketaApiPassword] = useState("");
+  const [packetaSender,      setPacketaSender]      = useState(settings.packetaSender || "");
+  const [packetaHomeCarrierId, setPacketaHomeCarrierId] = useState(settings.packetaHomeCarrierId || "");
   const [packetaLabelFormat, setPacketaLabelFormat] = useState(settings.packetaLabelFormat || "A6 on A4");
+
+  const [dpdEnabled,   setDpdEnabled]   = useState(!!settings.dpdEnabled);
+  const [dpdUsername,  setDpdUsername]  = useState(settings.dpdUsername || "");
+  const [dpdPassword,  setDpdPassword]  = useState("");
+  const [dpdServiceId, setDpdServiceId] = useState(settings.dpdServiceId || "");
+  const [dpdClientId,  setDpdClientId]  = useState(settings.dpdClientId || "");
+  const [dpdLabelSize, setDpdLabelSize] = useState(settings.dpdLabelSize || "A6");
+  const [dpdHomeDeliveryFee, setDpdHomeDeliveryFee] = useState(String(settings.dpdHomeDeliveryFee ?? 0));
+  const [dpdPickupFee,       setDpdPickupFee]       = useState(String(settings.dpdPickupFee ?? 0));
+
+  const [fgoEnabled,    setFgoEnabled]    = useState(!!settings.fgoEnabled);
+  const [fgoSandbox,    setFgoSandbox]    = useState(!!settings.fgoSandbox);
+  const [fgoCui,        setFgoCui]        = useState(settings.fgoCui || "");
+  const [fgoPrivateKey, setFgoPrivateKey] = useState("");
+  const [fgoSeries,     setFgoSeries]     = useState(settings.fgoSeries || "");
+  const [fgoTVA,        setFgoTVA]        = useState(settings.fgoTVA || "21");
+  const [fgoCurrency,   setFgoCurrency]   = useState(settings.fgoCurrency || "RON");
+
+  const [freeShippingThreshold, setFreeShippingThreshold] = useState(settings.freeShippingThreshold ? String(settings.freeShippingThreshold) : "");
+  const [freeShippingScope,     setFreeShippingScope]     = useState(settings.freeShippingScope || "all");
+  const [showDeliveryEstimate,  setShowDeliveryEstimate]  = useState(settings.showDeliveryEstimate !== false);
+  const [dispatchCutoffHour,    setDispatchCutoffHour]    = useState(String(settings.dispatchCutoffHour ?? 14));
+  const [processingDays,        setProcessingDays]        = useState(String(settings.processingDays ?? 0));
+  const [validateAddresses,     setValidateAddresses]     = useState(settings.validateAddresses !== false);
+  const [refusalWarnThreshold,  setRefusalWarnThreshold]  = useState(String(settings.refusalWarnThreshold ?? 1));
+  const [blockCodAfterRefusals, setBlockCodAfterRefusals] = useState(String(settings.blockCodAfterRefusals ?? 0));
+  const [returnsEnabled,        setReturnsEnabled]        = useState(!!settings.returnsEnabled);
+  const [returnsWindowDays,     setReturnsWindowDays]     = useState(String(settings.returnsWindowDays ?? 14));
+  const [returnsCourier,        setReturnsCourier]        = useState(settings.returnsCourier || "");
+  const [returnsInstructions,   setReturnsInstructions]   = useState(settings.returnsInstructions || "");
+  const [routingRules,          setRoutingRules]          = useState(Array.isArray(settings.routingRules) ? settings.routingRules : []);
 
   const [xconnectorEnabled, setXconnectorEnabled] = useState(!!settings.xconnectorEnabled);
   const [xconnectorApiKey,  setXconnectorApiKey]  = useState("");
@@ -291,7 +417,7 @@ export default function Settings() {
   const [smartbillToken,      setSmartbillToken]      = useState("");
   const [smartbillCompanyCIF, setSmartbillCompanyCIF] = useState(settings.smartbillCompanyCIF || "");
   const [smartbillSeries,     setSmartbillSeries]     = useState(settings.smartbillSeries     || "");
-  const [smartbillTVA,        setSmartbillTVA]        = useState(settings.smartbillTVA        || "19");
+  const [smartbillTVA,        setSmartbillTVA]        = useState(settings.smartbillTVA        || "21");
   const [smartbillCurrency,   setSmartbillCurrency]   = useState(settings.smartbillCurrency   || "RON");
 
   const [oblioEnabled,  setOblioEnabled]  = useState(!!settings.oblioEnabled);
@@ -299,7 +425,7 @@ export default function Settings() {
   const [oblioSecret,   setOblioSecret]   = useState("");
   const [oblioCIF,      setOblioCIF]      = useState(settings.oblioCIF      || "");
   const [oblioSeries,   setOblioSeries]   = useState(settings.oblioSeries   || "");
-  const [oblioTVA,      setOblioTVA]      = useState(settings.oblioTVA      || "19");
+  const [oblioTVA,      setOblioTVA]      = useState(settings.oblioTVA      || "21");
   const [oblioCurrency, setOblioCurrency] = useState(settings.oblioCurrency || "RON");
 
   const [invoiceProvider,      setInvoiceProvider]      = useState(settings.invoiceProvider      || "");
@@ -344,7 +470,10 @@ export default function Settings() {
 
   // ── Toasts ──────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (actionData?.saved) setToast(`✅ ${t("save_settings")}!`);
+    if (actionData?.saved && (actionData.codGuard?.error || actionData.codGuard?.customization?.error)) {
+      setToast(`⚠️ ${t("save_settings")} — ${actionData.codGuard.error || actionData.codGuard.customization.error}`);
+    }
+    else if (actionData?.saved) setToast(`✅ ${t("save_settings")}!`);
     else if (actionData?.testResult?.success) setToast(`✅ ${t("conn_success")}`);
     else if (actionData?.testResult?.success === false) setToast(`❌ ${actionData.testResult.error}`);
     else if (actionData?.carrierResult) {
@@ -363,7 +492,7 @@ export default function Settings() {
       if (r.errors?.length) {
         setToast(`⚠️ ${t("error")}: ${r.errors.join(", ")}`);
       } else {
-        const total = (r.fan || 0) + (r.sameday || 0) + (r.cargus || 0) + (r.gls || 0) + (r.packeta || 0);
+        const total = (r.fan || 0) + (r.sameday || 0) + (r.cargus || 0) + (r.gls || 0) + (r.packeta || 0) + (r.dpd || 0);
         setToast(`✅ ${t("carrier_pts_refreshed", { n: total })}`);
       }
     }
@@ -380,7 +509,15 @@ export default function Settings() {
       glsEnabled: String(glsEnabled), glsSandbox: String(glsSandbox),
       glsClientNumber, glsUsername,
       packetaEnabled: String(packetaEnabled),
-      packetaLabelFormat,
+      packetaLabelFormat, packetaSender, packetaHomeCarrierId,
+      dpdEnabled: String(dpdEnabled), dpdUsername, dpdServiceId, dpdClientId, dpdLabelSize,
+      dpdHomeDeliveryFee, dpdPickupFee,
+      fgoEnabled: String(fgoEnabled), fgoSandbox: String(fgoSandbox), fgoCui, fgoSeries, fgoTVA, fgoCurrency,
+      freeShippingThreshold, freeShippingScope, showDeliveryEstimate: String(showDeliveryEstimate),
+      dispatchCutoffHour, processingDays,
+      validateAddresses: String(validateAddresses), refusalWarnThreshold, blockCodAfterRefusals,
+      returnsEnabled: String(returnsEnabled), returnsWindowDays, returnsCourier, returnsInstructions,
+      routingRules: JSON.stringify(routingRules.filter((rule) => rule.courier)),
       xconnectorEnabled: String(xconnectorEnabled),
       smartbillEnabled: String(smartbillEnabled), smartbillEmail, smartbillCompanyCIF, smartbillSeries, smartbillTVA, smartbillCurrency,
       oblioEnabled: String(oblioEnabled), oblioEmail, oblioCIF, oblioSeries, oblioTVA, oblioCurrency,
@@ -413,16 +550,19 @@ export default function Settings() {
     if (cargusPassword) data.cargusPassword = cargusPassword;
     if (glsPassword) data.glsPassword = glsPassword;
     if (packetaApiKey) data.packetaApiKey = packetaApiKey;
+    if (packetaApiPassword) data.packetaApiPassword = packetaApiPassword;
     if (xconnectorApiKey) data.xconnectorApiKey = xconnectorApiKey;
     if (smartbillToken) data.smartbillToken = smartbillToken;
     if (oblioSecret)    data.oblioSecret    = oblioSecret;
+    if (dpdPassword)    data.dpdPassword    = dpdPassword;
+    if (fgoPrivateKey)  data.fgoPrivateKey  = fgoPrivateKey;
     submit(data, { method: "post" });
   }, [senderName, senderCounty, senderCity, senderZip, senderAddress, senderPhone, senderEmail,
       fanEnabled, fanClientId, fanUsername, fanPassword,
       samedayEnabled, samedayUsername, samedayPassword, samedaySandbox,
       cargusEnabled, cargusSubscriptionKey, cargusUsername, cargusPassword,
       glsEnabled, glsClientNumber, glsUsername, glsPassword, glsSandbox,
-      packetaEnabled, packetaApiKey, packetaLabelFormat,
+      packetaEnabled, packetaApiKey, packetaApiPassword, packetaSender, packetaHomeCarrierId, packetaLabelFormat,
       xconnectorEnabled, xconnectorApiKey, defaultCourier, defaultWeight,
       showPickupMap, autoGenerateAwb, widgetLanguage,
       autoAwbMarkShipped, autoAwbNotifyCustomer, autoInvoiceOnDelivered, onCancelDeleteAwb, onRefundReverseInvoice, onDeliveredMarkPaid, onReturnedCancelOrder, statusTags, copyCustomerPhone, autoAwbFilter, onCancelInvoice, onReturnedInvoice,
@@ -431,7 +571,12 @@ export default function Settings() {
       packetaHomeDeliveryFee, packetaPickupFee, lockerCount,
       smartbillEnabled, smartbillEmail, smartbillToken, smartbillCompanyCIF, smartbillSeries, smartbillTVA, smartbillCurrency,
       oblioEnabled, oblioEmail, oblioSecret, oblioCIF, oblioSeries, oblioTVA, oblioCurrency,
-      invoiceProvider, autoSendInvoice, autoInvoiceOnFulfill, submit]);
+      invoiceProvider, autoSendInvoice, autoInvoiceOnFulfill,
+      dpdEnabled, dpdUsername, dpdPassword, dpdServiceId, dpdClientId, dpdLabelSize, dpdHomeDeliveryFee, dpdPickupFee,
+      fgoEnabled, fgoSandbox, fgoCui, fgoPrivateKey, fgoSeries, fgoTVA, fgoCurrency,
+      freeShippingThreshold, freeShippingScope, showDeliveryEstimate, dispatchCutoffHour, processingDays,
+      validateAddresses, refusalWarnThreshold, blockCodAfterRefusals, returnsEnabled, returnsWindowDays, returnsCourier, returnsInstructions,
+      routingRules, submit]);
 
   const handleTest = useCallback((courier) => {
     submit({ intent: `test-${courier}` }, { method: "post" });
@@ -452,18 +597,17 @@ export default function Settings() {
     { label: t("auto_invoice_reverse"), value: "reverse" },
   ];
 
+  // Related settings share a tab and are stacked as cards, so each tab stays short to scroll
   const tabs = [
-    { id: "sender",     content: `📦 ${t("tab_sender")}`     },
-    { id: "fan",        content: "🚛 FAN Courier"              },
-    { id: "sameday",    content: "📬 Sameday"                  },
-    { id: "cargus",     content: "🚚 Cargus"                   },
-    { id: "gls",        content: "🟡 GLS"                      },
-    { id: "packeta",    content: "📮 Packeta"                   },
-    { id: "xconnector", content: "🔗 xConnector"               },
-    { id: "widget",     content: `🛒 ${t("tab_widget")}`       },
-    { id: "facturare",  content: "🧾 Facturare"                 },
-    { id: "automations", content: `⚙️ ${t("tab_automations")}` },
+    { id: "couriers",    content: `🚚 ${t("tab_couriers")}`,        sections: ["fan", "sameday", "cargus", "gls", "packeta", "dpd", "xconnector"] },
+    { id: "sender",      content: `📦 ${t("tab_sender")}`,          sections: ["sender"] },
+    { id: "widget",      content: `🛒 ${t("tab_widget")}`,          sections: ["widget"] },
+    { id: "delivery",    content: `🛡️ ${t("tab_delivery_checks")}`, sections: ["delivery"] },
+    { id: "facturare",   content: `🧾 ${t("tab_invoicing")}`,       sections: ["facturare"] },
+    { id: "automations", content: `⚙️ ${t("tab_automations")}`,     sections: ["automations"] },
   ];
+  const sections = tabs[tab]?.sections || [];
+  const show = (id) => sections.includes(id);
 
   return (
     <Frame>
@@ -471,10 +615,10 @@ export default function Settings() {
         <Layout>
           <Layout.Section>
             <Tabs tabs={tabs} selected={tab} onSelect={setTab} fitted>
-              <Box paddingBlockStart="400">
+              <Box paddingBlockStart="400"><BlockStack gap="600">
 
                 {/* ── TAB 0: Expeditor ──────────────────────────────────── */}
-                {tab === 0 && (
+                {show("sender") && (
                   <Card>
                     <BlockStack gap="400">
                       <InlineStack align="space-between" blockAlign="center">
@@ -506,7 +650,7 @@ export default function Settings() {
                 )}
 
                 {/* ── TAB 1: FAN Courier ────────────────────────────────── */}
-                {tab === 1 && (
+                {show("fan") && (
                   <BlockStack gap="400">
                     <Card>
                       <BlockStack gap="400">
@@ -548,7 +692,7 @@ export default function Settings() {
                 )}
 
                 {/* ── TAB 2: Sameday ────────────────────────────────────── */}
-                {tab === 2 && (
+                {show("sameday") && (
                   <BlockStack gap="400">
                     <Card>
                       <BlockStack gap="400">
@@ -589,7 +733,7 @@ export default function Settings() {
                 )}
 
                 {/* ── TAB 3: Cargus ─────────────────────────────────────── */}
-                {tab === 3 && (
+                {show("cargus") && (
                   <BlockStack gap="400">
                     <Card>
                       <BlockStack gap="400">
@@ -632,7 +776,7 @@ export default function Settings() {
                 )}
 
                 {/* ── TAB 4: GLS ────────────────────────────────────────── */}
-                {tab === 4 && (
+                {show("gls") && (
                   <BlockStack gap="400">
                     <Card>
                       <BlockStack gap="400">
@@ -681,7 +825,7 @@ export default function Settings() {
                 )}
 
                 {/* ── TAB 5: Packeta ────────────────────────────────────── */}
-                {tab === 5 && (
+                {show("packeta") && (
                   <BlockStack gap="400">
                     <Card>
                       <BlockStack gap="400">
@@ -700,22 +844,26 @@ export default function Settings() {
                         <Divider />
                         <FormLayout>
                           <Checkbox label={t("packeta_enable")} checked={packetaEnabled} onChange={setPacketaEnabled} />
-                          <TextField
-                            label={t("packeta_api_key")}
-                            value={packetaApiKey}
-                            onChange={setPacketaApiKey}
-                            type="password"
-                            placeholder={t("packeta_api_key_ph")}
-                            helpText={t("packeta_api_key_help")}
-                            autoComplete="new-password"
-                          />
+                          <FormLayout.Group>
+                            <TextField label={t("packeta_key16")} value={packetaApiKey} onChange={setPacketaApiKey} type="password"
+                              placeholder={settings.hasPacketaKey ? t("pw_placeholder") : "ex: ae827fd9b1c0412f"} helpText={t("packeta_key16_help")} autoComplete="new-password" />
+                            <TextField label={t("packeta_pw32")} value={packetaApiPassword} onChange={setPacketaApiPassword} type="password"
+                              placeholder={settings.hasPacketaPassword ? t("pw_placeholder") : ""} helpText={t("packeta_pw32_help")} autoComplete="new-password" />
+                          </FormLayout.Group>
+                          <FormLayout.Group>
+                            <TextField label={t("packeta_sender")} value={packetaSender} onChange={setPacketaSender} helpText={t("packeta_sender_help")} autoComplete="off" />
+                            <TextField label={t("packeta_home_carrier")} value={packetaHomeCarrierId} onChange={setPacketaHomeCarrierId} placeholder="4161" helpText={t("packeta_home_carrier_help")} autoComplete="off" />
+                          </FormLayout.Group>
                           <Select
                             label={t("packeta_label_format")}
                             value={packetaLabelFormat}
                             onChange={setPacketaLabelFormat}
                             options={[
                               { label: t("packeta_label_a6_a4"), value: "A6 on A4" },
+                              { label: "A6 (10×15 cm) pe A6", value: "A6 on A6" },
                               { label: t("packeta_label_a7_a4"), value: "A7 on A4" },
+                              { label: "A7 pe A7", value: "A7 on A7" },
+                              { label: "A8 pe A8", value: "A8 on A8" },
                             ]}
                             helpText={t("packeta_label_help")}
                           />
@@ -730,8 +878,75 @@ export default function Settings() {
                   </BlockStack>
                 )}
 
+                {/* ── DPD ──────────────────────────────────────────────────── */}
+                {show("dpd") && (
+                  <BlockStack gap="400">
+                    <Card>
+                      <BlockStack gap="400">
+                        <InlineStack align="space-between">
+                          <Text variant="headingMd" fontWeight="semibold">DPD Romania — Web API</Text>
+                          {dpdEnabled ? <Badge tone="success">{t("status_active")}</Badge> : <Badge tone="critical">{t("status_inactive")}</Badge>}
+                        </InlineStack>
+                        <Banner tone="info" title={t("dpd_how_title")}>
+                          <BlockStack gap="100">
+                            <Text>1. {t("dpd_step1")}</Text>
+                            <Text>2. {t("dpd_step2")}</Text>
+                            <Text>3. {t("dpd_step3")}</Text>
+                          </BlockStack>
+                        </Banner>
+                        <Divider />
+                        <FormLayout>
+                          <Checkbox label={t("dpd_enable")} checked={dpdEnabled} onChange={setDpdEnabled} />
+                          <FormLayout.Group>
+                            <TextField label={t("dpd_username")} value={dpdUsername} onChange={setDpdUsername} autoComplete="off" />
+                            <TextField label={t("dpd_password")} value={dpdPassword} onChange={setDpdPassword} type="password"
+                              placeholder={settings.hasDpdPassword ? t("pw_placeholder") : ""} autoComplete="new-password" />
+                          </FormLayout.Group>
+                          {dpd?.error && <Banner tone="critical" title={t("conn_error")}><Text>{dpd.error}</Text></Banner>}
+                          <Select
+                            label={t("dpd_service")}
+                            value={dpdServiceId}
+                            onChange={setDpdServiceId}
+                            options={[
+                              { label: t("dpd_service_auto"), value: "" },
+                              ...(dpd?.services || []).map((sv) => ({ label: `${sv.name} (${sv.id})`, value: String(sv.id) })),
+                            ]}
+                            helpText={dpd?.services ? t("dpd_service_help") : t("dpd_save_first")}
+                          />
+                          <Select
+                            label={t("dpd_client")}
+                            value={dpdClientId}
+                            onChange={setDpdClientId}
+                            options={[
+                              { label: t("dpd_client_default"), value: "" },
+                              ...(dpd?.clients || []).map((c) => ({ label: `${c.name}${c.address ? ` — ${c.address}` : ""}`, value: String(c.clientId) })),
+                            ]}
+                            helpText={t("dpd_client_help")}
+                          />
+                          <Select
+                            label={t("dpd_label_size")}
+                            value={dpdLabelSize}
+                            onChange={setDpdLabelSize}
+                            options={[
+                              { label: "A6 (10×15 cm)", value: "A6" },
+                              { label: "A4", value: "A4" },
+                              { label: "A4 — 4 × A6", value: "A4_4xA6" },
+                            ]}
+                          />
+                        </FormLayout>
+                        {actionData?.testResult?.courier === "dpd" && (
+                          <Banner tone={actionData.testResult.success ? "success" : "critical"} title={actionData.testResult.success ? t("conn_success") : t("conn_error")}>
+                            {actionData.testResult.error && <Text>{actionData.testResult.error}</Text>}
+                            {actionData.testResult.detail && <Text>{actionData.testResult.detail}</Text>}
+                          </Banner>
+                        )}
+                      </BlockStack>
+                    </Card>
+                  </BlockStack>
+                )}
+
                 {/* ── TAB 6: xConnector ─────────────────────────────────── */}
-                {tab === 6 && (
+                {show("xconnector") && (
                   <BlockStack gap="400">
                     <Card>
                       <BlockStack gap="400">
@@ -753,7 +968,7 @@ export default function Settings() {
                 )}
 
                 {/* ── TAB 7: Widget ─────────────────────────────────────── */}
-                {tab === 7 && (
+                {show("widget") && (
                   <BlockStack gap="400">
                     <Card>
                       <BlockStack gap="400">
@@ -887,6 +1102,10 @@ export default function Settings() {
                             <TextField label={t("fee_packeta_home")} value={packetaHomeDeliveryFee} onChange={setPacketaHomeDeliveryFee} type="number" min="0" step="0.5" suffix={currency} helpText={t("fee_free_help")} autoComplete="off" />
                             <TextField label={t("fee_packeta_pickup")} value={packetaPickupFee} onChange={setPacketaPickupFee} type="number" min="0" step="0.5" suffix={currency} helpText={t("fee_free_help")} autoComplete="off" />
                           </FormLayout.Group>
+                          <FormLayout.Group>
+                            <TextField label={t("fee_dpd_home")} value={dpdHomeDeliveryFee} onChange={setDpdHomeDeliveryFee} type="number" min="0" step="0.5" suffix={currency} helpText={t("fee_free_help")} autoComplete="off" />
+                            <TextField label={t("fee_dpd_pickup")} value={dpdPickupFee} onChange={setDpdPickupFee} type="number" min="0" step="0.5" suffix={currency} helpText={t("fee_free_help")} autoComplete="off" />
+                          </FormLayout.Group>
                         </FormLayout>
                         <Banner tone="warning" title={t("fees_note_title")}>
                           <Text>{t("fees_note", { currency })}</Text>
@@ -897,7 +1116,7 @@ export default function Settings() {
                 )}
 
                 {/* ── TAB 9: Automatizări ───────────────────────────────── */}
-                {tab === 9 && (
+                {show("automations") && (
                   <BlockStack gap="400">
                     <Banner tone="info">
                       <Text>{t("auto_intro")}</Text>
@@ -955,7 +1174,7 @@ export default function Settings() {
                 )}
 
                 {/* ── TAB 8: Facturare ─────────────────────────────────── */}
-                {tab === 8 && (
+                {show("facturare") && (
                   <BlockStack gap="400">
 
                     {/* Provider selector */}
@@ -964,7 +1183,7 @@ export default function Settings() {
                         <Text variant="headingMd" fontWeight="semibold">Facturare automata</Text>
                         <Banner tone="info" title="Cum functioneaza?">
                           <BlockStack gap="100">
-                            <Text>1. Alege furnizorul de facturare (SmartBill sau Oblio).</Text>
+                            <Text>1. Alege furnizorul de facturare (SmartBill, Oblio sau FGO).</Text>
                             <Text>2. Introdu credentialele API si CIF-ul firmei.</Text>
                             <Text>3. Activeaza generarea automata la comanda noua sau la fulfillment.</Text>
                           </BlockStack>
@@ -979,6 +1198,7 @@ export default function Settings() {
                               { label: "— Dezactivat —",   value: ""         },
                               { label: "SmartBill",         value: "smartbill" },
                               { label: "Oblio",             value: "oblio"     },
+                              { label: "FGO",               value: "fgo"       },
                             ]}
                             helpText="Selecteaza furnizorul cu care doresti sa emiti facturile."
                           />
@@ -1064,10 +1284,159 @@ export default function Settings() {
                       </BlockStack>
                     </Card>
 
+                    {/* FGO config */}
+                    <Card>
+                      <BlockStack gap="400">
+                        <InlineStack align="space-between" blockAlign="center">
+                          <Text variant="headingMd" fontWeight="semibold">FGO</Text>
+                          <Checkbox label="Activat" checked={fgoEnabled} onChange={setFgoEnabled} />
+                        </InlineStack>
+                        <BlockStack gap="100">
+                          <Text tone="subdued">1. In FGO: Contul meu &rarr; Chei API &rarr; Genereaza cheie API (drepturi: facturi citire, emitere, anulare, incasare). Cheia se vede o singura data.</Text>
+                          <Text tone="subdued">2. In FGO: Setari &rarr; eCommerce &rarr; Setari API &rarr; Domenii autorizate: adauga <Text as="span" fontWeight="semibold">{shop}</Text> si salveaza.</Text>
+                          <Text tone="subdued">3. Seria trebuie sa existe in Setari &rarr; Serii/registre (registru de tip Facturi). In productie API-ul cere abonament Premium sau Enterprise.</Text>
+                        </BlockStack>
+                        <Divider />
+                        <FormLayout>
+                          <FormLayout.Group>
+                            <TextField label="CUI firma (fara RO)" value={fgoCui} onChange={setFgoCui} autoComplete="off" />
+                            <TextField label="Cheie API (fgo_api_v1…)" value={fgoPrivateKey} onChange={setFgoPrivateKey} type="password"
+                              placeholder={settings.hasFgoKey ? "Lasa gol pentru a pastra cheia existenta" : ""} autoComplete="new-password" />
+                          </FormLayout.Group>
+                          <FormLayout.Group>
+                            <TextField label="Serie factura (ex: FCT)" value={fgoSeries} onChange={setFgoSeries} autoComplete="off" />
+                            <TextField label="TVA (%)" value={fgoTVA} onChange={setFgoTVA} type="number" min="0" max="30" autoComplete="off" />
+                            <Select
+                              label="Moneda"
+                              value={fgoCurrency}
+                              onChange={setFgoCurrency}
+                              options={[
+                                { label: "RON", value: "RON" },
+                                { label: "EUR", value: "EUR" },
+                                { label: "USD", value: "USD" },
+                              ]}
+                            />
+                          </FormLayout.Group>
+                          <Checkbox label="Mediu de test FGO (api-testuat.fgo.ro)" checked={fgoSandbox} onChange={setFgoSandbox}
+                            helpText="Pentru un cont creat pe testuat.fgo.ro. Facturile de test nu au valoare fiscala." />
+                        </FormLayout>
+                        {actionData?.testResult?.courier === "fgo" && (
+                          <Banner tone={actionData.testResult.success ? "success" : "critical"} title={actionData.testResult.success ? t("conn_success") : t("conn_error")}>
+                            {actionData.testResult.error && <Text>{actionData.testResult.error}</Text>}
+                          </Banner>
+                        )}
+                      </BlockStack>
+                    </Card>
+
                   </BlockStack>
                 )}
 
-              </Box>
+                {/* ── Delivery & checks ────────────────────────────────────── */}
+                {show("delivery") && (
+                  <BlockStack gap="400">
+                    <Card>
+                      <BlockStack gap="400">
+                        <Text variant="headingMd" fontWeight="semibold">{t("free_ship_title")}</Text>
+                        <Text tone="subdued">{t("free_ship_desc")}</Text>
+                        <FormLayout>
+                          <FormLayout.Group>
+                            <TextField label={t("free_ship_threshold")} value={freeShippingThreshold} onChange={setFreeShippingThreshold}
+                              type="number" min="0" step="1" suffix={currency} placeholder={t("free_ship_off")} autoComplete="off" />
+                            <Select label={t("free_ship_scope")} value={freeShippingScope} onChange={setFreeShippingScope}
+                              options={[{ label: t("free_ship_scope_all"), value: "all" }, { label: t("free_ship_scope_pickup"), value: "pickup" }]} />
+                          </FormLayout.Group>
+                        </FormLayout>
+                      </BlockStack>
+                    </Card>
+
+                    <Card>
+                      <BlockStack gap="400">
+                        <Text variant="headingMd" fontWeight="semibold">{t("eta_title")}</Text>
+                        <Text tone="subdued">{t("eta_desc")}</Text>
+                        <FormLayout>
+                          <Checkbox label={t("eta_show")} checked={showDeliveryEstimate} onChange={setShowDeliveryEstimate} />
+                          <FormLayout.Group>
+                            <TextField label={t("eta_cutoff")} value={dispatchCutoffHour} onChange={setDispatchCutoffHour} type="number" min="0" max="23" suffix=":00" helpText={t("eta_cutoff_help")} autoComplete="off" />
+                            <TextField label={t("eta_processing")} value={processingDays} onChange={setProcessingDays} type="number" min="0" max="10" helpText={t("eta_processing_help")} autoComplete="off" />
+                          </FormLayout.Group>
+                        </FormLayout>
+                      </BlockStack>
+                    </Card>
+
+                    <Card>
+                      <BlockStack gap="400">
+                        <Text variant="headingMd" fontWeight="semibold">{t("checks_title")}</Text>
+                        <FormLayout>
+                          <Checkbox label={t("checks_address")} checked={validateAddresses} onChange={setValidateAddresses} helpText={t("checks_address_help")} />
+                          <TextField label={t("checks_refusals")} value={refusalWarnThreshold} onChange={setRefusalWarnThreshold} type="number" min="0" max="10" helpText={t("checks_refusals_help")} autoComplete="off" />
+                          <TextField label={t("checks_block_cod")} value={blockCodAfterRefusals} onChange={setBlockCodAfterRefusals} type="number" min="0" max="10" helpText={t("checks_block_cod_help")} autoComplete="off" />
+                        </FormLayout>
+                      </BlockStack>
+                    </Card>
+
+                    <Card>
+                      <BlockStack gap="400">
+                        <Text variant="headingMd" fontWeight="semibold">{t("routing_title")}</Text>
+                        <Text tone="subdued">{t("routing_desc")}</Text>
+                        {routingRules.map((rule, i) => (
+                          <InlineStack key={i} gap="200" blockAlign="end" wrap>
+                            <Box minWidth="180px">
+                              <Select label={t("routing_when")} value={rule.field || "county"}
+                                onChange={(v) => setRoutingRules(routingRules.map((x, j) => (j === i ? { ...x, field: v } : x)))}
+                                options={[
+                                  { label: t("routing_f_county"), value: "county" },
+                                  { label: t("routing_f_city"), value: "city" },
+                                  { label: t("routing_f_weight_over"), value: "weight_over" },
+                                  { label: t("routing_f_total_over"), value: "total_over" },
+                                  { label: t("routing_f_cod"), value: "cod" },
+                                  { label: t("routing_f_pickup"), value: "pickup" },
+                                ]} />
+                            </Box>
+                            {!["cod", "pickup"].includes(rule.field) && (
+                              <Box minWidth="160px">
+                                <TextField label={t("routing_value")} value={rule.value || ""} autoComplete="off"
+                                  onChange={(v) => setRoutingRules(routingRules.map((x, j) => (j === i ? { ...x, value: v } : x)))}
+                                  helpText={["county", "city"].includes(rule.field || "county") ? t("routing_value_list") : undefined} />
+                              </Box>
+                            )}
+                            <Box minWidth="160px">
+                              <Select label={t("routing_courier")} value={rule.courier || ""}
+                                onChange={(v) => setRoutingRules(routingRules.map((x, j) => (j === i ? { ...x, courier: v } : x)))}
+                                options={[{ label: "—", value: "" }, ...["fan", "sameday", "cargus", "gls", "packeta", "dpd"].map((c) => ({ label: c.toUpperCase(), value: c }))]} />
+                            </Box>
+                            <Button tone="critical" variant="plain" onClick={() => setRoutingRules(routingRules.filter((_, j) => j !== i))}>{t("routing_remove")}</Button>
+                          </InlineStack>
+                        ))}
+                        <InlineStack>
+                          <Button onClick={() => setRoutingRules([...routingRules, { field: "county", value: "", courier: "" }])}>{t("routing_add")}</Button>
+                        </InlineStack>
+                      </BlockStack>
+                    </Card>
+
+                    <Card>
+                      <BlockStack gap="400">
+                        <Text variant="headingMd" fontWeight="semibold">{t("returns_title")}</Text>
+                        <Text tone="subdued">{t("returns_desc")}</Text>
+                        <FormLayout>
+                          <Checkbox label={t("returns_enable")} checked={returnsEnabled} onChange={setReturnsEnabled} />
+                          <FormLayout.Group>
+                            <TextField label={t("returns_window")} value={returnsWindowDays} onChange={setReturnsWindowDays} type="number" min="1" max="90" autoComplete="off" />
+                            <Select label={t("returns_courier")} value={returnsCourier} onChange={setReturnsCourier}
+                              options={[{ label: t("returns_courier_same"), value: "" }, ...["fan", "cargus", "gls", "dpd", "packeta"].map((c) => ({ label: c.toUpperCase(), value: c }))]} />
+                          </FormLayout.Group>
+                          <TextField label={t("returns_instructions")} value={returnsInstructions} onChange={setReturnsInstructions} multiline={3} autoComplete="off" />
+                          {returnsEnabled && (
+                            <Banner tone="info">
+                              <Text>{t("returns_link_info")} <Text as="span" fontWeight="semibold">https://{shop}/apps/rocourier/returns</Text></Text>
+                            </Banner>
+                          )}
+                        </FormLayout>
+                      </BlockStack>
+                    </Card>
+                  </BlockStack>
+                )}
+
+              </BlockStack></Box>
             </Tabs>
           </Layout.Section>
 
@@ -1078,37 +1447,47 @@ export default function Settings() {
                 <Button variant="primary" size="large" onClick={handleSave} loading={saving}>
                   {t("save_settings")}
                 </Button>
-                {tab === 1 && (
+                {show("fan") && fanEnabled && (
                   <Button onClick={() => handleTest("fan")} loading={saving}>
                     🔌 {t("test_connection")} FAN
                   </Button>
                 )}
-                {tab === 2 && (
+                {show("sameday") && samedayEnabled && (
                   <Button onClick={() => handleTest("sameday")} loading={saving}>
                     🔌 {t("test_connection")} Sameday
                   </Button>
                 )}
-                {tab === 3 && (
+                {show("cargus") && cargusEnabled && (
                   <Button onClick={() => handleTest("cargus")} loading={saving}>
                     🔌 {t("test_connection")} Cargus
                   </Button>
                 )}
-                {tab === 4 && (
+                {show("gls") && glsEnabled && (
                   <Button onClick={() => handleTest("gls")} loading={saving}>
                     🔌 {t("test_connection")} GLS
                   </Button>
                 )}
-                {tab === 5 && (
+                {show("packeta") && packetaEnabled && (
                   <Button onClick={() => handleTest("packeta")} loading={saving}>
                     🔌 {t("test_connection")} Packeta
                   </Button>
                 )}
-                {tab === 8 && smartbillEnabled && (
+                {show("facturare") && smartbillEnabled && (
                   <Button onClick={() => handleTest("smartbill")} loading={saving}>
                     🔌 Test SmartBill
                   </Button>
                 )}
-                {tab === 8 && oblioEnabled && (
+                {show("dpd") && dpdEnabled && (
+                  <Button onClick={() => handleTest("dpd")} loading={saving}>
+                    🔌 {t("test_connection")} DPD
+                  </Button>
+                )}
+                {show("facturare") && fgoEnabled && (
+                  <Button onClick={() => handleTest("fgo")} loading={saving}>
+                    🔌 Test FGO
+                  </Button>
+                )}
+                {show("facturare") && oblioEnabled && (
                   <Button onClick={() => handleTest("oblio")} loading={saving}>
                     🔌 Test Oblio
                   </Button>

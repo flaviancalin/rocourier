@@ -179,7 +179,10 @@ export async function fanCalculatePrice({ clientId, username, password, params }
     "recipient[locality]":      params.recipientCity || "",
     "recipient[county]":        params.recipientCounty || "",
   });
-  if (params.codAmount) qs.set("info[cod]", String(params.codAmount));
+  if (params.codAmount) {
+    qs.set("info[cod]", String(params.codAmount));
+    qs.set("info[returnPayment]", "expeditor"); // required by FAN whenever cod is present
+  }
   const data = await fanRequest(`/reports/awb/internal-tariff?${qs}`, { token });
   return data.data;
 }
@@ -188,6 +191,13 @@ export async function fanCalculatePrice({ clientId, username, password, params }
 // Generate AWB
 // POST /intern-awb
 // ─────────────────────────────────────────────────────────────────────────────
+// FAN validation messages that need an account change, said in Romanian with what to do
+function fanHint(text) {
+  if (/cash on delivery .*card payment/i.test(text)) return "rambursul la FANbox se plătește doar cu cardul, iar contul FAN nu are activată încasarea cu cardul. Cere activarea la FAN (Cont Colector cu card) sau trimite fără ramburs / la domiciliu.";
+  if (/emailRequired/i.test(text)) return "FAN cere emailul destinatarului pentru livrarea la FANbox.";
+  return text;
+}
+
 export async function fanCreateAwb({
   clientId, username, password,
   order,      // { customerName, customerPhone, shippingAddress1, shippingCity, shippingCounty, shippingZip, codAmount, notes, weight, packageCount }
@@ -311,9 +321,12 @@ export async function fanCreateAwb({
   const awbNumber = firstResult?.awbNumber || firstResult?.awb;
 
   if (awbNumber) {
+    const tariff = Number(firstResult?.tariff);
     return {
       success: true,
       awbNumber: String(awbNumber),
+      // FAN returns the contract price without VAT plus the VAT separately
+      price: Number.isFinite(tariff) ? Math.round((tariff + (Number(firstResult?.vat) || 0)) * 100) / 100 : null,
       raw: data,
     };
   }
@@ -322,7 +335,7 @@ export async function fanCreateAwb({
   const errors = firstResult?.errors;
   if (errors && typeof errors === "object") {
     const msg = Object.entries(errors)
-      .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(", ") : msgs}`)
+      .map(([field, msgs]) => `${field}: ${fanHint(Array.isArray(msgs) ? msgs.join(", ") : String(msgs))}`)
       .join("; ");
     throw new Error(`FAN AWB: ${msg}`);
   }

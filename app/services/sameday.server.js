@@ -240,7 +240,24 @@ export async function samedayGetServices({ username, password, sandbox = false }
   const token = await samedayAuthenticate({ username, password, sandbox });
   const base = getBase(sandbox);
   const data = await samedayRequest(base, "/api/client/services?perPage=100", { token });
-  return data.data || [];
+  // The API calls it serviceCode ("24", "LN", "PP"…); callers use .code
+  return (data.data || []).map((x) => ({ ...x, code: x.serviceCode ?? x.code ?? null }));
+}
+
+// Home → 24H ("24"), easybox → Locker NextDay ("LN"), PUDO → Pudo NextDay ("PP").
+// An override may be a service code or id; "T" is the old name for standard home delivery.
+const LEGACY_CODES = { T: "24", E: "24" };
+export function samedayServiceFor(services, { override = null, pointType = null } = {}) {
+  const list = services || [];
+  if (override) {
+    const want = LEGACY_CODES[override] || String(override);
+    const hit = list.find((x) => x.code === want || String(x.id) === want);
+    if (hit) return hit;
+  }
+  const code = !pointType ? "24" : pointType === "pudo" ? "PP" : "LN";
+  return list.find((x) => x.code === code)
+    || (pointType && pointType !== "pudo" ? list.find((x) => /locker/i.test(x.name) && !/retur|home|redirect/i.test(x.name)) : null)
+    || list.find((x) => x.defaultServices) || list[0] || null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -285,21 +302,37 @@ export async function samedayCalculatePrice({
   const token = await samedayAuthenticate({ username, password, sandbox });
   const base = getBase(sandbox);
 
-  const data = await samedayRequest(base, "/api/price", {
-    method: "POST",
-    token,
-    body: {
-      pickupPoint: pickupPointId,
-      service: serviceId,
-      packageType: 1, // 1 = package
-      weight,
-      insuredValue: 0,
-      cashOnDelivery: codAmount,
-      county: destCountyId,
-      ...(destCityId ? { locality: destCityId } : {}),
+  // POST /api/awb/estimate-cost (form-encoded, PHP-style nested keys) → { amount, currency, time }
+  const w = Number(weight) || 1;
+  const form = flattenForm({
+    pickupPoint: pickupPointId,
+    packageType: 0, // 0 = parcel
+    packageNumber: 1,
+    packageWeight: w,
+    service: serviceId,
+    awbPayment: 1, // 1 = client (sender contract)
+    cashOnDelivery: Number(codAmount) || 0,
+    insuredValue: 0,
+    thirdPartyPickup: 0,
+    awbRecipient: {
+      name: "Estimare", phoneNumber: "0700000000", personType: 0,
+      county: destCountyId, ...(destCityId ? { city: destCityId } : {}),
+      address: "Estimare",
     },
+    parcels: [{ weight: w }],
   });
-  return data;
+  return samedayRequest(base, "/api/awb/estimate-cost", { method: "POST", token, form });
+}
+
+// { a: { b: 1 }, c: [{ d: 2 }] } → { "a[b]": "1", "c[0][d]": "2" }
+function flattenForm(obj, prefix = "", out = {}) {
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === undefined || v === null) continue;
+    const key = prefix ? `${prefix}[${k}]` : k;
+    if (typeof v === "object") flattenForm(v, key, out);
+    else out[key] = String(v);
+  }
+  return out;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -314,7 +347,7 @@ export async function samedayCreateAwb({
   senderPickupPointId,  // YOUR pickup point id (from samedayGetClientPickupPoints)
   lockerDestId = null,  // easybox locker id (if pickup_point delivery)
   serviceId,            // from samedayGetServices()
-  serviceCode,          // e.g. "T" or "LN"
+  serviceCode,          // e.g. "24" (home), "LN" (easybox), "PP" (PUDO)
   openPackage = false,  // allow recipient to inspect before accepting
   insuredValue = 0,     // declared value for insurance
 }) {
@@ -405,7 +438,7 @@ export async function samedayDownloadAwbPdf({ username, password, sandbox = fals
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Track AWB
-// GET /api/client/awb/{awbNumber}/status/history
+// GET /api/client/awb/{awbNumber}/status → { expeditionSummary, expeditionHistory[], parcelsStatus[] }
 // ─────────────────────────────────────────────────────────────────────────────
 export async function samedayTrackAwb({ username, password, sandbox = false, awbNumber }) {
   const token = await samedayAuthenticate({ username, password, sandbox });
@@ -413,14 +446,14 @@ export async function samedayTrackAwb({ username, password, sandbox = false, awb
 
   const data = await samedayRequest(
     base,
-    `/api/client/awb/${awbNumber}/status/history`,
+    `/api/client/awb/${encodeURIComponent(awbNumber)}/status`,
     { token }
   );
 
-  const history = data.data || data.awbHistory || [];
+  const history = data.expeditionHistory || data.data || [];
   return history.map((e) => ({
     code: String(e.statusState || e.status || ""),
-    description: e.statusStateDescription || e.label || e.description || "",
+    description: [...new Set([e.statusLabel || e.label, e.status, e.statusState].filter(Boolean))].join(" · ") + (e.reason ? ` — ${e.reason}` : ""),
     date: new Date(e.statusDate || e.date),
     location: e.transitLocation || null,
   }));

@@ -13,24 +13,40 @@ import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
 import { getPickupPoints, formatForWidget } from "../models/pickup-points.server.js";
+import { COURIER_LABELS } from "../utils/couriers.js";
+import { trackingPage, returnsPage, submitReturn } from "../services/storefront-pages.server.js";
 
 export async function loader({ request }) {
   // App proxy requests are authenticated differently — using HMAC signature
-  const { liquid } = await authenticate.public.appProxy(request);
+  const { liquid, admin } = await authenticate.public.appProxy(request);
 
   const url  = new URL(request.url);
   const shop = url.searchParams.get("shop");
+
+  // Customer pages rendered inside the store's theme
+  if (url.pathname.endsWith("/track")) {
+    return liquid(await trackingPage(shop, url.searchParams));
+  }
+  if (url.pathname.endsWith("/returns")) {
+    return liquid(await returnsPage(shop, url.searchParams, admin));
+  }
 
   // Route: /apps/rocourier/widget-config
   if (url.pathname.includes("widget-config") || url.searchParams.get("resource") === "widget-config") {
     const settings = await prisma.shopSettings.findUnique({ where: { shop } });
     // Fees come from the same settings the carrier service charges at checkout,
     // so the cart widget never shows a price different from the checkout rate.
-    const fees = settings ? Object.fromEntries(["fan", "sameday", "cargus", "gls", "packeta"].map((c) => [c, {
+    const fees = settings ? Object.fromEntries(Object.keys(COURIER_LABELS).map((c) => [c, {
       home:   settings[`${c}HomeDeliveryFee`] ?? 0,
       pickup: settings[`${c}PickupFee`]       ?? 0,
     }])) : null;
-    return json({ widgetLanguage: settings?.widgetLanguage || "auto", fees });
+    return json({
+      widgetLanguage: settings?.widgetLanguage || "auto",
+      fees,
+      freeShipping: settings?.freeShippingThreshold > 0
+        ? { threshold: settings.freeShippingThreshold, scope: settings.freeShippingScope || "all" } : null,
+      eta: settings ? { show: settings.showDeliveryEstimate, cutoffHour: settings.dispatchCutoffHour, processingDays: settings.processingDays } : null,
+    });
   }
 
   // Route: /apps/rocourier/pickup-points
@@ -50,6 +66,7 @@ export async function loader({ request }) {
       cargus:  settings.cargusEnabled,
       gls:     settings.glsEnabled,
       packeta: settings.packetaEnabled,
+      dpd:     settings.dpdEnabled,
     };
     // Widget sends a comma-separated list; only couriers enabled in the app are served
     const requested = courierParam === "all"
@@ -68,4 +85,17 @@ export async function loader({ request }) {
 
   // Default: return shop info
   return json({ status: "Picklo proxy active", shop });
+}
+
+// POST /apps/rocourier/returns — the customer's return request
+export async function action({ request }) {
+  const { liquid, admin } = await authenticate.public.appProxy(request);
+  const url  = new URL(request.url);
+  const shop = url.searchParams.get("shop");
+  if (!url.pathname.endsWith("/returns")) return json({ error: "Not found" }, { status: 404 });
+  const form = await request.formData();
+  const result = await submitReturn(shop, form);
+  return liquid(await returnsPage(shop, new URLSearchParams(), admin, {
+    ...result, values: { order: form.get("order"), contact: form.get("contact") },
+  }));
 }

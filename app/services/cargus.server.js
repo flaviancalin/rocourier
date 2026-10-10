@@ -133,10 +133,36 @@ export async function cargusGetPickupPoints({ subscriptionKey, username, passwor
 // Get available services for the account
 // GET /Services
 // ─────────────────────────────────────────────────────────────────────────────
-export async function cargusGetServices({ subscriptionKey, username, password }) {
+// The Cargus API has no service list endpoint; these are the ServiceId values from the
+// docs, all accepted by ShippingCalculation on a standard contract (checked 2026-10-10).
+export const CARGUS_SERVICES = [
+  { id: 1, name: "Standard" },
+  { id: 34, name: "Economic Standard (≤ 31 kg)" },
+  { id: 35, name: "Standard Plus (31–50 kg)" },
+  { id: 36, name: "Palet Standard (> 50 kg)" },
+  { id: 38, name: "Livrare Ship & Go (PUDO)" },
+  { id: 39, name: "Standard Multipiece" },
+];
+export async function cargusGetServices() {
+  return CARGUS_SERVICES;
+}
+
+// POST ShippingCalculation → { GrandTotal, Subtotal, Tax, … } or { Error }
+export async function cargusCalculatePrice({ subscriptionKey, username, password, from, to, weight = 1, parcels = 1, codAmount = 0, serviceId = 34 }) {
   const token = await cargusAuthenticate({ subscriptionKey, username, password });
-  const data = await cargusRequest("Services", { token, subscriptionKey });
-  return Array.isArray(data) ? data : (data?.value || data?.data || []);
+  const data = await cargusRequest("ShippingCalculation", {
+    method: "POST", token, subscriptionKey,
+    body: {
+      FromLocalityId: 0, ToLocalityId: 0,
+      FromCountyName: from.county || "", FromLocalityName: from.city || "",
+      ToCountyName: to.county || "", ToLocalityName: to.city || "",
+      Parcels: Math.max(1, parcels), Envelopes: 0, TotalWeight: Math.max(1, Math.round(Number(weight) || 1)),
+      ServiceId: serviceId, DeclaredValue: 0, CashRepayment: Number(codAmount) || 0, BankRepayment: 0, OtherRepayment: "",
+      PaymentInstrumentId: 0, PaymentInstrumentValue: 0, OpenPackage: false, SaturdayDelivery: false, MorningDelivery: false, ShipmentPayer: 1,
+    },
+  });
+  if (data?.Error) throw new Error(`Cargus: ${data.Error}`);
+  return data;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -160,6 +186,7 @@ export async function cargusCreateAwb({
   shipmentPayer = 2,    // 1=sender, 2=recipient
   bankRepayment = null, // collecting account repayment (null = use codAmount)
   cashRepayment = null, // cash repayment (null = use codAmount)
+  returnFrom = null,    // customer return: { name, phone, email, county, city, address, zip } picked up from the customer
 }) {
   const token = await cargusAuthenticate({ subscriptionKey, username, password });
 
@@ -172,10 +199,17 @@ export async function cargusCreateAwb({
     SenderClientId: null,
     TertiaryClientId: null,
     TertiaryLocationId: 0,
-    Sender: {
+    // Return: the customer is the sender (free address) and the merchant's location receives it
+    Sender: returnFrom ? {
+      LocationId: 0,
+      Name: returnFrom.name || "", CountyId: 0, CountyName: returnFrom.county || "", LocalityId: 0,
+      LocalityName: returnFrom.city || "", StreetId: 0, StreetName: returnFrom.address || "", BuildingNumber: "",
+      AddressText: returnFrom.address || "", ContactPerson: returnFrom.name || "", PhoneNumber: returnFrom.phone || "",
+      Email: returnFrom.email || "", CodPostal: returnFrom.zip || "", CountryId: 0,
+    } : {
       LocationId: senderLocationId || 0,
     },
-    Recipient: {
+    Recipient: returnFrom ? { LocationId: senderLocationId || 0 } : {
       LocationId: 0,
       Name:          order.customerName   || "",
       CountyId:      0,

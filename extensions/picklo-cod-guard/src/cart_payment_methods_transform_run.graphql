@@ -1,0 +1,10 @@
+query CartPaymentMethodsTransformRunInput {
+  cart {
+    buyerIdentity { email phone }
+    deliveryGroups { deliveryAddress { phone } }
+  }
+  paymentMethods { id name }
+  shop {
+    metafield(namespace: "$app:picklo", key: "cod_blocklist") { value }
+  }
+}

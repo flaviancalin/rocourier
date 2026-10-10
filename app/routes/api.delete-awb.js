@@ -21,7 +21,7 @@ export async function action({ request }) {
   if (!order.awbNumber) return json({ error: "No AWB to delete" }, { status: 400 });
 
   try {
-    await deleteAwbForOrder(admin, order, settings);
+    await deleteAwbForOrder(admin, order, settings, { actor: session.onlineAccessInfo?.associated_user?.email || "staff" });
     return json({ success: true });
   } catch (e) {
     console.error("Delete AWB error:", e);

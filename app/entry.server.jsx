@@ -34,8 +34,8 @@ async function startCrons() {
   const { refreshPickupPointsCache } = await import("./models/pickup-points.server.js");
 
   const logPickupResult = (r) => {
-    const total = (r.fan||0)+(r.sameday||0)+(r.cargus||0)+(r.gls||0)+(r.packeta||0);
-    console.log(`[Cron/pickups] FAN:${r.fan||0} Sameday:${r.sameday||0} Cargus:${r.cargus||0} GLS:${r.gls||0} Packeta:${r.packeta||0} TOTAL:${total}`);
+    const total = (r.fan||0)+(r.sameday||0)+(r.cargus||0)+(r.gls||0)+(r.packeta||0)+(r.dpd||0);
+    console.log(`[Cron/pickups] FAN:${r.fan||0} Sameday:${r.sameday||0} Cargus:${r.cargus||0} GLS:${r.gls||0} Packeta:${r.packeta||0} DPD:${r.dpd||0} TOTAL:${total}`);
     if (r.errors?.length) console.warn("[Cron/pickups] Errors:", r.errors.join(" | "));
   };
 
@@ -50,6 +50,13 @@ async function startCrons() {
   }, 24 * 60 * 60 * 1000);
 
   console.log("[Cron] Pickup point sync scheduled every 24 hours");
+
+  // ── COD payouts reported by courier APIs (DPD): every 6 hours ─────────────
+  const { syncCodForAllShops } = await import("./services/cod.server.js");
+  setInterval(async () => {
+    try { await syncCodForAllShops(); } catch (e) { console.error("[Cron/cod]", e.message); }
+  }, 6 * 60 * 60 * 1000);
+  console.log("[Cron] COD payout sync scheduled every 6 hours");
 }
 
 // Start crons when server boots

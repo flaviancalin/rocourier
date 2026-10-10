@@ -19,6 +19,7 @@ const COURIER_CONFIG = {
   cargus:  { label: "Ship&Go (Cargus)",    color: "#c62828", badgeTone: "critical",   badgeLabel: "Cargus"   },
   gls:     { label: "ParcelShop (GLS)",    color: "#f9a825", badgeTone: "attention",  badgeLabel: "GLS"      },
   packeta: { label: "Z-Box (Packeta)",     color: "#8e0000", badgeTone: "new",        badgeLabel: "Packeta"  },
+  dpd:     { label: "DPDbox / Punct DPD",  color: "#dc0032", badgeTone: "critical",   badgeLabel: "DPD"      },
 };
 
 const LOCALE_MAP = { ro: "ro-RO", en: "en-US", de: "de-DE", hu: "hu-HU", cs: "cs-CZ" };
@@ -106,7 +107,7 @@ export default function PickupPointsPage() {
   const [selectedTab,   setSelectedTab]   = useState(0);
 
   const tabCouriers = ["", ...Object.keys(COURIER_CONFIG)];
-  const tabLabels   = [t("all_tab"), "FANbox", "Easybox", "Cargus", "GLS", "Packeta"];
+  const tabLabels   = [t("all_tab"), "FANbox", "Easybox", "Cargus", "GLS", "Packeta", "DPD"];
 
   const countryOptions = [
     { label: t("all_countries"), value: "" },

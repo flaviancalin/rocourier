@@ -6,6 +6,7 @@ import { boundary } from "@shopify/shopify-app-remix/server";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import { authenticate } from "../shopify.server.js";
 import { getOrders } from "../models/order.server.js";
+import { warningsForOrders } from "../services/order-checks.server.js";
 import { prisma } from "../db.server.js";
 import { useState, useEffect } from "react";
 import {
@@ -44,11 +45,14 @@ export async function loader({ request }) {
     }),
     prisma.shopSettings.findUnique({
       where: { shop },
-      select: { fanEnabled: true, samedayEnabled: true, cargusEnabled: true, glsEnabled: true, packetaEnabled: true, planType: true, awbCount: true },
+      select: { fanEnabled: true, samedayEnabled: true, cargusEnabled: true, glsEnabled: true, packetaEnabled: true, dpdEnabled: true, planType: true, awbCount: true, validateAddresses: true, refusalWarnThreshold: true },
     }),
   ]);
+  // Problems to fix before the AWB (address, phone, locker) + customers who refused parcels
+  const pending = result.orders.filter((o) => !o.awbNumber);
+  const warnings = pending.length ? await warningsForOrders(shop, pending, settings) : {};
 
-  return json({ ...result, filters: { status, courier, method, search }, settings: settings || {} });
+  return json({ ...result, filters: { status, courier, method, search }, settings: settings || {}, warnings });
 }
 
 // ─── FAN observation keys (translated inside component) ───────────────────────
@@ -82,6 +86,7 @@ const FULL_COURIER_SERVICES = {
   ],
   gls:     [{ label: "Business Parcel", value: "standard" }],
   packeta: [{ label: "Standard",        value: "standard" }],
+  dpd:     [{ label: "Serviciul din setări", value: "" }],
 };
 
 function needsPickupPoint(courier, service, glsParcelShop) {
@@ -117,12 +122,32 @@ const COURIER_SERVICES = {
   packeta: [
     { label: "Standard",                value: "standard" },
   ],
+  dpd: [
+    { label: "Serviciul din setări",    value: "" },
+  ],
 };
 
 function defaultServiceForCourier(courierKey, hasPickup) {
   if (courierKey === "fan")     return hasPickup ? "FANbox" : "Standard";
   if (courierKey === "sameday") return hasPickup ? "LN" : "T";
   return COURIER_SERVICES[courierKey]?.[0]?.value || "standard";
+}
+
+// Problems found before the AWB: shown under the customer name, full text on hover
+function OrderWarnings({ items }) {
+  if (!items?.length) return null;
+  const refusal = items.find((w) => w.code === "refusals");
+  const other = items.filter((w) => w.code !== "refusals");
+  return (
+    <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 4 }}>
+      {other.length > 0 && (
+        <span title={other.map((w) => w.message).join("\n")}>
+          <Badge tone="warning">⚠ {other.length === 1 ? other[0].message.slice(0, 40) : `${other.length} probleme de adresă`}</Badge>
+        </span>
+      )}
+      {refusal && <span title={refusal.message}><Badge tone="critical">↩ Refuzuri anterioare</Badge></span>}
+    </div>
+  );
 }
 
 // ─── Static courier map (brand names, no translation needed) ─────────────────
@@ -132,6 +157,7 @@ const COURIER_MAP = {
   cargus:  { label: "Cargus",      color: "#c62828", logo: "/logo-cargus.png"  },
   gls:     { label: "GLS",         color: "#f9a825", logo: "/logo-gls.svg"     },
   packeta: { label: "Packeta",     color: "#ba000d", logo: "/logo-packeta.svg" },
+  dpd:     { label: "DPD",         color: "#dc0032", logo: "/logo-dpd.svg"     },
 };
 
 const STATUS_TONES = {
@@ -147,7 +173,7 @@ const STATUS_TONES = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function OrdersPage() {
-  const { orders, total, totalPages, page, filters, settings } = useLoaderData();
+  const { orders, total, totalPages, page, filters, settings, warnings = {} } = useLoaderData();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const FAN_OBSERVATIONS = FAN_OBS_KEYS.map((k) => t(k));
@@ -630,6 +656,7 @@ export default function OrdersPage() {
                         { label: "Cargus",          value: "cargus"  },
                         { label: "GLS",             value: "gls"     },
                         { label: "Packeta",         value: "packeta" },
+                        { label: "DPD",             value: "dpd"     },
                       ]}
                     />
                   </div>
@@ -766,6 +793,7 @@ export default function OrdersPage() {
                             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
                               <div>
                                 <div style={{ fontWeight:600, fontSize:13 }}>{o.customerName || "—"}</div>
+                                <OrderWarnings items={warnings[o.id]} />
                                 <div style={{ fontSize:11, color:"#6d7175", marginTop:2 }}>
                                   {[o.shippingCity, o.shippingCounty].filter(Boolean).join(", ") || "—"}
                                 </div>
@@ -945,6 +973,7 @@ export default function OrdersPage() {
                             <div style={{ fontWeight:600, fontSize:13, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
                               {o.customerName || "—"}
                             </div>
+                            <OrderWarnings items={warnings[o.id]} />
                             <div style={{ fontSize:11, color:"#6d7175", marginTop:1, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}
                               title={[o.shippingAddress1, o.shippingCity, o.shippingCounty].filter(Boolean).join(", ")}>
                               {[o.shippingAddress1, o.shippingCity, o.shippingCounty].filter(Boolean).join(", ") || "—"}
@@ -1164,6 +1193,7 @@ export default function OrdersPage() {
                   ...(settings?.cargusEnabled  ? [{ label: "Cargus",      value: "cargus"  }] : []),
                   ...(settings?.glsEnabled     ? [{ label: "GLS",         value: "gls"     }] : []),
                   ...(settings?.packetaEnabled ? [{ label: "Packeta",     value: "packeta" }] : []),
+                  ...(settings?.dpdEnabled     ? [{ label: "DPD",         value: "dpd"     }] : []),
                   ...(!settings?.[`${wizardCourier}Enabled`] && wizardCourier
                     ? [{ label: COURIER_MAP[wizardCourier]?.label || wizardCourier, value: wizardCourier }]
                     : []),
@@ -1338,6 +1368,7 @@ export default function OrdersPage() {
                       ...(settings?.cargusEnabled  ? [{ label:"Cargus",      value:"cargus"  }] : []),
                       ...(settings?.glsEnabled     ? [{ label:"GLS",         value:"gls"     }] : []),
                       ...(settings?.packetaEnabled ? [{ label:"Packeta",     value:"packeta" }] : []),
+                      ...(settings?.dpdEnabled     ? [{ label:"DPD",         value:"dpd"     }] : []),
                     ]}
                   />
                 </div>

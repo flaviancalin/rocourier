@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+  /* Tema se alege o singura data, pentru ghiduri, pagina de start si Scalar: aceeasi cheie
+     `colorMode` din localStorage pe care o citeste Scalar. Fara alegere explicita, tema sistemului.
+     Sta inaintea CSS-ului, ca pagina sa nu clipeasca alb in modul intunecat. */
+  (function () {
+    try {
+      var m = localStorage.getItem('colorMode');
+      if (m !== 'dark' && m !== 'light') { m = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; }
+      document.documentElement.setAttribute('data-tema', m);
+    } catch (e) { }
+  })();
+</script>
+<title>Autentificare — FGO API</title>
+<link rel="icon" href="../favicon.ico">
+<style>
+  /* Fara fonturi si fara scripturi externe: pagina trebuie sa arate la fel si in retele care
+     blocheaza CDN-uri, si sa nu depinda de un tert ca sa fie lizibila. Aceeasi regula ca la Scalar. */
+  /* Paleta este exact cea a temei implicite Scalar (`--scalar-background-1/2`, `--scalar-color-1/2`,
+     `--scalar-border-color`, `--scalar-color-accent`), in ambele moduri, ca fundalul si textul sa nu
+     se schimbe la trecerea dintr-un tab in altul. Daca se schimba tema Scalar, se schimba si aici. */
+  :root {
+    color-scheme: light dark;
+    --fundal: #ffffff;
+    --fundal-2: #f6f6f6;
+    --text: #1b1b1b;
+    --text-secundar: #757575;
+    --linie: #dfdfdf;
+    --accent: #0099ff;
+    --cod-fundal: #f6f6f6;
+    --cod-text: #b3134f;
+    --nota-fundal: #fff8e1;
+    --nota-linie: #f2c94c;
+  }
+  :root[data-tema="light"] { color-scheme: light; }
+  :root[data-tema="dark"] {
+    color-scheme: dark;
+      --fundal: #0f0f0f;
+      --fundal-2: #1a1a1a;
+      --text: #e7e7e7;
+      --text-secundar: #a4a4a4;
+      --linie: #2d2d2d;
+      --accent: #00aeff;
+      --cod-fundal: #1a1a1a;
+      --cod-text: #ff9bc2;
+      --nota-fundal: #2a2410;
+      --nota-linie: #8a6d1a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-tema="light"]) {
+      --fundal: #0f0f0f;
+      --fundal-2: #1a1a1a;
+      --text: #e7e7e7;
+      --text-secundar: #a4a4a4;
+      --linie: #2d2d2d;
+      --accent: #00aeff;
+      --cod-fundal: #1a1a1a;
+      --cod-text: #ff9bc2;
+      --nota-fundal: #2a2410;
+      --nota-linie: #8a6d1a;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--fundal); color: var(--text); }
+  /* Aceleasi stive de fonturi ca `--scalar-font` / `--scalar-font-code` din Scalar (fara Inter si
+     JetBrains Mono descarcate: `DefaultFonts = false`), ca textul sa arate la fel in ambele taburi. */
+  body {
+    font: 16px/1.65 "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    display: flex; min-height: 100vh; flex-direction: column;
+  }
+
+  /* Ca la developers.trendyol.com: marca, meniul lateral si textul stau intr-un container
+     centrat de 1440px; bara de sus ramane pe toata latimea, dar continutul ei are aceeasi
+     margine ca meniul de dedesubt. Aceeasi bara si acelasi container sunt puse si peste
+     Scalar (Program.cs, HeadContent), ca trecerea dintr-un tab in altul sa nu miste nimic. */
+  .interior { width: 100%; max-width: 1440px; margin: 0 auto; }
+
+  .taburi {
+    border-bottom: 1px solid var(--linie);
+    background: var(--fundal); position: sticky; top: 0; z-index: 2;
+    font-size: 15px; line-height: 24px;
+  }
+  .taburi .interior { display: flex; align-items: center; gap: 4px; padding: 0 20px; height: 52px; }
+  .taburi .marca { font-weight: 600; margin-right: 16px; color: var(--text); text-decoration: none; }
+  .taburi a.tab {
+    display: inline-flex; align-items: center; height: 52px; padding: 0 14px;
+    color: var(--text-secundar); text-decoration: none; border-bottom: 2px solid transparent;
+  }
+  .taburi a.tab.activ { color: var(--text); border-bottom-color: var(--accent); }
+  .taburi a.tab:hover { color: var(--text); }
+
+  .corp { display: flex; flex: 1; min-height: 0; }
+  nav.lateral {
+    width: 260px; flex: none; padding: 20px 12px; border-right: 1px solid var(--linie);
+    position: sticky; top: 52px; height: calc(100vh - 52px); overflow-y: auto;
+  }
+  nav.lateral ol { list-style: none; margin: 0; padding: 0; }
+  nav.lateral li a {
+    display: block; padding: 7px 10px; border-radius: 6px; color: var(--text-secundar);
+    text-decoration: none; font-size: 14.5px;
+  }
+  nav.lateral li a:hover { color: var(--text); background: var(--cod-fundal); }
+  nav.lateral li a.activ { color: var(--text); background: var(--cod-fundal); font-weight: 600; }
+  nav.lateral li.sectiune { margin: 18px 10px 6px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-secundar); }
+  nav.lateral li.sectiune:first-child { margin-top: 4px; }
+  nav.lateral li a.extern::after { content: " \2197"; color: var(--text-secundar); font-size: 12px; }
+
+  main { flex: 1; min-width: 0; padding: 36px 56px 80px; }
+  main h1 { font-size: 30px; line-height: 1.2; margin: 0 0 20px; letter-spacing: -0.01em; }
+  main h2 { font-size: 21px; margin: 40px 0 12px; padding-top: 8px; border-top: 1px solid var(--linie); }
+  main h3 { font-size: 17px; margin: 28px 0 8px; }
+  main p, main li { max-width: 72ch; }
+  main a { color: var(--accent); }
+  main code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.9em;
+    background: var(--cod-fundal); color: var(--cod-text); padding: 0 4px; border-radius: 4px;
+  }
+  main pre {
+    background: var(--fundal-2); color: var(--text); border: 1px solid var(--linie); padding: 14px 16px;
+    border-radius: 8px; overflow-x: auto; font-size: 13.5px; line-height: 1.5; max-width: 100%;
+  }
+  main pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
+  .exemplu-cod { margin: 1em 0; border: 1px solid var(--linie); border-radius: 8px; overflow: hidden; background: var(--fundal-2); }
+  .exemplu-cod pre { margin: 0; border: 0; border-radius: 0; }
+  .bara-cod { display: flex; justify-content: flex-end; padding: 6px 10px; border-bottom: 1px solid var(--linie); }
+  .copiaza-cod { font: inherit; font-size: 13px; color: var(--text); background: var(--fundal); border: 1px solid var(--linie); border-radius: 5px; padding: 4px 10px; cursor: pointer; }
+  .copiaza-cod:hover { border-color: var(--text-secundar); }
+  .copiaza-cod:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  main table { border-collapse: collapse; margin: 12px 0 20px; display: block; overflow-x: auto; max-width: 100%; }
+  main th, main td { border: 1px solid var(--linie); padding: 7px 12px; text-align: left; vertical-align: top; font-size: 14.5px; }
+  main th { background: var(--fundal-2); }
+  main blockquote {
+    margin: 16px 0; padding: 10px 16px; border-left: 4px solid var(--nota-linie);
+    background: var(--nota-fundal); border-radius: 0 6px 6px 0;
+  }
+  main blockquote p { margin: 6px 0; }
+  main hr { border: 0; border-top: 1px solid var(--linie); margin: 32px 0; }
+
+  @media (max-width: 860px) {
+    .corp { flex-direction: column; }
+    nav.lateral { width: auto; position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--linie); }
+    main { padding: 24px 20px 60px; }
+  }
+  /* Comutatorul de tema: aceeasi pozitie in toate barele (ghiduri, start, Scalar). */
+  .tema { margin-left: auto; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--linie);
+    background: var(--fundal); color: var(--text); cursor: pointer; font: inherit; font-size: 16px; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+  .tema:hover { border-color: var(--text-secundar); }
+  .tema::before { content: "\263E"; }
+  :root[data-tema="dark"] .tema::before { content: "\2600"; }
+</style>
+</head>
+<body>
+<header class="taburi">
+  <div class="interior">
+    <a class="marca" href="../">FGO API</a>
+    <a class="tab activ" href="inceput-rapid" aria-current="page">Ghiduri</a>
+    <a class="tab" href="../scalar/">Referință API</a>
+    <button class="tema" type="button" aria-label="Schimbă tema" title="Schimbă tema"></button>
+  </div>
+</header>
+<div class="corp interior">
+  <nav class="lateral" aria-label="Ghiduri">
+    <ol>
+<li class="sectiune">API v2</li>
+<li><a href="inceput-rapid">Primii pași</a></li>
+<li><a href="autentificare" class="activ" aria-current="page">Autentificare</a></li>
+<li><a href="emiterea-unei-facturi">Emiterea unei facturi</a></li>
+<li><a href="erori-si-reluari">Erori, limite și reluări</a></li>
+<li><a href="liste-si-paginare">Liste, paginare și fields</a></li>
+<li><a href="formate">Date, ore și numere</a></li>
+<li><a href="identificatori">Identificatori</a></li>
+<li><a href="compatibilitate-si-retragere">Depreciere și retragere</a></li>
+<li><a href="migrare-de-la-v1">Migrarea de la v1</a></li>
+<li class="sectiune">MCP</li>
+<li><a href="mcp-conectare">Conectare</a></li>
+
+    </ol>
+  </nav>
+  <main>
+    <h1>Autentificare</h1>
+<p>Fiecare cerere autentificată poartă două headere:</p>
+<pre><code class="language-http">Authorization: Bearer fgo_api_v1....
+Fgo-Cod-Unic: 12345678
+</code></pre>
+<p>Cheia decide firma. E generată pentru firma selectată în FGO în momentul generării și nu poate lucra pentru alta — pentru altă firmă folosești altă cheie.</p>
+<p><code>Fgo-Cod-Unic</code> nu alege firma; confirmă că ai legat cheia potrivită în configurația ta. Dacă nu se potrivește cu firma cheii, primești <code>403</code> cu <code>motiv.cod</code> = <code>cod_unic_neasociat</code>. Trimite numai cifrele, fără <code>RO</code> și fără spații.</p>
+<p>Nomenclatoarele (<code>/v2/nomenclatoare/...</code>) sunt singurele operații fără autentificare.</p>
+<h2 id="verifica-cheia">Verifică cheia</h2>
+<pre><code class="language-bash">curl https://api.fgo.ro/v2/identitate \
+  -H &quot;Authorization: Bearer fgo_api_v1....&quot; \
+  -H &quot;Fgo-Cod-Unic: 12345678&quot;
+</code></pre>
+<pre><code class="language-json">{
+  &quot;data&quot;: {
+    &quot;drepturi&quot;: [&quot;facturi:citire&quot;, &quot;facturi:emitere&quot;, &quot;articole:citire&quot;],
+    &quot;expira_la&quot;: null,
+    &quot;cautare_articol_dupa&quot;: &quot;cod_articol&quot;
+  },
+  &quot;meta&quot;: { &quot;timestamp&quot;: &quot;2026-09-03T12:00:00+03:00&quot; }
+}
+</code></pre>
+<p><code>expira_la</code> e <code>null</code> când cheia nu are termen. Când are, e un moment RFC 3339 cu offset. Codul unic nu apare în răspuns.</p>
+<p><code>cautare_articol_dupa</code> e câmpul după care firma identifică articolele, setarea „Căutare articole după” din Configurare API: <code>cod_articol</code>, <code>cod_bare</code> sau <code>denumire</code>. Citește-l la pornirea integrării: la emitere articolul se caută după acest câmp când linia îl are, iar pe listare și stocuri e singurul filtru de identificare acceptat. Vezi <a href="emiterea-unei-facturi">Emiterea unei facturi</a>.</p>
+<h2 id="drepturi">Drepturi</h2>
+<p>Când generezi cheia, alegi ce are voie să facă. Fiecare operație din referință își scrie dreptul necesar la finalul descrierii, sub <strong>Drept necesar</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Drept</th>
+<th>Ce deschide</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>facturi:citire</code></td>
+<td>listarea facturilor, starea unei facturi, statusul e-Factura, facturile asociate unei proforme</td>
+</tr>
+<tr>
+<td><code>facturi:emitere</code></td>
+<td>emiterea unei facturi și atașarea AWB-ului</td>
+</tr>
+<tr>
+<td><code>facturi:anulare</code></td>
+<td>anulare, stornare, ștergere</td>
+</tr>
+<tr>
+<td><code>facturi:incasare</code></td>
+<td>adăugarea și ștergerea încasărilor</td>
+</tr>
+<tr>
+<td><code>facturi:spv</code></td>
+<td>trimiterea în SPV</td>
+</tr>
+<tr>
+<td><code>facturi:trimitere</code></td>
+<td>trimiterea facturii pe email</td>
+</tr>
+<tr>
+<td><code>articole:citire</code></td>
+<td>articolele și gestiunile firmei</td>
+</tr>
+<tr>
+<td><code>clienti:citire</code></td>
+<td>clienții, clienții cu restanțe, facturile restante ale unui client</td>
+</tr>
+<tr>
+<td><code>furnizori:citire</code></td>
+<td>furnizorii, soldul lor, facturile primite de la ei</td>
+</tr>
+<tr>
+<td><code>parteneri:citire</code></td>
+<td>fișele de partener</td>
+</tr>
+<tr>
+<td><code>solduri:citire</code></td>
+<td>soldurile conturilor bancare și soldul unui client</td>
+</tr>
+<tr>
+<td><code>rapoarte:citire</code></td>
+<td>rapoartele de vânzări</td>
+</tr>
+<tr>
+<td><code>contabilitate:citire</code></td>
+<td>balanța și indicatorii financiari</td>
+</tr>
+<tr>
+<td><code>firma:citire</code></td>
+<td>poziția firmei la ANAF</td>
+</tr>
+<tr>
+<td><code>arhive:gestionare</code></td>
+<td>arhivele PDF</td>
+</tr>
+</tbody>
+</table>
+<p>O operație pe care cheia n-are dreptul răspunde <code>403</code> cu <code>motiv.cod</code> = <code>drept_lipsa</code>. Același răspuns îl primești și când abonamentul firmei nu include operația — mesajul din <code>motiv.mesaj</code> spune care dintre cele două e cazul.</p>
+<h2 id="fgo-url-platforma"><code>Fgo-Url-Platforma</code></h2>
+<p>Operațiile care schimbă o factură — emitere, anulare, stornare, ștergere — cer un al treilea header:</p>
+<pre><code class="language-http">Fgo-Url-Platforma: https://magazinul-tau.ro
+</code></pre>
+<p>E adresa site-ului sau a magazinului din care vine cererea. O înregistrezi o singură dată, pe firmă, în <a href="https://www.fgo.ro/v4/setari-ecommerce/api">Setări eCommerce → API</a>; o adresă neînregistrată respinge cererea.</p>
+
+  </main>
+</div>
+<script>
+  document.querySelectorAll('main pre > code').forEach(function (cod) {
+    var pre = cod.parentElement;
+    var exemplu = document.createElement('div');
+    exemplu.className = 'exemplu-cod';
+    var bara = document.createElement('div');
+    bara.className = 'bara-cod';
+    var buton = document.createElement('button');
+    buton.type = 'button';
+    buton.className = 'copiaza-cod';
+    buton.textContent = 'Copiază';
+    buton.setAttribute('aria-label', 'Copiază exemplul de cod');
+    buton.setAttribute('aria-live', 'polite');
+    bara.appendChild(buton);
+    pre.before(exemplu);
+    exemplu.append(bara, pre);
+    var resetare;
+    buton.addEventListener('click', async function () {
+      clearTimeout(resetare);
+      buton.disabled = true;
+      try {
+        await navigator.clipboard.writeText(cod.textContent);
+        buton.textContent = 'Copiat!';
+        buton.setAttribute('aria-label', 'Cod copiat');
+      } catch (e) {
+        var selectie = window.getSelection();
+        var interval = document.createRange();
+        interval.selectNodeContents(cod);
+        selectie.removeAllRanges();
+        selectie.addRange(interval);
+        buton.textContent = 'Copiază manual';
+        buton.setAttribute('aria-label', 'Copierea nu a reușit. Copiază manual codul selectat.');
+      } finally {
+        buton.disabled = false;
+        resetare = setTimeout(function () {
+          buton.textContent = 'Copiază';
+          buton.setAttribute('aria-label', 'Copiază exemplul de cod');
+        }, 3000);
+      }
+    });
+  });
+  document.querySelector('.tema').addEventListener('click', function () {
+    var m = document.documentElement.getAttribute('data-tema') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-tema', m);
+    try { localStorage.setItem('colorMode', m); } catch (e) { }
+  });
+</script>
+</body>
+</html>

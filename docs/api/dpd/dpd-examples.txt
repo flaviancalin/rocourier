@@ -1,0 +1,2842 @@
+ 
+ Speedy - REST API examples 
+ Speedy - REST API examples
+ Rest API Documentation 
+All examples are based on the PHP cURL options, JSON structured data and standard html POST method.
+Table of contents: 
+ Create Shipment Request examples 
+ Print Request example 
+ Get Contract Clients Request example 
+ Find Country Request examples 
+ Find State Request examples 
+ Find Office Request examples 
+ Find Site Request examples 
+ Find Complex Request example 
+ Find Street Request examples 
+ Find POI Request examples 
+ Destination Services Request example 
+ Calculation Request examples 
+ Track Request examples 
+ Address examples 
+ Describe parcels or pallets examples 
+ Describe COD Fiscal Receipt Items 
+Guidelines
+ Simple guideline how to generate a waybill 
+ PHP example of how to generate a routing barcode (for clients who are generating their own labels) 
+ Additional explanation of some errors 
+ Migration from the old SOAP service to new REST API 
+Other resources
+ Demo address form 
+ Office locator widget 
+ JSON collection of the examples for Postman 
+First we define some variables and functions used in examples below.
+#-> GLobal variables
+define('API_USERNAME', 'xxxxxx');
+define('API_PASSWORD', 'yyyyyy');
+define('API_BASE_URL', 'https://api.speedy.bg/v1/');
+define('LANGUAGE', 'EN');
+#-> Function for api requests via cURL functions. In the examples we are using POST requests.
+function apiRequest($apiURL, $jsonData)
+ {
+ #-> Encode the array into JSON.
+ $jsonDataEncoded = json_encode($jsonData);
+ #-> Initiate cURL
+ $curl = curl_init($apiURL);
+ #-> Set curl options
+ curl_setopt($curl, CURLOPT_POST, 1); // Tell cURL that we want to send a POST request.
+ curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false); // Verify the peer's SSL certificate.
+ curl_setopt($curl, CURLOPT_RETURNTRANSFER, true); // Stop showing results on the screen.
+ curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 5); // The number of seconds to wait while trying to connect. Use 0 to wait indefinitely.
+ curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type: application/json')); // Set the content type to application/json
+ curl_setopt($curl, CURLOPT_POSTFIELDS, $jsonDataEncoded); // Attach our encoded JSON string to the POST fields.
+ #-> Get the response
+ $jsonResponse = curl_exec($curl);
+ if ( $jsonResponse === FALSE)
+ { exit("cURL Error: ".curl_error($curl)); }
+ return($jsonResponse);
+ }
+ Create Shipment Request examples view API documentation 
+ Example 1a - A shipment to an address 
+ Example 1b - A shipment to a pickup point 
+ Example 1c - A shipment from a drop off point and Third Party Payer 
+ Example 1d - An injected shipment in drop off point in Greece to an address in Greece 
+ Example 1e - A shipment from an address to a merchant's object 
+ Example 1f - A shipment from an address to a pickup point 
+ Example 1g - A multi parcel shipment to a pickup point 
+ PHP example: 
+ The same example as JSON: 
+ #-> Example 1a - A shipment to an address 
+#-> I. SENDER
+$senderArray = array(
+ 'phone1' => array('number' => '0888112233'),
+ 'contactName' => 'IVAN PETROV',
+ 'email' => ' [email protected] ',
+ /* 'clientId' => 1234567890 */ // Not required
+);
+/*
+* If you have a warehouse in Sofia, a shop in Varna and an office in Plovdiv, you'll have three objects with different clientIds, one for each object.
+* When you want to send from one of these addresses of your objects, you can set the appropriate 'clientId'.
+* If you skip it, the sender will be the default one for the username with all the address and contact information.
+* All your 'clientId's can be obtained from the result of the Get Contract Clients Request .
+*/
+#-> For drop off shipment (The 'dropoffOfficeId' property overrides the address details)
+//$senderArray['dropoffOfficeId'] = 2; // The 'dropoffOfficeId' can be obtained from the result of a Find Office Request .
+#-> II. RECIPIENT
+$recipientArray = array(
+ 'phone1' => array('number' => '0899445566'),
+ 'privatePerson' => true,
+ 'clientName' => 'VASIL GEORGIEV',
+ 'email' => ' [email protected] '
+);
+#-> If the shipment is to an address. There are several options to define an address . Check the examples below.
+$recipientAddressArray = array(
+ 'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a Find Country Request .
+ 'siteId' => 68134, // SOFIA. The 'siteId' can be obtained from the result of a Find Site Request .
+ 'complexId' => 29, // A complex named 'KRASNA POLYANA 3'. The 'complexId' can be obtained from the result of a Find Complex Request .
+ 'streetId' => 3109, // A street named 'USTA GENCHO'. The 'streetId' can be obtained from the result of a Find Street Request .
+ 'streetNo' => '1A',
+ 'blockNo' => '301',
+ 'entranceNo' => '2',
+ 'floorNo' => '3',
+ 'apartmentNo' => '4'
+);
+$recipientArray['address'] = $recipientAddressArray;
+#-> III. SERVICE DETAILS
+$serviceArray = array(
+ 'autoAdjustPickupDate' => true, // Not mandatory
+ 'serviceId' => 505, // The 'serviceId' can be obtained from the result of a Destination Services Request .
+ 'saturdayDelivery' => true // Not mandatory. Use it if you want delivery on Saturday/Holiday.
+);
+/* Cash on delivery - Not mandatory */
+$cashOnDeliveryArray = array(
+ 'amount' => 100,
+ 'processingType' => 'CASH' // (CASH, POSTAL_MONEY_TRANSFER)
+);
+/* Options before payment - Not mandatory */
+$optionsBeforePaymentArray = array(
+ 'option' => 'OPEN',
+ 'returnShipmentServiceId' => 505,
+ 'returnShipmentPayer' => 'SENDER' // (SENDER, RECIPIENT, THIRD_PARTY). The sender of the returning shipment is the recipient of the primary shipment.
+);
+/*
+* 'returnShipmentServiceId' is the service for the returning shipment in case the recipient refuses to accept the primary shipment.
+* It can be the same serviceId as in the primary shipment or one obtained from the result of a Destination Services Request .
+*/
+/* Declared value - Not mandatory */
+$declaredValueArray = array(
+ 'amount' => 100,
+ 'fragile' => true
+);
+/* Additional services */
+$additionalServicesArray = array(
+ 'cod' => $cashOnDeliveryArray,
+ 'obpd' => $optionsBeforePaymentArray,
+ 'declaredValue' => $declaredValueArray
+);
+/* Add additional services to the main service array */
+$serviceArray['additionalServices'] = $additionalServicesArray;
+#-> IV. CONTENT OF THE PARCEL
+$contentArray = array(
+ 'parcelsCount' => 1,
+ 'contents' => 'MOBILE PHONE',
+ 'package' => 'BOX',
+ 'totalWeight' => 0.6
+);
+#-> V. PAYMENTS
+$paymentArray = array(
+ 'courierServicePayer' => 'RECIPIENT', // (SENDER, RECIPIENT, THIRD_PARTY)
+ 'declaredValuePayer' => 'RECIPIENT' // Mandatory only if the shipment has a 'declaredValue'.
+);
+#-> VI. JSON DATA
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'sender' => $senderArray, // You can skip the sender data. In this case the sender will be the default one for the username with all the address and contact information.
+ 'recipient' => $recipientArray,
+ 'service' => $serviceArray,
+ 'content' => $contentArray,
+ 'payment' => $paymentArray,
+ 'ref1' => 'ORDER 123456'
+);
+#-> Create Shipment Request
+$jsonResponse = apiRequest(API_BASE_URL.'shipment/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+ A shipment to an address:
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "sender" : {
+ "phone1" : {
+ "number" : "0888112233"
+ },
+ "contactName" : "IVAN PETROV",
+ "email" : " [email protected] "
+ },
+ "recipient" : {
+ "phone1" : {
+ "number" : "0899445566"
+ },
+ "privatePerson" : true,
+ "clientName" : "VASIL GEORGIEV",
+ "email" : " [email protected] ",
+ "address" : {
+ "countryId" : 100,
+ "siteId" : 68134,
+ "complexId" : 29,
+ "streetId" : 3109,
+ "streetNo" : "1A",
+ "blockNo" : "301",
+ "entranceNo" : "2",
+ "floorNo" : "3",
+ "apartmentNo" : "4"
+ }
+ },
+ "service" : {
+ "autoAdjustPickupDate" : true,
+ "serviceId" : 505,
+ "saturdayDelivery" : true,
+ "additionalServices" : {
+ "cod" : {
+ "amount" : 100,
+ "processingType" : "CASH"
+ },
+ "obpd" : {
+ "option" : "OPEN",
+ "returnShipmentServiceId" : 505,
+ "returnShipmentPayer" : "SENDER"
+ },
+ "declaredValue" : {
+ "amount" : 100,
+ "fragile" : true
+ }
+ }
+ },
+ "content" : {
+ "parcelsCount" : 1,
+ "contents" : "MOBILE PHONE",
+ "package" : "BOX",
+ "totalWeight" : 0.6
+ },
+ "payment" : {
+ "courierServicePayer" : "RECIPIENT",
+ "declaredValuePayer" : "RECIPIENT"
+ },
+ "ref1" : "ORDER 123456"
+}
+ #-> Example 1b - A shipment to a pickup point 
+#-> I. SENDER
+$senderArray = array(
+ 'phone1' => array('number' => '0888112233'),
+ 'contactName' => 'IVAN PETROV',
+ 'email' => ' [email protected] ',
+ /* 'clientId' => 1234567890 */ // Not required
+);
+/*
+* If you have a warehouse in Sofia, a shop in Varna and an office in Plovdiv, you'll have three objects with different clientIds, one for each object.
+* When you want to send from one of these addresses of your objects, you can set the appropriate 'clientId'.
+* If you skip it, the sender will be the default one for the username with all the address and contact information.
+* All your 'clientId's can be obtained from the result of the Get Contract Clients Request .
+*/
+#-> For drop off shipment (The 'dropoffOfficeId' property overrides the address details)
+//$senderArray['dropoffOfficeId'] = 2; // The 'dropoffOfficeId' can be obtained from the result of a Find Office Request .
+#-> II. RECIPIENT
+$recipientArray = array(
+ 'phone1' => array('number' => '0899445566'),
+ 'privatePerson' => true,
+ 'clientName' => 'VASIL GEORGIEV',
+ 'email' => ' [email protected] ',
+ // For self-collection shipment from a pickup point (use it instead of $recipientArray['address'])
+ 'pickupOfficeId' => 14 // The 'pickupOfficeId' can be obtained from the result of a Find Office Request .
+);
+#-> III. SERVICE DETAILS
+$serviceArray = array(
+ 'autoAdjustPickupDate' => true, // Not mandatory
+ 'serviceId' => 505, // The 'serviceId' can be obtained from the result of a Destination Services Request .
+ 'saturdayDelivery' => true // Not mandatory. Use it if you want delivery on Saturday/Holiday.
+);
+/* Cash on delivery - Not mandatory */
+$cashOnDeliveryArray = array(
+ 'amount' => 100,
+ 'processingType' => 'CASH' // (CASH, POSTAL_MONEY_TRANSFER)
+);
+/* Options before payment - Not mandatory */
+$optionsBeforePaymentArray = array(
+ 'option' => 'OPEN',
+ 'returnShipmentServiceId' => 505,
+ 'returnShipmentPayer' => 'SENDER' // (SENDER, RECIPIENT, THIRD_PARTY). The sender of the returning shipment is the recipient of the primary shipment.
+);
+/*
+* 'returnShipmentServiceId' is the service for the returning shipment in case the recipient refuses to accept the primary shipment.
+* It can be the same serviceId as in the primary shipment or one obtained from the result of a Destination Services Request .
+*/
+/* Declared value - Not mandatory */
+$declaredValueArray = array(
+ 'amount' => 100,
+ 'fragile' => true
+);
+/* Additional services */
+$additionalServicesArray = array(
+ 'cod' => $cashOnDeliveryArray,
+ 'obpd' => $optionsBeforePaymentArray,
+ 'declaredValue' => $declaredValueArray
+);
+/* Add additional services to the main service array */
+$serviceArray['additionalServices'] = $additionalServicesArray;
+#-> IV. CONTENT OF THE PARCEL
+$contentArray = array(
+ 'parcelsCount' => 1,
+ 'contents' => 'MOBILE PHONE',
+ 'package' => 'BOX',
+ 'totalWeight' => 0.6
+);
+#-> V. PAYMENTS
+$paymentArray = array(
+ 'courierServicePayer' => 'RECIPIENT', // (SENDER, RECIPIENT, THIRD_PARTY)
+ 'declaredValuePayer' => 'RECIPIENT' // Mandatory only if the shipment has a 'declaredValue'.
+);
+#-> VI. JSON DATA
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'sender' => $senderArray, // You can skip the sender data. In this case the sender will be the default one for the username with all the address and contact information.
+ 'recipient' => $recipientArray,
+ 'service' => $serviceArray,
+ 'content' => $contentArray,
+ 'payment' => $paymentArray,
+ 'ref1' => 'ORDER 123456'
+);
+#-> Create Shipment Request
+$jsonResponse = apiRequest(API_BASE_URL.'shipment/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+A shipment to a pickup point:
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "sender" : {
+ "phone1" : {
+ "number" : "0888112233"
+ },
+ "contactName" : "IVAN PETROV",
+ "email" : " [email protected] "
+ },
+ "recipient" : {
+ "phone1" : {
+ "number" : "0899445566"
+ },
+ "privatePerson" : true,
+ "clientName" : "VASIL GEORGIEV",
+ "email" : " [email protected] ",
+ "pickupOfficeId" : 14
+ },
+ "service" : {
+ "autoAdjustPickupDate" : true,
+ "serviceId" : 505,
+ "saturdayDelivery" : true,
+ "additionalServices" : {
+ "cod" : {
+ "amount" : 100,
+ "processingType" : "CASH"
+ },
+ "obpd" : {
+ "option" : "OPEN",
+ "returnShipmentServiceId" : 505,
+ "returnShipmentPayer" : "SENDER"
+ },
+ "declaredValue" : {
+ "amount" : 100,
+ "fragile" : true
+ }
+ }
+ },
+ "content" : {
+ "parcelsCount" : 1,
+ "contents" : "MOBILE PHONE",
+ "package" : "BOX",
+ "totalWeight" : 0.6
+ },
+ "payment" : {
+ "courierServicePayer" : "RECIPIENT",
+ "declaredValuePayer" : "RECIPIENT"
+ },
+ "ref1" : "ORDER 123456"
+} 
+ #-> Example 1c - A shipment from a drop off point and Third Party Payer 
+#-> I. SENDER
+$senderArray = array(
+ 'phone1' => array('number' => '0888112233'),
+ 'privatePerson' => false,
+ 'clientName' => 'Company LTD',
+ 'contactName' => 'IVAN PETROV',
+ 'email' => ' [email protected] ',
+ /* 'clientId' => 1234567890 */ // Not required
+ 'dropoffOfficeId' => 2 // The 'dropoffOfficeId' can be obtained from the result of a Find Office Request .
+);
+/*
+* If you have a warehouse in Sofia, a shop in Varna and an office in Plovdiv, you'll have three objects with different clientIds, one for each object.
+* When you want to send from one of these addresses of your objects, you can set the appropriate 'clientId'.
+* If you skip it, the sender will be the default one for the username with all the address and contact information.
+* All your 'clientId's can be obtained from the result of the Get Contract Clients Request.
+*/
+#-> II. RECIPIENT
+$recipientArray = array(
+ 'phone1' => array('number' => '0899445566'),
+ 'privatePerson' => true,
+ 'clientName' => 'VASIL GEORGIEV',
+ 'email' => ' [email protected] '
+);
+#-> If the shipment is to an address. There are several options to define an address. Check the examples below.
+$recipientAddressArray = array(
+ 'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a Find Country Request.
+ 'siteId' => 68134, // SOFIA. The 'siteId' can be obtained from the result of a Find Site Request.
+ 'complexId' => 29, // A complex named 'KRASNA POLYANA 3'. The 'complexId' can be obtained from the result of a Find Complex Request.
+ 'streetId' => 3109, // A street named 'USTA GENCHO'. The 'streetId' can be obtained from the result of a Find Street Request.
+ 'streetNo' => '1A',
+ 'blockNo' => '301',
+ 'entranceNo' => '2',
+ 'floorNo' => '3',
+ 'apartmentNo' => '4'
+);
+$recipientArray['address'] = $recipientAddressArray;
+#-> III. SERVICE DETAILS
+$serviceArray = array(
+ 'autoAdjustPickupDate' => true, // Not mandatory
+ 'serviceId' => 505, // The 'serviceId' can be obtained from the result of a Destination Services Request.
+ 'saturdayDelivery' => true // Not mandatory. Use it if you want delivery on Saturday/Holiday.
+);
+/* Cash on delivery - Not mandatory */
+$cashOnDeliveryArray = array(
+ 'amount' => 100,
+ 'processingType' => 'CASH' // (CASH, POSTAL_MONEY_TRANSFER)
+);
+/* Options before payment - Not mandatory */
+$optionsBeforePaymentArray = array(
+ 'option' => 'OPEN',
+ 'returnShipmentServiceId' => 505,
+ 'returnShipmentPayer' => 'THIRD_PARTY' // (SENDER, RECIPIENT, THIRD_PARTY). The sender of the returning shipment is the recipient of the primary shipment.
+);
+/*
+* 'returnShipmentServiceId' is the service for the returning shipment in case the recipient refuses to accept the primary shipment.
+* It can be the same serviceId as in the primary shipment or one obtained from the result of a Destination Services Request.
+*/
+/* Declared value - Not mandatory */
+$declaredValueArray = array(
+ 'amount' => 100,
+ 'fragile' => true
+);
+/* Additional services */
+$additionalServicesArray = array(
+ 'cod' => $cashOnDeliveryArray,
+ 'obpd' => $optionsBeforePaymentArray,
+ 'declaredValue' => $declaredValueArray
+);
+/* Add additional services to the main service array */
+$serviceArray['additionalServices'] = $additionalServicesArray;
+#-> IV. CONTENT OF THE PARCEL
+$contentArray = array(
+ 'parcelsCount' => 1,
+ 'contents' => 'MOBILE PHONE',
+ 'package' => 'BOX',
+ 'totalWeight' => 0.6
+);
+#-> V. PAYMENTS
+$paymentArray = array(
+ 'courierServicePayer' => 'THIRD_PARTY', // (SENDER, RECIPIENT, THIRD_PARTY)
+ 'declaredValuePayer' => 'THIRD_PARTY', // Mandatory only if the shipment has a 'declaredValue'.,
+ 'thirdPartyClientId' => 1234567890 // All your 'clientId's can be obtained from the result of the Get Contract Clients Request.
+);
+#-> VI. JSON DATA
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'sender' => $senderArray, // You can skip the sender data. In this case the sender will be the default one for the username with all the address and contact information.
+ 'recipient' => $recipientArray,
+ 'service' => $serviceArray,
+ 'content' => $contentArray,
+ 'payment' => $paymentArray,
+ 'ref1' => 'ORDER 123456'
+);
+#-> Create Shipment Request
+$jsonResponse = apiRequest(API_BASE_URL.'shipment/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+A shipment from a drop off point and Third Party Payer:
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "sender" : {
+ "phone1" : {
+ "number" : "0888112233"
+ },
+ "privatePerson" : false,
+ "clientName" : "Company LTD",
+ "contactName" : "IVAN PETROV",
+ "email" : " [email protected] ",
+ "dropoffOfficeId" : 2
+ },
+ "recipient" : {
+ "phone1" : {
+ "number" : "0899445566"
+ },
+ "privatePerson" : true,
+ "clientName" : "VASIL GEORGIEV",
+ "email" : " [email protected] ",
+ "address" : {
+ "countryId" : 100,
+ "siteId" : 68134,
+ "complexId" : 29,
+ "streetId" : 3109,
+ "streetNo" : "1A",
+ "blockNo" : "301",
+ "entranceNo" : "2",
+ "floorNo" : "3",
+ "apartmentNo" : "4"
+ }
+ },
+ "service" : {
+ "autoAdjustPickupDate" : true,
+ "serviceId" : 505,
+ "saturdayDelivery" : true,
+ "additionalServices" : {
+ "cod" : {
+ "amount" : 100,
+ "processingType" : "CASH"
+ },
+ "obpd" : {
+ "option" : "OPEN",
+ "returnShipmentServiceId" : 505,
+ "returnShipmentPayer" : "THIRD_PARTY"
+ },
+ "declaredValue" : {
+ "amount" : 100,
+ "fragile" : true
+ }
+ }
+ },
+ "content" : {
+ "parcelsCount" : 1,
+ "contents" : "MOBILE PHONE",
+ "package" : "BOX",
+ "totalWeight" : 0.6
+ },
+ "payment" : {
+ "courierServicePayer" : "THIRD_PARTY",
+ "declaredValuePayer" : "THIRD_PARTY",
+ "thirdPartyClientId" : 1234567890
+ },
+ "ref1" : "ORDER 123456"
+}
+ #-> Example 1d - An injected shipment in a drop off point in Greece to an address in Greece 
+#-> I. SENDER
+$senderArray = array(
+ 'contactName' => 'JOHN SMITH',
+ 'phone1' => array(
+ 'number' => '+30217654321'
+ ),
+ 'email' => ' [email protected] ',
+ 'dropoffOfficeId' => 52
+);
+#-> II. RECIPIENT
+$recipientArray = array(
+ 'clientName' => 'GEORGIOS PAPADOPULUS',
+ 'phone1' => array(
+ 'number' => '+30211234567'
+ ),
+ 'email' => ' [email protected] ',
+ 'privatePerson' => true,
+ 'address' => array(
+ 'countryId' => 300, // GREECE
+ 'siteName' => 'THESSALONIKI',
+ 'postCode' => 54629,
+ 'addressLine1' => '28 Monastiriou str',
+ 'addressLine2' => 'Bus station' /* Not mandatory */
+ )
+);
+#-> III. SERVICE DETAILS
+$serviceArray = array(
+ 'autoAdjustPickupDate' => true,
+ 'serviceId' => 312,
+ 'saturdayDelivery' => false
+);
+#-> IV. CONTENT OF THE PARCEL
+$contentArray = array(
+ 'parcelsCount' => 1,
+ 'contents' => 'Books',
+ 'package' => 'ENVELOPE',
+ 'totalWeight' => 0.5
+);
+#-> V. PAYMENTS
+$paymentArray = array(
+ 'courierServicePayer' => 'SENDER', // (SENDER, RECIPIENT, THIRD_PARTY)
+);
+#-> VI. JSON DATA
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => 'EN',
+ 'sender' => $senderArray,
+ 'recipient' => $recipientArray,
+ 'service' => $serviceArray,
+ 'content' => $contentArray,
+ 'payment' => $paymentArray,
+ 'ref1' => 'ORDER 123456'
+);
+#-> Create Shipment Request
+$jsonResponse = apiRequest(API_BASE_URL.'shipment/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+An injected shipment in a drop off point in Greece to an address in Greece:
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "sender" : {
+ "contactName" : "JOHN SMITH",
+ "phone1" : {
+ "number" : "+30217654321"
+ },
+ "email" : " [email protected] ",
+ "dropoffOfficeId" : 52
+ },
+ "recipient" : {
+ "clientName" : "GEORGIOS PAPADOPULUS",
+ "phone1" : {
+ "number" : "+30211234567"
+ },
+ "email" : " [email protected] ",
+ "privatePerson" : true,
+ "address" : {
+ "countryId" : 300,
+ "siteName" : "THESSALONIKI",
+ "postCode" : 54629,
+ "addressLine1" : "28 Monastiriou str",
+ "addressLine2" : "Bus station"
+ }
+ },
+ "service" : {
+ "autoAdjustPickupDate" : true,
+ "serviceId" : 312,
+ "saturdayDelivery" : false
+ },
+ "content" : {
+ "parcelsCount" : 1,
+ "contents" : "Books",
+ "package" : "ENVELOPE",
+ "totalWeight" : 0.5
+ },
+ "payment" : {
+ "courierServicePayer" : "SENDER"
+ },
+ "ref1" : "ORDER 123456"
+}
+ #-> Example 1e - A shipment from an address to a merchant's object 
+#-> I. SENDER
+$senderArray = array(
+ 'clientName' => 'IVAN PETROV',
+ 'phone1' => array('number' => '0888112233'),
+ 'privatePerson' => true
+);
+#-> There are several options to define an address . Check the examples below.
+$senderAddressArray = array(
+ 'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a Find Country Request .
+ 'siteId' => 68134, // SOFIA. The 'siteId' can be obtained from the result of a Find Site Request .
+ 'complexId' => 29, // A complex named 'KRASNA POLYANA 3'. The 'complexId' can be obtained from the result of a Find Complex Request .
+ 'streetId' => 3109, // A street named 'USTA GENCHO'. The 'streetId' can be obtained from the result of a Find Street Request .
+ 'streetNo' => '1A',
+ 'blockNo' => '301',
+ 'entranceNo' => '2',
+ 'floorNo' => '3',
+ 'apartmentNo' => '4'
+);
+$senderArray['address'] = $senderAddressArray;
+#-> II. RECIPIENT
+$recipientArray = array(
+ 'clientId' => 1234567890, // An object of Company XYZ
+ 'contactName' => 'VASIL GEORGIEV',
+ 'phone1' => array('number' => '0899445566')
+);
+#-> III. SERVICE DETAILS
+$serviceArray = array(
+ 'autoAdjustPickupDate' => true, // Not mandatory
+ 'serviceId' => 505 // The 'serviceId' can be obtained from the result of a Destination Services Request .
+);
+#-> IV. CONTENT OF THE PARCEL
+$contentArray = array(
+ 'parcelsCount' => 1,
+ 'contents' => 'MOBILE PHONE',
+ 'package' => 'BOX',
+ 'totalWeight' => 1
+);
+#-> V. PAYMENTS
+$paymentArray = array(
+ 'courierServicePayer' => 'RECIPIENT'
+);
+#-> VI. JSON DATA
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'sender' => $senderArray,
+ 'recipient' => $recipientArray,
+ 'service' => $serviceArray,
+ 'content' => $contentArray,
+ 'payment' => $paymentArray,
+ 'ref1' => 'ORDER 123456'
+);
+#-> Create Shipment Request
+$jsonResponse = apiRequest(API_BASE_URL.'shipment/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+A shipment from an address to a merchant's object:
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "sender" : {
+ "clientName" : "IVAN PETROV",
+ "phone1" : {
+ "number" : "0888112233"
+ },
+ "privatePerson" : true,
+ "address" : {
+ "countryId" : 100,
+ "siteId" : 68134,
+ "complexId" : 29,
+ "streetId" : 3109,
+ "streetNo" : "1A",
+ "blockNo" : "301",
+ "entranceNo" : "2",
+ "floorNo" : "3",
+ "apartmentNo" : "4"
+ }
+ },
+ "recipient" : {
+ "clientId" : 1234567890,
+ "contactName" : "VASIL GEORGIEV",
+ "phone1" : {
+ "number" : "0899445566"
+ }
+ },
+ "service" : {
+ "autoAdjustPickupDate" : true,
+ "serviceId" : 505
+ },
+ "content" : {
+ "parcelsCount" : 1,
+ "contents" : "MOBILE PHONE",
+ "package" : "BOX",
+ "totalWeight" : 1
+ },
+ "payment" : {
+ "courierServicePayer" : "RECIPIENT"
+ },
+ "ref1" : "ORDER 123456"
+}
+ #-> Example 1f - A shipment from an address to a pickup point 
+#-> I. SENDER
+$senderArray = array(
+ 'clientName' => 'IVAN PETROV',
+ 'phone1' => array('number' => '0888112233'),
+ 'privatePerson' => true
+);
+#-> There are several options to define an address . Check the examples below.
+$senderAddressArray = array(
+ 'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a Find Country Request .
+ 'siteId' => 68134, // SOFIA. The 'siteId' can be obtained from the result of a Find Site Request .
+ 'complexId' => 29, // A complex named 'KRASNA POLYANA 3'. The 'complexId' can be obtained from the result of a Find Complex Request .
+ 'streetId' => 3109, // A street named 'USTA GENCHO'. The 'streetId' can be obtained from the result of a Find Street Request .
+ 'streetNo' => '1A',
+ 'blockNo' => '301',
+ 'entranceNo' => '2',
+ 'floorNo' => '3',
+ 'apartmentNo' => '4'
+);
+$senderArray['address'] = $senderAddressArray;
+#-> II. RECIPIENT
+$recipientArray = array(
+ 'clientId' => 1234567890, // Company XYZ
+ 'contactName' => 'VASIL GEORGIEV',
+ 'phone1' => array('number' => '0899445566'),
+ 'pickupOfficeId' => 2
+);
+#-> III. SERVICE DETAILS
+$serviceArray = array(
+ 'autoAdjustPickupDate' => true, // Not mandatory
+ 'serviceId' => 505 // The 'serviceId' can be obtained from the result of a Destination Services Request .
+);
+#-> IV. CONTENT OF THE PARCEL
+$contentArray = array(
+ 'parcelsCount' => 1,
+ 'contents' => 'MOBILE PHONE',
+ 'package' => 'BOX',
+ 'totalWeight' => 1
+);
+#-> V. PAYMENTS
+$paymentArray = array(
+ 'courierServicePayer' => 'RECIPIENT'
+);
+#-> VI. JSON DATA
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'sender' => $senderArray,
+ 'recipient' => $recipientArray,
+ 'service' => $serviceArray,
+ 'content' => $contentArray,
+ 'payment' => $paymentArray,
+ 'ref1' => 'ORDER 123456'
+);
+#-> Create Shipment Request
+$jsonResponse = apiRequest(API_BASE_URL.'shipment/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+A shipment from an address to a pickup point:
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "sender" : {
+ "clientName" : "IVAN PETROV",
+ "phone1" : {
+ "number" : "0888112233"
+ },
+ "privatePerson" : true,
+ "address" : {
+ "countryId" : 100,
+ "siteId" : 68134,
+ "complexId" : 29,
+ "streetId" : 3109,
+ "streetNo" : "1A",
+ "blockNo" : "301",
+ "entranceNo" : "2",
+ "floorNo" : "3",
+ "apartmentNo" : "4"
+ }
+ },
+ "recipient" : {
+ "clientId" : 1234567890,
+ "contactName" : "VASIL GEORGIEV",
+ "phone1" : {
+ "number" : "0899445566"
+ },
+ "pickupOfficeId" : 2
+ },
+ "service" : {
+ "autoAdjustPickupDate" : true,
+ "serviceId" : 505
+ },
+ "content" : {
+ "parcelsCount" : 1,
+ "contents" : "MOBILE PHONE",
+ "package" : "BOX",
+ "totalWeight" : 1
+ },
+ "payment" : {
+ "courierServicePayer" : "RECIPIENT"
+ },
+ "ref1" : "ORDER 123456"
+}
+ #-> Example 1g - A multi parcel shipment to a pickup point 
+#-> I. SENDER
+$senderArray = array(
+ 'phone1' => array('number' => '0888112233'),
+ 'contactName' => 'IVAN PETROV',
+ 'email' => ' [email protected] ',
+ /* 'clientId' => 1234567890 */ // Not required
+);
+/*
+* If you have a warehouse in Sofia, a shop in Varna and an office in Plovdiv, you'll have three objects with different clientIds, one for each object.
+* When you want to send from one of these addresses of your objects, you can set the appropriate 'clientId'.
+* If you skip it, the sender will be the default one for the username with all the address and contact information.
+* All your 'clientId's can be obtained from the result of the Get Contract Clients Request .
+*/
+#-> For drop off shipment (The 'dropoffOfficeId' property overrides the address details)
+//$senderArray['dropoffOfficeId'] = 2; // The 'dropoffOfficeId' can be obtained from the result of a Find Office Request .
+#-> II. RECIPIENT
+$recipientArray = array(
+ 'phone1' => array('number' => '0899445566'),
+ 'privatePerson' => true,
+ 'clientName' => 'VASIL GEORGIEV',
+ 'email' => ' [email protected] ',
+ // For self-collection shipment from a pickup point (use it instead of $recipientArray['address'])
+ 'pickupOfficeId' => 14 // The 'pickupOfficeId' can be obtained from the result of a Find Office Request .
+);
+#-> III. SERVICE DETAILS
+$serviceArray = array(
+ 'autoAdjustPickupDate' => true, // Not mandatory
+ 'serviceId' => 505, // The 'serviceId' can be obtained from the result of a Destination Services Request .
+ 'saturdayDelivery' => true // Not mandatory. Use it if you want delivery on Saturday/Holiday.
+);
+/* Cash on delivery - Not mandatory */
+$cashOnDeliveryArray = array(
+ 'amount' => 100,
+ 'processingType' => 'CASH' // (CASH, POSTAL_MONEY_TRANSFER)
+);
+/* Options before payment - Not mandatory */
+$optionsBeforePaymentArray = array(
+ 'option' => 'OPEN',
+ 'returnShipmentServiceId' => 505,
+ 'returnShipmentPayer' => 'SENDER' // (SENDER, RECIPIENT, THIRD_PARTY). The sender of the returning shipment is the recipient of the primary shipment.
+);
+/*
+* 'returnShipmentServiceId' is the service for the returning shipment in case the recipient refuses to accept the primary shipment.
+* It can be the same serviceId as in the primary shipment or one obtained from the result of a Destination Services Request .
+*/
+/* Declared value - Not mandatory */
+$declaredValueArray = array(
+ 'amount' => 100,
+ 'fragile' => true
+);
+/* Additional services */
+$additionalServicesArray = array(
+ 'cod' => $cashOnDeliveryArray,
+ 'obpd' => $optionsBeforePaymentArray,
+ 'declaredValue' => $declaredValueArray
+);
+/* Add additional services to the main service array */
+$serviceArray['additionalServices'] = $additionalServicesArray;
+#-> IV. CONTENT OF THE PARCEL
+// Array for all parcels. All dimensions are in centimeters.
+$parcelsArray = array();
+// Parcel 1
+$parcelSizeArray = array(
+ 'width' => 10,
+ 'depth' => 20,
+ 'height' => 30
+);
+$parcelArray = array(
+ 'seqNo' => 1,
+ 'size' => $parcelSizeArray,
+ 'weight' => 1.5,
+ 'ref1' => 'ORDER 123456, 1st Box'
+);
+$parcelsArray[] = $parcelArray; // Add first parcel
+// Parcel 2
+$parcelSizeArray = array(
+ 'width' => 5,
+ 'depth' => 15,
+ 'height' => 25
+);
+$parcelArray = array(
+ 'seqNo' => 2,
+ 'size' => $parcelSizeArray,
+ 'weight' => 0.5,
+ 'ref1' => 'ORDER 123456, 2nd Box'
+);
+$parcelsArray[] = $parcelArray; // Add the second parcel
+$contentArray = array(
+ 'parcelsCount' => 1,
+ 'contents' => 'MOBILE PHONE',
+ 'package' => 'BOX',
+ 'totalWeight' => 0.6,
+ 'parcels' => $parcelsArray
+);
+$contentArray = array(
+ 'parcelsCount' => 1,
+ 'contents' => 'MOBILE PHONE',
+ 'package' => 'BOX',
+ 'totalWeight' => 0.6
+);
+#-> V. PAYMENTS
+$paymentArray = array(
+ 'courierServicePayer' => 'RECIPIENT', // (SENDER, RECIPIENT, THIRD_PARTY)
+ 'declaredValuePayer' => 'RECIPIENT' // Mandatory only if the shipment has a 'declaredValue'.
+);
+#-> VI. JSON DATA
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'sender' => $senderArray, // You can skip the sender data. In this case the sender will be the default one for the username with all the address and contact information.
+ 'recipient' => $recipientArray,
+ 'service' => $serviceArray,
+ 'content' => $contentArray,
+ 'payment' => $paymentArray,
+ 'ref1' => 'ORDER 123456'
+);
+#-> Create Shipment Request
+$jsonResponse = apiRequest(API_BASE_URL.'shipment/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+A multi parcel shipment to a pickup point:
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "sender" : {
+ "phone1" : {
+ "number" : "0888112233"
+ },
+ "contactName" : "IVAN PETROV",
+ "email" : " [email protected] "
+ },
+ "recipient" : {
+ "phone1" : {
+ "number" : "0899445566"
+ },
+ "privatePerson" : true,
+ "clientName" : "VASIL GEORGIEV",
+ "email" : " [email protected] ",
+ "pickupOfficeId" : 14
+ },
+ "service" : {
+ "autoAdjustPickupDate" : true,
+ "serviceId" : 505,
+ "saturdayDelivery" : true,
+ "additionalServices" : {
+ "cod" : {
+ "amount" : 100,
+ "processingType" : "CASH"
+ },
+ "obpd" : {
+ "option" : "OPEN",
+ "returnShipmentServiceId" : 505,
+ "returnShipmentPayer" : "SENDER"
+ },
+ "declaredValue" : {
+ "amount" : 100,
+ "fragile" : true
+ }
+ }
+ },
+ "content" : {
+ "parcelsCount" : 1,
+ "contents" : "MOBILE PHONE",
+ "package" : "BOX",
+ "totalWeight" : 0.6,
+ "parcels" : [ {
+ "seqNo" : 1,
+ "size" : {
+ "width" : 10,
+ "depth" : 20,
+ "height" : 30
+ },
+ "weight" : 1.5,
+ "ref1" : "ORDER 123456, 1st Box"
+ }, {
+ "seqNo" : 2,
+ "size" : {
+ "width" : 5,
+ "depth" : 15,
+ "height" : 25
+ },
+ "weight" : 0.5,
+ "ref1" : "ORDER 123456, 2nd Box"
+ } ]
+ },
+ "payment" : {
+ "courierServicePayer" : "RECIPIENT",
+ "declaredValuePayer" : "RECIPIENT"
+ },
+ "ref1" : "ORDER 123456"
+}
+ Print Request example view API documentation 
+ PHP example: 
+ The same example as JSON: 
+ #-> Example 1. Print a waybill (with one parcel). 
+$parcelsArray = array(
+ array(
+ 'parcel' => array(
+ 'id' => '1234567890'
+ )
+ )
+);
+#-> The JSON data.
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'paperSize' => 'A4', // A4, A6, A4_4xA6
+ 'parcels' => $parcelsArray
+);
+$jsonResponse = apiRequest(API_BASE_URL.'print/', $jsonData);
+header("Content-type: application/octet-stream");
+header("Content-Type: application/pdf");
+echo $jsonResponse;
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "paperSize" : "A4",
+ "parcels" : [ {
+ "parcel" : {
+ "id" : "1234567890"
+ }
+ } ],
+ "additionalWaybillSenderCopy" : "NONE"
+} 
+ #-> Example 2. Print a waybill created with more than one parcel. 
+$parcelsArray = array(
+ array(
+ 'parcel' => array(
+ 'id' => '1234567890' // The first parcel is always the waybill number
+ )
+ ),
+ array(
+ 'parcel' => array(
+ 'id' => '123456789024' // Second parcel of the 1234567890 waybill (it is a unique number returned by the Create Shipment Request )
+ )
+ ),
+ array(
+ 'parcel' => array(
+ 'id' => '123456789030' // Third parcel of the 1234567890 waybill (it is a unique number)
+ )
+ )
+);
+#-> The JSON data.
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'paperSize' => 'A4', // A4, A6, A4_4xA6
+ 'parcels' => $parcelsArray
+);
+$jsonResponse = apiRequest(API_BASE_URL.'print/', $jsonData);
+header("Content-type: application/octet-stream");
+header("Content-Type: application/pdf");
+echo $jsonResponse;
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "paperSize" : "A4",
+ "parcels" : [ { 
+ "parcel" : { 
+ "id" : "1234567890" 
+ } 
+ }, { 
+ "parcel" : { 
+ "id" : "123456789024" 
+ } 
+ }, { 
+ "parcel" : { 
+ "id" : "123456789030" 
+ } 
+ } ],
+ "additionalWaybillSenderCopy" : "NONE"
+} 
+ Get Contract Clients Request example 
+Retrieve all clientIds, of the own contract, and other details like names, addresses etc. Use the clientIds in your requests. view API documentation 
+ PHP example: 
+ The same example as JSON: 
+#-> JSON DATA
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE
+);
+#-> Get Contract Clients Request
+$jsonResponse = apiRequest(API_BASE_URL.'client/contract/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN"
+} 
+ Find Country Request examples 
+Get 'id' and other details for countries. The search can be by name, part of the name or country ISO code. The 'id' is the unique identifier of the country and is used to define an address. view API documentation 
+ PHP example: 
+ The same example as JSON: 
+#-> Example 1. Search by full country name. 
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'name' => 'ROMANIA'
+);
+/*
+* The result from the example will return all data for ROMANIA such as id, isoAlpha2, isoAlpha3, currencyCode, postCodeFormats, requireState etc.
+* If the result for a country has a property named 'currencyCode' and selected service allows it, you can use Cash On Delivery in your parcels for this country. 
+*/
+#-> Find Country Request
+$jsonResponse = apiRequest(API_BASE_URL.'location/country/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "name" : "ROMANIA"
+}
+#-> Example 2. Search by part of the country name. 
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'name' => 'GER' // The 'name' is partial
+);
+/* The result from the example will return all countries which contain 'GER' in their names: GERMANY, ALGERIA, NIGER, NIGERIA. */
+#-> Find Country Request
+$jsonResponse = apiRequest(API_BASE_URL.'location/country/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "name" : "GER"
+}
+#-> Example 3. Search by country isoAlpha2. 
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'isoAlpha2' => 'GR'
+);
+/* The result from the example will return all data for GREECE. The 'isoAlpha2' and 'isoAlpha3' are unique. */
+#-> Find Country Request
+$jsonResponse = apiRequest(API_BASE_URL.'location/country/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "isoAlpha2" : "GR"
+}
+ Find State Request examples 
+Get 'id' (stateId) and other details for states. The search can be by name, part of the name. The 'id' is the unique identifier of the state and is used to define an address. view API documentation 
+ PHP example: 
+ The same example as JSON: 
+#-> Example 1. Search by full state name. 
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'countryId' => 840, // USA
+ 'name' => 'ALABAMA'
+);
+/*
+* The result from the example will return all data for ALABAMA including its id.
+*/
+#-> Find Country Request
+$jsonResponse = apiRequest(API_BASE_URL.'location/state/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "countryId" : 840,
+ "name" : "ALABAMA"
+}
+#-> Example 2a. Search by part of state name. 
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'countryId' => 840, // USA
+ 'name' => 'AR'
+);
+/* The result from the example will return data for states in USA,
+* witch contain 'AR' in their names: 'ARKANSAS' and 'ARIZONA'. You will have to select one of the records. 
+*/
+#-> Find Country Request
+$jsonResponse = apiRequest(API_BASE_URL.'location/state/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "countryId" : 840,
+ "name" : "AR"
+}
+#-> Example 2b. Search by part of state name. 
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'countryId' => 124, // CANADA
+ 'name' => 'N'
+);
+/* The result from the example will return data for states in CANADA,
+* witch contain 'AR' in their names: 'NEW BRUNSWICK', 'NEWFOUNDLAND AND LABRADOR', 'NOVA SCOTIA', etc. You will have to select one of the records. 
+*/
+#-> Find Country Request
+$jsonResponse = apiRequest(API_BASE_URL.'location/state/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "countryId" : 124,
+ "name" : "N"
+}
+ Find Office Request examples 
+Get 'id' and other details for drop off/pickup locations. The search can be by name, part of name, site etc. The 'id' is the unique identifier of the drop off/pickup location and is used in create shipment or calculation requests. view API documentation 
+ PHP example: 
+ The same example as JSON: 
+#-> Example 1. Find drop off/pickup locations in a country. 
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'countryId' => 100, // BULGARIA
+);
+/* The result from the example will return all drop off/pickup locations in BULGARIA. 
+* To find drop off/pickup locations in ROMANIA use 642 instead of 100 for countryId. For GREECE use 300. 
+*/
+#-> Find Office Request
+$jsonResponse = apiRequest(API_BASE_URL.'location/office/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "countryId" : 100
+}
+#-> Example 2. Find drop off/pickup locations in a site. 
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'siteId' => 68134, // SOFIA
+);
+/* The result from the example will return all drop off/pickup locations in SOFIA. */
+#-> Find Office Request
+$jsonResponse = apiRequest(API_BASE_URL.'location/office/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "siteId" : 68134
+}
+#-> Example 3. Find drop off/pickup location by country and part of the name. The 'countryId' is not mandatory. 
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'countryId' => 100, // BULGARIA
+ 'name' => 'SOM' // The name can be partial
+);
+/* The result from the example will return all drop off/pickup locations in BULGARIA which names or addresess contain 'SOM'. */
+#-> Find Office Request
+$jsonResponse = apiRequest(API_BASE_URL.'location/office/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "countryId" : 100,
+ "name" : "SOM" 
+}
+#-> Example 4. Find drop off/pickup locations in a site by part of the name. The 'siteId' is not mandatory. 
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'siteId' => 68134, // SOFIA
+ 'name' => 'SOM' // The name can be partial
+);
+/* The result from the example will return all drop off/pickup locations in SOFIA which names contain 'SOM'. */
+#-> Find Office Request
+$jsonResponse = apiRequest(API_BASE_URL.'location/office/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "siteId" : 68134,
+ "name" : "SOM" 
+}
+#-> Example 5. Find drop off/pickup locations by type. 
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'officeType' => array("APT") // "APT", "OFFICE"
+);
+/* The result from the example will return only lockers */
+#-> Find Office Request
+$jsonResponse = apiRequest(API_BASE_URL.'location/office/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "officeType" : ["APT"]
+}
+#-> Example 6a. Find drop off/pickup locations by office feature. 
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'officeFeatures' => array("CARGO_TYPE_PALLET") // "CARD_PAYMENT", "CASH_PAYMENT", "DROP_OFF", "PICK_UP", "CARGO_TYPE_PARCEL", "CARGO_TYPE_PALLET", "CARGO_TYPE_TYRE"
+);
+/* The result from the example will return only drop off/pickup locations providing pallet service */
+#-> Find Office Request
+$jsonResponse = apiRequest(API_BASE_URL.'location/office/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "officeFeatures" : ["CARGO_TYPE_PALLET"]
+}
+#-> Example 6b. Find drop off/pickup locations by a combination of office features. 
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'officeFeatures' => array("CARGO_TYPE_TYRE", "CARD_PAYMENT") // "CARD_PAYMENT", "CASH_PAYMENT", "DROP_OFF", "PICK_UP", "CARGO_TYPE_PARCEL", "CARGO_TYPE_PALLET", "CARGO_TYPE_TYRE"
+);
+/* The result from the example will return only drop off/pickup locations which are providing delivery of car tyres and payment by card. */
+#-> Find Office Request
+$jsonResponse = apiRequest(API_BASE_URL.'location/office/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "officeFeatures" : ["CARGO_TYPE_TYRE", "CARD_PAYMENT"]
+}
+ Find Site Request examples 
+Get site details such as id, type, name etc. Use these details to define an address. The 'id' is the unique identifier of the site. view API documentation 
+ PHP example: 
+ The same example as JSON: 
+#-> Example 1. Search by part of the site name. 
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'countryId' => 100, // BULGARIA
+ 'name' => 'DOBR'
+);
+/* The result from the example will return data (such as id, type, post code) for all sites in BULGARIA,
+* witch contain 'DOBR' in their names: 'DOBRINISHTE', 'DOBRICH', 'DOBRA POLYANA' etc. 
+*/
+#-> Find site Request
+$jsonResponse = apiRequest(API_BASE_URL.'location/site/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "countryId" : 100, 
+ "name" : "DOBR"
+}
+#-> Example 2. Search by exact site name. The site names in BULGARIA are not unique. 
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'countryId' => 100, // BULGARIA
+ 'name' => 'DOBRICH'
+);
+/* The result from the example will return 3 sites in BULGARIA but with 3 different types, post codes, regions, coordinates etc.
+* You will have to select one of the records or add another filter for more precise result. 
+*/
+#-> Find site Request
+$jsonResponse = apiRequest(API_BASE_URL.'location/site/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "countryId" : 100, 
+ "name" : "DOBRICH"
+}
+#-> Example 3. Search site by name and post code. The combination from the name and post code is unique. 
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'countryId' => 100, // BULGARIA
+ 'name' => 'DOBRICH', // The name can be partial
+ 'postCode' => 9300 
+);
+/* The result from the example will be an exact match for the search criteria and will return only one site. */
+#-> Find site Request
+$jsonResponse = apiRequest(API_BASE_URL.'location/site/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "countryId" : 100, 
+ "name" : "DOBRICH",
+ "postCode" : 9300
+}
+#-> Example 4. Search by site post code. The post codes in BULGARIA are not unique. 
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'countryId' => 100, // BULGARIA
+ 'postCode' => 1475 
+);
+/* The result from the example will return two sites with this post code: 'PLANA' and 'ZHELEZNITSA'. 
+* You will have to select one of the records or add another filter for more precise result. 
+*/
+#-> Find site Request
+$jsonResponse = apiRequest(API_BASE_URL.'location/site/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "countryId" : 100, 
+ "postCode" : "1475"
+} 
+#-> Example 5. Search by site name, type and region. The combination from these three elements is unique. 
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'countryId' => 100, // BULGARIA
+ 'type' => 'gr.', 
+ 'name' => 'KOSTENETS', // The name can be partial
+ 'region' => 'SOFIA' // The region can be partial
+);
+/* The result from the example will be an exact match for the search criteria and will return only one site. */
+#-> Find site Request
+$jsonResponse = apiRequest(API_BASE_URL.'location/site/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "countryId" : 100, 
+ "type" : "gr.", 
+ "name" : "KOSTENETS", 
+ "region" : "SOFIA" 
+}
+ Find Complex Request examples 
+Get complex details such as id, type and name. Use these details to define an address. The 'id' is the identifier of the complex. view API documentation 
+ PHP example: 
+ The same example as JSON: 
+#-> Example 1. Search by part of the complex name. 
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'siteId' => 68134, // SOFIA
+ 'name' => 'KRASN'
+);
+/* The result from the example will return data such as id, type, name for all complexes in SOFIA,
+* witch contain 'KRASN' in their names: 'KRASNA POLYANA 1', 'KRASNA POLYANA 2', 'KRASNO SELO' etc. 
+*/
+#-> Find Complex Request
+$jsonResponse = apiRequest(API_BASE_URL.'location/complex/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "siteId" : 68134,
+ "name" : "KRASN"
+}
+ Find Street Request examples 
+Get the street details and use them to define an address. The 'id' is the unique identifier of the street. view API documentation 
+ PHP example: 
+ The same example as JSON: 
+#-> Example 1. Search street details by part of the name. 
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'siteId' => 68134, // SOFIA
+ 'name' => 'USTA'
+);
+/* The result from the example will return data (such as id, type and name) for all streets in SOFIA,
+* witch contain 'USTA' in their names: 'USTA GENCHO', 'TSANKO DYUSTABANOV'. You will have to select one of the records. 
+*/
+#-> Find Street Request
+$jsonResponse = apiRequest(API_BASE_URL.'location/street/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "siteId" : 68134,
+ "name" : "USTA"
+}
+#-> Example 2. Search street details by full street name. 
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'siteId' => 68134, // SOFIA
+ 'name' => 'VASIL LEVSKI'
+);
+/* The result from the example will return 3 streets in SOFIA named 'VASIL LEVSKI',
+* but with 3 different types: 'bul.', 'ul.' and 'pl.', and you will have to select one of the records. 
+*/
+#-> Find Street Request
+$jsonResponse = apiRequest(API_BASE_URL.'location/street/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "siteId" : 68134,
+ "name" : "VASIL LEVSKI"
+}
+#-> Example 3. Search street details by full name and type. 
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'siteId' => 68134, // SOFIA
+ 'name' => 'VASIL LEVSKI',
+ 'type' => 'bul.'
+);
+/* The result from the example will be an exact match for the search criteria and will return only one street. */
+#-> Find Street Request
+$jsonResponse = apiRequest(API_BASE_URL.'location/street/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "siteId" : 68134,
+ "name" : "VASIL LEVSKI",
+ "type" : "bul."
+} 
+ Find POI Request examples 
+Get the POI details and use them to define an address. The 'id' is the unique identifier of the POI. view API documentation 
+ PHP example: 
+ The same example as JSON: 
+#-> Example 1. Search poi details by part of the name. 
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'siteId' => 68134, // SOFIA, BULGARIA
+ 'name' => 'NATIONAL' // The name can be partial
+);
+/* The result from the example will return data (such as id, type and name) for POIs in SOFIA,
+* witch contain 'NATIONAL' in their names: 'NATIONAL ART GALLERY', 'NATIONAL PALACE OF CHILDREN', 'NATIONAL MUSEUM OF HISTORY', etc. You will have to select one of the records. 
+*/
+#-> Find Street Request
+$jsonResponse = apiRequest(API_BASE_URL.'location/poi/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "siteId" : 68134,
+ "name" : "NATIONAL"
+}
+ Destination Services Request examples 
+Destination Services Request will return all valid services between the sender and recipient addresses. view API documentation .
+ PHP example: 
+ The same example as JSON: 
+#-> Example 1. The sender has clientId, the recipient is a private person. 
+#-> SENDER
+$senderArray = array(
+ 'clientId' => 1234567890
+);
+/* 
+* If you have a warehouse in Sofia, a shop in Varna and an office in Plovdiv, you'll have three objects with different clientIds, one for each object.
+* When you want to send from one of these addresses of your objects, you can set the appropriate 'clientId'. 
+* If you skip it, the sender will be the default one for the username with all the address and contact information. 
+* All your 'clientId's can be obtained from the result of the Get Contract Clients Request .
+*/
+#-> RECIPIENT
+$recipientArray = array(
+ 'privatePerson' => true,
+ 'addressLocation' => array(
+ 'siteId' => 68134 // SOFIA
+ )
+); 
+/* There is no need to define full address. The price of the courier service is the same for different addresses in a site. */
+#-> JSON DATA
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'date' => date('Y-m-d'),
+ 'sender' => $senderArray, // You can skip the sender data. In this case the sender will be the default one for the username with all the address and contact information.
+ 'recipient' => $recipientArray
+); 
+#-> Destination Services Request
+$jsonResponse = apiRequest(API_BASE_URL.'services/destination', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "date" : "2021-05-31",
+ "sender" : {
+ "clientId" : 1234567890
+ },
+ "recipient" : {
+ "privatePerson" : true,
+ "addressLocation" : {
+ "siteId" : 68134
+ }
+ }
+}
+#-> Example 2. The sender has clientId, the recipient is a private person in another country. 
+#-> SENDER
+$senderArray = array(
+ 'clientId' => 1234567890
+);
+/* 
+* If you have a warehouse in Sofia, a shop in Varna and an office in Plovdiv, you'll have three objects with different clientIds, one for each object.
+* When you want to send from one of these addresses of your objects, you can set the appropriate 'clientId'. 
+* If you skip it, the sender will be the default one for the username with all the address and contact information. 
+* All your 'clientId's can be obtained from the result of the Get Contract Clients Request .
+*/
+#-> RECIPIENT
+$recipientArray = array(
+ 'privatePerson' => true,
+ 'addressLocation' => array(
+ 'countryId' => 300, // GREECE
+ 'postCode' => 54248 // Thessaloniki
+ )
+);
+#-> JSON DATA
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'date' => date('Y-m-d'),
+ 'sender' => $senderArray, 
+ 'recipient' => $recipientArray
+);
+#-> Destination Services Request
+$jsonResponse = apiRequest(API_BASE_URL.'services/destination', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "date" : "2021-05-31",
+ "sender" : {
+ "clientId" : 1234567890
+ },
+ "recipient" : {
+ "privatePerson" : true,
+ "addressLocation" : {
+ "countryId" : 300,
+ "postCode" : "54248"
+ }
+ }
+}
+ Calculation Request Example view API documentation 
+ PHP example: 
+ The same example as JSON: 
+#-> IA. SENDER (from an address)
+$senderArray = array(
+ 'clientId' => 1234567890
+);
+/* 
+* If you have a warehouse in Sofia, a shop in Varna and an office in Plovdiv, you'll have three objects with different clientIds, one for each object.
+* When you want to send from one of these addresses of your objects, you can set the appropriate 'clientId'. 
+* If you skip it, the sender will be the default one for the username with all the address and contact information. 
+* All your 'clientId's can be obtained from the result of the Get Contract Clients Request .
+*/
+#-> IB. SENDER (from a drop off location)
+$senderArray = array(
+ 'clientId' => 1234567890,
+ 'dropoffOfficeId' => 2 // The 'dropoffOfficeId' property overrides the address details
+);
+#-> IIA. RECIPIENT (to an address)
+$recipientArray = array(
+ 'privatePerson' => true,
+ 'addressLocation' => array(
+ 'siteId' => 10135 // VARNA. The 'siteId' can be obtained from the result of a Find Site Request .
+ )
+);
+#-> IIB. RECIPIENT (for self-collection shipment from a pickup point)
+$recipientArray = array(
+ 'privatePerson' => true,
+ 'pickupOfficeId' => 77 // VARNA - OFFICE. The 'pickupOfficeId' can be obtained from the result of a Find Office Request .
+);
+#-> III. SERVICE DETAILS
+$serviceArray = array(
+ 'autoAdjustPickupDate' => true,
+ 'serviceIds' => array(505) // The 'serviceId' list can be obtained from the result of a Destination Services Request .
+);
+#-> Additional services
+/* Cash on delivery - Not mandatory */
+$cashOnDeliveryArray = array(
+ 'amount' => 100,
+ 'processingType' => 'CASH' // (CASH, POSTAL_MONEY_TRANSFER)
+);
+/* Options before payment - Not mandatory */
+$optionsBeforePaymentArray = array(
+ 'option' => 'OPEN', 
+ 'returnShipmentServiceId' => 505, 
+ 'returnShipmentPayer' => 'SENDER' // (SENDER, RECIPIENT, THIRD_PARTY). The sender of the returning shipment is the recipient of the primary shipment.
+);
+/* 
+The 'returnShipmentServiceId' property is the service for the returning shipment in case the recipient refuses to accept the primary shipment. 
+It can be the same serviceId as in the primary shipment or one obtained from the result of a Destination Services Request .
+*/
+/* Declared value - Not mandatory */
+$declaredValueArray = array(
+ 'amount' => 100, 
+ 'fragile' => true 
+);
+/* Additional services */
+$additionalServicesArray = array(
+ 'cod' => $cashOnDeliveryArray,
+ 'obpd' => $optionsBeforePaymentArray,
+ 'declaredValue' => $declaredValueArray
+);
+/* Add additional services to the main service array */
+$serviceArray['additionalServices'] = $additionalServicesArray;
+#-> IV. CALCULATION CONTENT OF THE PARCEL
+$contentArray = array(
+ 'parcelsCount' => 1,
+ 'totalWeight' => 0.6
+);
+#-> V. PAYMENTS
+$paymentArray = array(
+ 'courierServicePayer' => 'RECIPIENT' // (SENDER, RECIPIENT, THIRD_PARTY)
+);
+#-> VI. JSON DATA.
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'sender' => $senderArray, // You can skip the sender data. In this case the sender will be the default one for the username with all the address and contact information.
+ 'recipient' => $recipientArray,
+ 'service' => $serviceArray,
+ 'content' => $contentArray,
+ 'payment' => $paymentArray
+);
+#-> Calculate Request
+$jsonResponse = apiRequest(API_BASE_URL.'calculate/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+A calculation to an address
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "sender" : {
+ "clientId" : 1234567890
+ },
+ "recipient" : {
+ "privatePerson" : true,
+ "addressLocation" : {
+ "siteId" : 10135
+ }
+ },
+ "service" : {
+ "autoAdjustPickupDate" : true,
+ "serviceIds" : [ 505 ],
+ "additionalServices" : {
+ "cod" : {
+ "amount" : 100.0,
+ "processingType" : "CASH"
+ },
+ "declaredValue" : {
+ "amount" : 100.0,
+ "fragile" : true,
+ "ignoreIfNotApplicable" : true
+ },
+ "obpd" : {
+ "option" : "OPEN",
+ "returnShipmentServiceId" : 505,
+ "returnShipmentPayer" : "SENDER"
+ }
+ }
+ },
+ "content" : {
+ "parcelsCount" : 1,
+ "totalWeight" : 0.6
+ },
+ "payment" : {
+ "courierServicePayer" : "RECIPIENT"
+ }
+}
+A calculation to a pickup location
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "sender" : {
+ "clientId" : 1234567890
+ },
+ "recipient" : {
+ "privatePerson" : true,
+ "pickupOfficeId" : 77
+ },
+ "service" : {
+ "autoAdjustPickupDate" : true,
+ "serviceIds" : [ 505 ],
+ "additionalServices" : {
+ "cod" : {
+ "amount" : 100.0,
+ "processingType" : "CASH"
+ },
+ "declaredValue" : {
+ "amount" : 100.0,
+ "fragile" : true,
+ "ignoreIfNotApplicable" : true
+ },
+ "obpd" : {
+ "option" : "OPEN",
+ "returnShipmentServiceId" : 505,
+ "returnShipmentPayer" : "SENDER"
+ }
+ }
+ },
+ "content" : {
+ "parcelsCount" : 1,
+ "totalWeight" : 0.6
+ },
+ "payment" : {
+ "courierServicePayer" : "RECIPIENT"
+ }
+}
+ Track Request examples 
+For testing purposes, please use the provided bills of lading: 299999990, 299999991, 299999992, 299999993. view API documentation 
+Good practices using the tracking method:
+- Use the tracking method 3 to 5 times per day for a shipment or on demand;
+- In case you are tracking the shipment more than once, and updating its status locally, set the "lastOperationOnly" property to "true". The volume of data in the response will be smaller and the execution time faster.
+- Do not track already delivered shipments. The following statuses are final for a shipment, and after such a status, there will be no other status:
+ -14 Delivered
+ 124 Delivered Back to Sender
+ 125 Destroyed
+ 127 Theft/Burglary
+ 128 Canceled
+ 129 Administrative Closure
+- Do not track old shipments for which you are receiving such an error message "Shipment data is no longer available";
+- Do not track shipments with the error message "Shipment is not accessible". You haven't permission to do it;
+- Avoid to track the shipments during nighttime. At this time the shipments are traveling and you will not receive any valuable information.
+ PHP example: 
+ The same example as JSON: 
+#-> Example 1. Track a parcel. 
+$parcelsArray = array(
+ array('id' => 299999990)
+);
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'parcels' => $parcelsArray
+);
+#-> Track parcel Request
+$jsonResponse = apiRequest(API_BASE_URL.'track/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "parcels" : [ {
+ "id" : "299999990"
+ } ]
+}
+#-> Example 2. Track a parcel and return only last operation. 
+$parcelsArray = array(
+ array('id' => 299999990)
+);
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'parcels' => $parcelsArray,
+ 'lastOperationOnly' => true
+);
+#-> Track parcel Request
+$jsonResponse = apiRequest(API_BASE_URL.'track/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse);
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "parcels" : [ {
+ "id" : "299999990"
+ } ],
+ "lastOperationOnly" : true
+}
+#-> Example 3. Track more than one (up to 10) parcels with one request. 
+$parcelsArray = array(
+ array('id' => 299999990),
+ array('id' => 299999991),
+ array('id' => 299999992),
+ array('id' => 299999993)
+);
+$jsonData = array(
+ 'userName' => API_USERNAME,
+ 'password' => API_PASSWORD,
+ 'language' => LANGUAGE,
+ 'parcels' => $parcelsArray
+);
+#-> Track parcel Request
+$jsonResponse = apiRequest(API_BASE_URL.'track/', $jsonData);
+$jsonResponse = json_decode($jsonResponse, true);
+#-> Print the result
+print_r($jsonResponse); 
+{
+ "userName" : "xxxxxx",
+ "password" : "yyyyyy",
+ "language" : "EN",
+ "parcels" : [ {
+ "id" : "299999990"
+ }, {
+ "id" : "299999991"
+ }, {
+ "id" : "299999992"
+ }, {
+ "id" : "299999993"
+ } ]
+}
+ Address examples 
+The address structure is used to provide addresses. Addresses are two types:
+- Address type 1 (local addresses - currently supported by Romania and Bulgaria);
+- Address type 2 (foreign addresses - all non-local countries);
+'addressType' property obtained from the result of a Find Country Request 
+ When address is required (i.e. when clientId is null), the following rule must be met:
+not empty street (streetId or type&name) and (streetNo or blockNo)
+or
+not empty complex (complexId or type&name) and (streetNo or blockNo)
+or
+not empty poi (poiId)
+or
+all components of the address within the site stored in addressNote.
+ If the addressType is 1 and 'addressNomenclature' property for the site is 1 or 2, you should try to define the address using ids of site, street, complex etc.
+or by exact match from 'complexType' and 'complexName' or/and by exact match from 'streetType' and 'streetName'.
+When the address is well defined via ids or/and matches it will be processed automatically.
+Otherwise the address will be placed in the 'addressNote' property. It will not be processed automatically and there are probabilities for mistakes and delay of the delivery.
+ PHP example: 
+ The same example as JSON: 
+#-> Example 1. Defined address via ids (the 'addressType' property has a value 1 and 'addressNomenclature' property of the site has value 1 or 2).
+$recipientAddressArray = array(
+ 'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a Find Country Request .
+ 'siteId' => 68134, // SOFIA. The 'siteId' can be obtained from the result of a Find Site Request .
+ 'complexId' => 29, // A complex named 'KRASNA POLYANA 3'. The 'complexId' can be obtained from the result of a Find Complex Request .
+ 'streetId' => 3109, // A street named 'USTA GENCHO'. The 'streetId' can be obtained from the result of a Find Street Request .
+ 'streetNo' => '1A',
+ 'blockNo' => '301',
+ 'entranceNo' => '2',
+ 'floorNo' => '3',
+ 'apartmentNo' => '4'
+);
+"address" : {
+ "countryId" : 100,
+ "siteId" : 68134,
+ "streetId" : 3109,
+ "streetNo" : "1A",
+ "complexId" : 29,
+ "blockNo" : "301",
+ "entranceNo" : "2",
+ "floorNo" : "3",
+ "apartmentNo" : "4"
+}
+#-> Example 2a. An address defined by exact match from 'siteType' and 'siteName', and exact match from 'streetType' and 'streetName' 
+#-> (the 'addressType' property has a value 1 and 'addressNomenclature' property of the site has value 1 or 2).
+$recipientAddressArray = array(
+ 'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a Find Country Request . 
+ 'siteType' => 'gr.', // The 'siteType' can be obtained from the result of a Find Country Request .
+ 'siteName' => 'SOFIA', 
+ 'streetType' => 'ul.', // The 'streetType' can be obtained from the result of a Find Country Request .
+ 'streetName' => 'USTA GENCHO', // The 'streetName' can be obtained from the result of a Find Street Request .
+ 'streetNo' => '1A'
+);
+/* 
+* If there is exact match from 'siteType' and 'siteName', the id of the site will be added automatically. 
+* If there is exact match from 'streetType' and 'streetName', the id of the street will be added automatically. 
+* If there is not exact match from 'streetType' and 'streetName' the address will be placed in the 'addressNote' property.
+*/
+"address" : {
+ "countryId" : 100,
+ "siteType" : "gr.",
+ "siteName" : "SOFIA",
+ "streetType" : "ul.",
+ "streetName" : "USTA GENCHO",
+ "streetNo" : "1A"
+}
+#-> Example 2b. An address defined by exact match from 'siteType' and 'postCode', and exact match from 'streetType' and 'streetName' 
+#-> (the 'addressType' property has a value 1 and 'addressNomenclature' property of the site has value 1 or 2).
+$recipientAddressArray = array(
+ 'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a Find Country Request . 
+ 'siteName' => 'SOFIA',
+ 'postCode' => '1330',
+ 'streetType' => 'ul.', // The 'streetType' can be obtained from the result of a Find Country Request .
+ 'streetName' => 'USTA GENCHO', // The 'streetName' can be obtained from the result of a Find Street Request .
+ 'streetNo' => '1A'
+);
+/* 
+* If there is exact match from 'siteType' and 'postCode', the id of the site will be added automatically. 
+* If there is exact match from 'streetType' and 'streetName', the id of the street will be added automatically. 
+* If there is not exact match from 'streetType' and 'streetName' the address will be placed in the 'addressNote' property.
+*/
+"address" : {
+ "countryId" : 100,
+ "siteName" : "SOFIA",
+ "postCode" : "1331",
+ "streetType" : "ul.",
+ "streetName" : "USTA GENCHO",
+ "streetNo" : "1A"
+}
+#-> Example 3. An address defined by ids of the site and the complex, and an exact match between 'streetType' and 'streetName' 
+#-> (the 'addressType' property has a value 1 and 'addressNomenclature' property of the site has value 1 or 2).
+$recipientAddressArray = array(
+ 'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a Find Country Request . 
+ 'siteId' => 68134, // SOFIA. The 'siteId' can be obtained from the result of a Find Site Request .
+ 'complexId' => 29, // A complex named 'KRASNA POLYANA 3'. The 'complexId' can be obtained from the result of a Find Complex Request .
+ 'streetType' => 'ul.', // The 'streetType' can be obtained from the result of a Find Country Request .
+ 'streetName' => 'USTA GENCHO', // The 'streetName' can be obtained from the result of a Find Street Request .
+ 'streetNo' => '1A'
+);
+/* 
+* If there is exact match from 'streetType' and 'streetName', the id of the street will be added automatically. 
+* If there is not exact match from 'streetType' and 'streetName' the address will be placed in the 'addressNote' property.
+*/
+"address" : {
+ "countryId" : 100,
+ "siteId" : 68134,
+ "complexId" : 29,
+ "streetType" : "ul.",
+ "streetName" : "USTA GENCHO",
+ "streetNo" : "1A"
+}
+#-> Example 4a. An address defined by exact match from 'complexType' and 'complexName' or/and exact match from 'streetType' and 'streetName' 
+#-> (the 'addressType' property has a value 1 and 'addressNomenclature' property of the site has value 1 or 2).
+$recipientAddressArray = array(
+ 'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a Find Country Request . 
+ 'siteId' => 68134, // SOFIA. The 'siteId' can be obtained from the result of a Find Site Request .
+ 'complexType' => 'zhk', // 'complexType' can be obtained from the result of a Find Country Request .
+ 'complexName' => 'KRASNA POLYANA 3', // The 'complexName' can be obtained from the result of a Find Complex Request .
+ 'streetType' => 'ul.', // The 'streetType' can be obtained from the result of a Find Country Request .
+ 'streetName' => 'USTA GENCHO', // The 'streetName' can be obtained from the result of a Find Street Request .
+ 'streetNo' => '1A'
+);
+/*
+* If there is exact match from 'complexType' and 'complexName', the id of the complex will be added automatically. 
+* If there is exact match from 'streetType' and 'streetName', the id of the street will be added automatically.
+* If there are not exact matches, the address will be placed in the 'addressNote' property.
+*/
+"address" : {
+ "countryId" : 100,
+ "siteId" : 68134,
+ "complexType" : "zhk",
+ "complexName" : "KRASNA POLYANA 3",
+ "streetType" : "ul.",
+ "streetName" : "USTA GENCHO",
+ "streetNo" : "1A"
+}
+#-> Example 4b. An address defined by exact match from 'complexType' and 'complexName' 
+#-> (the 'addressType' property has a value 1 and 'addressNomenclature' property of the site has value 1 or 2).
+$recipientAddressArray = array(
+ 'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a Find Country Request . 
+ 'siteId' => 68134, // SOFIA. The 'siteId' can be obtained from the result of a Find Site Request .
+ 'complexType' => 'zhk', // 'complexType' can be obtained from the result of a Find Country Request .
+ 'complexName' => 'KRASNA POLYANA 3', // The 'complexName' can be obtained from the result of a Find Complex Request .
+ 'blockNo' => '37', 
+ 'entranceNo' => '1', 
+ 'apartmentNo' => '2'
+);
+/*
+* If there is exact match from 'complexType' and 'complexName', the id of the complex will be added automatically. 
+* If there are not exact matches, the address will be placed in the 'addressNote' property.
+*/
+"address" : {
+ "countryId" : 100,
+ "siteId" : 68134,
+ "complexType" : "zhk",
+ "complexName" : "KRASNA POLYANA 3",
+ "blockNo" : "37",
+ "entranceNo" : "1",
+ "apartmentNo" : "2"
+}
+#-> Example 5. An address defined by 'siteId' and exact match from 'streetType' and 'streetName'. 
+$recipientAddressArray = array(
+ 'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a Find Country Request . 
+ 'siteId' => 68134, // SOFIA. The 'siteId' can be obtained from the result of a Find Site Request .
+ 'streetType' => 'ul.', // The 'streetType' can be obtained from the result of a Find Country Request .
+ 'streetName' => 'USTA GENCHO', // The 'streetName' can be obtained from the result of a Find Street Request .
+ 'streetNo' => '1A'
+);
+/* 
+* If there is exact match from 'streetType' and 'streetName', the id of the street will be added automatically. 
+* If there is not exact match, the address will be placed in the 'addressNote' property.
+*/
+"address" : {
+ "countryId" : 100,
+ "siteId" : 68134,
+ "streetType" : "ul.",
+ "streetName" : "USTA GENCHO",
+ "streetNo" : "1A"
+}
+#-> Example 6. The address defined by 'poiId' and some additional info filled in the 'addressNote'. 
+$recipientAddressArray = array(
+ 'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a Find Country Request . 
+ 'siteId' => 68134, // SOFIA. The 'siteId' can be obtained from the result of a Find Site Request .
+ 'poiId' => 68134000483088, // NATIONAL ART GALLERY. The 'poiId' can be obtained from the result of a Find POI Request .
+ 'addressNote' => '2nd floor, office 201'
+);
+"address" : {
+ "countryId" : 100,
+ "siteId" : 68134,
+ "poiId" : 68134000483088,
+ "addressNote" : "2nd floor, office 201"
+}
+#-> Example 7a. The whole address is placed in the 'addressNote' field. 
+#-> It will be not processed automatically and there are probabilities for mistakes and delay of the delivery. 
+$recipientAddressArray = array(
+ 'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a Find Country Request . 
+ 'siteId' => 68134, // SOFIA. The 'siteId' can be obtained from the result of a Find Site Request .
+ 'addressNote' => 'ul. USTA GENCHO, No.1A, bl.301, ent.2, fl.3, ap.4' 
+);
+"address" : {
+ "countryId" : 100,
+ "siteId" : 68134,
+ "addressNote" : "ul. USTA GENCHO, No.1A, bl.301, ent.2, fl.3, ap.4"
+}
+#-> Example 7b. The whole address is placed in the 'addressNote' field. 
+#-> It will be not processed automatically and there are probabilities for mistakes and delay of the delivery. 
+$recipientAddressArray = array(
+ 'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a Find Country Request . 
+ 'siteType' => 'gr.', // The 'siteType' can be obtained from the result of a Find Country Request .
+ 'siteName' => 'SOFIA', 
+ 'addressNote' => 'ul. USTA GENCHO, No.1A, bl.301, ent.2, fl.3, ap.4' 
+);
+/* If there is exact match from 'siteType' and 'siteName', the id of the site will be added automatically. */
+"address" : {
+ "countryId" : 100,
+ "siteType" : "gr.",
+ "siteName" : "SOFIA",
+ "addressNote" : "ul. USTA GENCHO, No.1A, bl.301, ent.2, fl.3, ap.4"
+}
+#-> Example 7c. The whole address is placed in the 'addressNote' field. 
+#-> It will be not processed automatically and there are probabilities for mistakes and delay of the delivery. 
+$recipientAddressArray = array(
+ 'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a Find Country Request . 
+ 'siteName' => 'SOFIA', 
+ 'postCode' => 1330, 
+ 'addressNote' => 'ul. USTA GENCHO, No.1A, bl.301, ent.2, fl.3, ap.4' 
+);
+/* If there is exact match from 'siteName' asd 'postCode', the id of the site will be added automatically. */
+"address" : {
+ "countryId" : 100,
+ "siteName" : "SOFIA",
+ "postCode" : "1330", 
+ "addressNote" : "ul. USTA GENCHO, No.1A, bl.301, ent.2, fl.3, ap.4"
+} 
+#-> Example 8a. A foreign address (the addressType property has a value 2). 
+$recipientAddressArray = array(
+ 'countryId' => 276, // GERMANY. The 'countryId' can be obtained from the result of a Find Country Request . 
+ 'siteName' => 'MUNICH', 
+ 'postCode' => 80331, // Depends from the 'postCodeFormats' property from the result of a Find Country Request . It shows the required post code format. 
+ 'addressLine1' => 'Sankt-Jakobs-Platz 1', // Required for 'addressType' 2
+ 'addressLine2' => 'Munich Stadtmuseum' /* Not mandatory */
+);
+"address" : {
+ "countryId" : 276,
+ "siteName" : "MUNICH",
+ "postCode" : "80331", 
+ "addressLine1" : "Sankt-Jakobs-Platz 1",
+ "addressLine2" : "Munich Stadtmuseum"
+} 
+#-> Example 8b. A foreign address (the addressType property has a value 2). 
+$recipientAddressArray = array(
+ 'countryId' => 300, // GREECE. The 'countryId' can be obtained from the result of a Find Country Request . 
+ 'siteName' => 'THESSALONIKI', 
+ 'postCode' => 54629, // Depends from the 'postCodeFormats' property from the result of a Find Country Request . It shows the required post code format. 
+ 'addressLine1' => '28 Monastiriou str', // Required for 'addressType' 2
+ 'addressLine2' => 'Bus station' /* Not mandatory */
+);
+"address" : {
+ "countryId" : 300,
+ "siteName" : "THESSALONIKI",
+ "postCode" : "54629", 
+ "addressLine1" : "28 Monastiriou str",
+ "addressLine2" : "Bus station"
+} 
+#-> Example 8c. A foreign address (the addressType property has a value 2). 
+$recipientAddressArray = array(
+ 'countryId' => 250, // FRANCE. The 'countryId' can be obtained from the result of a Find Country Request . 
+ 'siteName' => 'PARIS', 
+ 'postCode' => 75016, // Depends from the 'postCodeFormats' property from the result of a Find Country Request . It shows the required post code format. 
+ 'addressLine1' => '24 Rue du Commandant Guilbaud', // Required for 'addressType' 2
+ 'addressLine2' => 'Parc des Princes Stadium' /* Not mandatory */
+);
+"address" : {
+ "countryId" : 250,
+ "siteName" : "PARIS",
+ "postCode" : "75016", 
+ "addressLine1" : "24 Rue du Commandant Guilbaud",
+ "addressLine2" : "Parc des Princes Stadium"
+} 
+ Describe parcels or pallets examples view API documentation 
+ PHP example: 
+ The same example as JSON: 
+// Array for all parcels. All dimensions are in centimeteres. For pallets use standart pallet's dimensions such as 120/80/130.
+$parcelsArray = array(); 
+// Parcel 1
+$parcelSizeArray = array(
+ 'width' => 10,
+ 'depth' => 20,
+ 'height' => 30
+);
+$parcelArray = array(
+ 'seqNo' => 1,
+ 'size' => $parcelSizeArray,
+ 'weight' => 1.5,
+ 'ref1' => 'ORDER 123456, 1st Box'
+);
+$parcelsArray[] = $parcelArray; // Add first parcel
+// Parcel 2
+$parcelSizeArray = array(
+ 'width' => 5,
+ 'depth' => 15,
+ 'height' => 25
+);
+$parcelArray = array(
+ 'seqNo' => 2,
+ 'size' => $parcelSizeArray,
+ 'weight' => 0.5,
+ 'ref1' => 'ORDER 123456, 2nd Box'
+);
+$parcelsArray[] = $parcelArray; // Add second parcel
+$contentArray['parcels'] = $parcelsArray; // Add all parcels in the content array in the Create Shipment Request above.
+ "parcels" : [ {
+ "seqNo" : 1,
+ "size" : {
+ "width" : 10,
+ "height" : 30,
+ "depth" : 20
+ },
+ "weight" : 1.5,
+ "ref1" : "ORDER 123456, 1st Box"
+ }, {
+ "seqNo" : 2,
+ "size" : {
+ "width" : 5,
+ "height" : 25,
+ "depth" : 15
+ },
+ "weight" : 0.5,
+ "ref1" : "ORDER 123456, 2nd Box"
+ } ]
+ Describe COD Fiscal Receipt Items view API documentation 
+ PHP example: 
+ The same example as JSON: 
+#-> Example 1. Description of items. 
+$serviceArray = array(
+ 'serviceId' => 505,
+ 'additionalServices' => array(
+ 'cod' => array(
+ 'anount' => 81.8,
+ 'fiscalReceiptItems' => array(
+ array(
+ 'description' => 'Shoes',
+ 'vatGroup' => 'Б',
+ 'amount' => 50,
+ 'amountWithVat' => 60
+ ),
+ array(
+ 'description' => 'Book 1, Book 2',
+ 'vatGroup' => 'Г',
+ 'amount' => 20,
+ 'amountWithVat' => 21.8
+ )
+ )
+ )
+ )
+)
+"service": {
+ "serviceId": 505,
+ "additionalServices": {
+ "cod": {
+ "amount": 81.8,
+ "fiscalReceiptItems": [
+ {
+ "description": "Shoes",
+ "vatGroup": "Б",
+ "amount": "50",
+ "amountWithVat": "60"
+ },
+ {
+ "description": "Book 1, Book 2",
+ "vatGroup": "Г",
+ "amount": "20",
+ "amountWithVat": "21.8"
+ }
+ ]
+ }
+ }
+}
+#-> Example 2. Description of an invoice. 
+$serviceArray = array(
+ 'serviceId' => 505,
+ 'additionalServices' => array(
+ 'cod' => array(
+ 'anount' => 60,
+ 'fiscalReceiptItems' => array(
+ array(
+ 'description' => 'Invoice 123456',
+ 'vatGroup' => 'Б',
+ 'amount' => 50,
+ 'amountWithVat' => 60
+ )
+ )
+ )
+ )
+)
+"service": {
+ "serviceId": 505,
+ "additionalServices": {
+ "cod": {
+ "amount": 60,
+ "fiscalReceiptItems": [
+ {
+ "description": "Invoice 123456",
+ "vatGroup": "Б",
+ "amount": "50",
+ "amountWithVat": "60"
+ }
+ ]
+ }
+ }
+}
+ PHP example of how to generate a routing barcode (for clients who are generating their own labels) 
+#-> Example data
+$parcelNumber = 63528915673;
+$number = 1270302; // Tour number received from the routing information for the office
+$officeId = 127; // ID of the office received from the routing information for the office
+$hubId = 12; // ID of the hub received from the routing information for the office
+#-> Build a routing barcode
+list($routingBarcode, $routingBarcodeClean) = buildRoutingBarcode($parcelNumber, $officeId, $number);
+echo "parcelNumber: $parcelNumber<br>";
+echo "routingBarcode: $routingBarcode<br>"; // Example output: 1 - 000 6 352 882 066 4 - 128 000 102 28 1 6
+echo "routingBarcodeClean: $routingBarcodeClean<br>"; // Example output: 1000635288206641280001022816
+#-> Build a routing barcode
+function buildRoutingBarcode($parcelNumber, $officeId, $number)
+ {
+ #-> Format parcel number
+ $parcelNumberLength = strlen($parcelNumber);
+ $numberOfAdditionalParcelNumberSymbols = 14 - $parcelNumberLength;
+ for ( $i = 0; $i Adding spaces to the parcel number
+ $parcelNumberString = (string)$parcelNumber;
+ $positions = array(3, 4, 7, 10, 13);
+ $parcelNumberFormated = '';
+ for ($i = 0; $i Format office
+ $officeIdLength = strlen($officeId);
+ $numberOfAdditionalOfficeSymbols = 3 - $officeIdLength;
+ for ( $i = 0; $i Format tour number
+ $number = substr($number, -3);
+ #-> Routing day
+ $routingDay = date('d', strtotime('+1 day'));
+ #-> Build a routing barcode
+ $routingBarcode = 1 . ' - ' . $parcelNumberFormated . ' - ' . $officeId . ' 000 ' . $number . ' ' . $routingDay . ' ' . 1;
+ #-> Build clean routing barcode used for the Verhoeff Algorithm (without spaces, dashes, etc.)
+ $routingBarcodeClean = 1 . $parcelNumber . $officeId . '000' . $number . $routingDay . 1;
+ #-> Generate check sum using Verhoeff Algorithm
+ $checkSum = verhoeffGenerateCheckSum($routingBarcodeClean);
+ #-> Append the check sum to the routing barcode
+ $routingBarcode .= ' ' . $checkSum;
+ $routingBarcodeClean .= $checkSum;
+ #-> Return the routing barcode
+ return array($routingBarcode, $routingBarcodeClean);
+ }
+#-> Generate check sum using Verhoeff Algorithm
+function verhoeffGenerateCheckSum($num) {
+ $d = [
+ [0,1,2,3,4,5,6,7,8,9],
+ [1,2,3,4,0,6,7,8,9,5],
+ [2,3,4,0,1,7,8,9,5,6],
+ [3,4,0,1,2,8,9,5,6,7],
+ [4,0,1,2,3,9,5,6,7,8],
+ [5,9,8,7,6,0,4,3,2,1],
+ [6,5,9,8,7,1,0,4,3,2],
+ [7,6,5,9,8,2,1,0,4,3],
+ [8,7,6,5,9,3,2,1,0,4],
+ [9,8,7,6,5,4,3,2,1,0]
+ ];
+ $p = [
+ [0,1,2,3,4,5,6,7,8,9],
+ [1,5,7,6,2,8,3,0,9,4],
+ [5,8,0,3,7,9,6,1,4,2],
+ [8,9,1,6,0,4,3,5,2,7],
+ [9,4,5,3,1,2,6,8,7,0],
+ [4,2,8,6,5,7,3,9,0,1],
+ [2,7,9,3,8,0,6,4,1,5],
+ [7,0,4,6,9,1,3,2,5,8]
+ ];
+ $inv = [0,4,3,2,1,5,6,7,8,9];
+ $c = 0;
+ $num = strrev($num);
+ for ($i = 0; $i 
+ Additional explanation of some errors
+ Access to detailed/licensed address nomenclatures required 
+ Collection time is after courier address serving deadline. You can change collection date to next available day 
+ Money transfer amount not allowed for the selected sender 
+ No connection to external carrier ACS 
+ Options before payment details: Options before payment are not allowed for shipments with Locker pickup 
+ Options before payment details: Service not allowed 
+ Parcels: Parcel size is required 
+ Payer: Your own client or contract client should be payer or sender 
+ Recipient Locality: Invalid site 
+ Recipient Phone 1: Invalid phone number 
+ Recipient - Pickup office: Invalid recipient pickup office 
+ Recipient Post code: Invalid post code 
+ Sender site is not served on pickup date 
+ Service: Service not allowed 
+ Shipment data is no longer available 
+ Shipment is not accessible 
+ Weight is over allowed maximum of 30kg. for selected service 
+ Access to detailed/licensed address nomenclatures required 
+"context" : "",
+"message" : "Access to detailed/licensed address nomenclatures required ({errorCode})",
+ To receive information from some methods such as "Get All Streets", "Get All Complexes", "Get All Blocks", and "Get All Points of Interests" a license for address nomenclatures is required.
+ Such license can be purchased from DATAMAP-EUROPE .
+Your Speedy representative can assist you. After purchasing we will permit your username to access the nomenclature.
+ Collection time is after courier address serving deadline. You can change collection date to next available day 
+"context" : "collection-term-expired",
+"message" : "Collection time is after courier address serving deadline. You can change collection date to next available day ({errorCode}),
+ The reason for such an error is that the shipment creation moment is after the end of the working time of the couriers or the serving time of the city/village of the sender.
+The error is displayed when the shipment is from an address and you skipped "pickupDate" property or provided the current date.
+ To avoid similar errors you can use the "autoAdjustPickupDate" property (service -> autoAdjustPickupDate) or set another future pickup date.
+ "autoAdjustPickupDate" will set automatically the next possible date. In case you want to specify the date, you can select one from the next 10 possible pickup dates that can be retrieved using the Pickup Terms method.
+ Money transfer amount not allowed for the selected sender 
+"context" : "sla.cod.moneyTransfer.money-transfer-not-allowed-for-sender",
+"message" : "Money transfer amount not allowed for the selected sender ({errorCode}),
+ Possible reasons for such error can be:
+ - The usage of the money transfer has to be allowed in the contract of the sender. For more information, please get in touch with your Speedy representative.
+ - Money transfer is a domestic additional service allowed only for shipments within Bulgaria.
+ No connection to external carrier ACS 
+"context" : "connection_exception",
+"message" : "No connection to external carrier ACS ({errorCode})",
+ For some international shipments we are using external carrier partners. The error "says" the connection to our external carrier is temporary unavailable. Try again later.
+ Options before payment details: Options before payment are not allowed for shipments with Locker pickup 
+"context" : "sla.cod.obpDetails.apt-pickup-not-allowed-with-obp",
+"message" : "Options before payment details: Options before payment are not allowed for shipments with Locker pickup ({errorCode})",
+ Тhe options before payment are not allowed for shipments to a locker. The reason is that the potential return is not allowed.
+The locker is a machine, and there is no courier to hand over the shipment for contents check.
+ Options before payment details: Service not allowed 
+"context" : "sla.cod.obpDetails.sla.serviceId.service-not-allowed",
+"message" : "Options before payment details: Service not allowed ({errorCode})",
+ The provided service in the "obpd" structure is not allowed or not applicable between the locations of the sender and the recipient.
+ Usually, the service for the return is the same as the primary one. Also, you can call the Destination Services method to get all valid services that you can use.
+ Parcels: Parcel size is required 
+"context" : "content.parcels..require_parcel_size",
+"message" : "Parcels: Parcel size is required ({errorCode})",
+ The error indicates that for the shipment with provided data, parcel sizes are required. Describe the parcels in the "content" > "parcels" structure of the used method for calculating or creating a shipment.
+ Here are some examples of how to do it Describe parcels or pallets examples .
+ Payer: Your own client or contract client should be payer or sender 
+"context" : "payment.csPayment.payerRole.payer-should-be-contract-client-or-own-client",
+"message" : "Payer: Your own client or contract client should be payer or sender ({errorCode})",
+ The error means that you (the user who is creating the shipment) have to be the payer of the courier service or the sender of the shipment.
+It may refer to the payer of the declared value if it is provided or to the packaging if it must be paid.
+Please, check the Shipment Payment structure.
+Regardless of whether you are the sender or the recipient, always try to represent yourself using your client ID (the "cliеntId" property) in the "sender" or the "recipient" structure. The "clientId" summarizes your address and company data. Using the "clientId" property, there is no need to provide address details and client name. Using the ID, we are recognizing you.
+In case you are a third party, you must always be the payer of the courier service. Set your client ID in the "thirdPartyClientId" property and "courierServicePayer" property to "THIRD_PARTY" (in the "ShipmentPayment" structure).
+You can retrieve your client IDs using a " Get Contract Clients " request.
+ Recipient Locality: Invalid site 
+"context" : "receiver.address.siteId.valid-locality-id",
+"message" : "Recipient Locality: Invalid site ({errorCode})",
+ Such an error appears because of an invalid recipient site (city/village). Check the recipient address data. Possible mistakes are:
+- The "siteId" property has an invalid value. The "siteId" can be found using the Find Site request. Also, all site IDs in Bulgaria/Romania can be retrieved and stored locally via the Get All Sites requst.
+- An invalid name was provided in the "siteName" property. It has to contain only the name of the site ("SOFIA", "VARNA", etc.), without any other details as type, postcode, etc. Keep in mind that there can be more than one site with the same name, so you can try to provide additional information, such as the postcode in the appropriate field.
+- Invalid combination of values for the "siteName" and "postCode" properties.
+- Invalid combination of values for the "siteId" and "postCode" properties (in general, the combination of these two properties is possible, but if you are providing "siteId", there is no need to provide any other data for the site).
+ Recipient Phone 1: Invalid phone number 
+"context" : "receiver.phone-1.num.invalid_phone",
+"message" : "Recipient Phone 1: Invalid phone number ({errorCode})",
+ You receive such an error because the phone number of the recipient is not valid, and it doesn't match the rules. 
+ It is important that the number is correct. On the phone number, the recipient receives messages about the shipment.
+How to avoid such an error? Review the documentation and check if the number matches the rules in the description. Check the number's length too. Another basic validation is that the mobile phone numbers have a length of 10 digits.
+Also, before the main request for waybill creation, you can use the Validate Phone method to check the phone number.
+ Recipient - Pickup office: Invalid recipient pickup office 
+"context" : "shipment_party_validator.recipient.office.invalid",
+"message" : "Recipient - Pickup office: Invalid recipient pickup office (id: {officeId}) ({errorCode})",
+ The provided pickup point is not working on the calculated delivery date, or it is permanently closed.
+To avoid such errors, you can download a full list of drop off/pickup locations, store it locally, and offer the users to select from this list. To retrieve the list once per day is enough.
+ Recipient Post code: Invalid post code 
+"context" : "receiver.address.postCode.invalid-postcode",
+"message" : "Recipient Post code: Invalid post code ({errorCode})",
+ The error means that the provided postcode is invalid or not served by our international partners if the shipment is for another country. Before calling the "Create Shipment" method, you can validate the postcode using the Validate Postcode request.
+ Also, you can download a list with all post codes in Bulgaria and Romania using the Get All Postcodes method and make your own validation.
+ In case the recipient is not in Bulgaria or Romania, you can realize other validation. Call the Find Country request, and check the Find Country Response for the "postCodeFormats" property. It will show you the required postcodes formats.
+ Sender site is not served on pickup date 
+"context" : "address-collection-abroad-not-allowed",
+"message" : "Sender site is not served on pickup date ({errorCode})",
+ The pickup date has to be a working day (not a holiday), and the site to be serviced on the date.
+ To avoid such errors, you can use the "autoAdjustPickupDate" property in the Create Shipment method. This property will automatically set the first available date for pickup.
+If you still want to use the "pickupDate" property, you can call the "Pickup Terms" method to receive the next 10 available dates for pickup and provide one of them for "pickupDate".
+ Service: Service not allowed 
+"context" : "sla.serviceId.service-not-allowed",
+"message" : "Service: Service not allowed ({errorCode})",
+ The provided service is not allowed or not applicable. When you know the recipient's address, you can call the Destination Services method to get all valid services you can use in this case. 
+ Shipment data is no longer available 
+"context" : "shipment-data-no-longer-available",
+"message" : "Shipment data is no longer available ({errorCode})",
+ The error appears when the Track method is used. It means that the shipment is old, and we do not provide data for shipments older than 6 months.
+Please, contact your Speedy representative if you need information about an old shipment.
+ Shipment is not accessible 
+"context" : "shipment-not-accessible",
+"message" : "Shipment is not accessible ({errorCode})",
+ The shipment you are trying to track is not yours. The users cannot track shipments created by other users from different contracts, even if the contracts are for the same client.
+ Verify that the user you are using in the request for retrieving the information is the same one who created the waybill.
+ If in the scope of the contract, there is more than one user, each one of them can check waybills created by another one.
+ Weight: Weight is over allowed maximum of 30kg. for selected service ({errorCode}) 
+"context" : "content.weight.weight-over-maximum",
+"message" : "Weight: Weight is over allowed maximum of 30kg. for selected service ({errorCode})",
+ Such an error appears when the weight is more than what is allowed for the service or the destination.
+In case you are providing parcel size, also check the provided dimensions.
+We are calculating volumetric weight based on the sizes. The volumetric weight is determined at a ratio 1 cubic meter = 200 kg.
+For example, the volumetric weight of a parcel with dimensions 63 x 46 x 53 in centimeters is 0.63 x 0.46 x 0.53 * 200 = 30.719 kg.
+The tariff weight of the parcel on which it is charged is the higher between the physical and volumetric weight.
+You can receive more information by visiting our website or contacting your Speedy representative.
+ Migration from the old SOAP web services to new REST API
+ SOAP web method 
+ REST API request 
+ login 
+ login 
+ There is no login method. You need to use username and password in every method. 
+ isSessionActive 
+ Returns whether the session is active. 
+ It is not necessary in API. 
+ listServices 
+ Returns the list of courier services valid on this date. 
+ Services Request 
+ Get available services for date and destination 
+ listServicesForSites 
+ Returns the list of courier services valid on this date and sites.
+ Destination Services Request 
+ Get available services for date and destination 
+ getWeightInterval 
+ Returns the min/max weight allowed for the given shipment parameters. 
+ There is no such method in API. 
+ listSites 
+ Returns a list of sites matching the search criteria. The method is deprecated. Use "listSitesEx" instead 
+ Find Site Request 
+ Get all sites for a country in csv file. Country id is specified as path parameter 
+ listSitesEx 
+ Returns a list of sites. The algorithm aims to find the closest matches. 
+ Find Site Request 
+ Get all sites for a country in csv file. Country id is specified as path parameter 
+ getAddressNomenclature 
+ Get All Countries Request, 
+Get All States Request,
+Get All Sites Request
+Get All Streets Request 
+Get All Complexes Request
+Get All Blocks Request
+Get All Points of Interest Request 
+ getPickingDeliveryInfo 
+ This method can be used to get delivery information of a shipment. If picking is not delivered "null" is returned
+ Track Request 
+ listAllSites 
+ Returns a list of all sites for country. In case no country is specified, the method defaults to sites in Bulgaria 
+ Get All Sites Request 
+ Get all sites for a country in csv file. Country id is specified as path parameter 
+ getSiteById 
+ Returns a site by ID. 
+ Find Site Request 
+ Get all sites for a country in csv file. Country id is specified as path parameter 
+ getSitesByAddrNomenType 
+ Returns sites having either full or partial address nomenclature (streets, quarters etc.). 
+ Find Site Request 
+ listStreetTypes 
+ Returns a list of the most common types of streets.
+ Find Country Request 
+ listQuarterTypes 
+ Returns a list of the most common types of quarters (districts). 
+ Find Country Request 
+ listStreets 
+ Returns a list of streets matching the search criteria.
+ Find Street Request 
+ Get street by id. Street id is provided as parameter in URL path 
+ listQuarters 
+ Returns a list of quarters matching the search criteria.
+ Find Complex Request 
+ listCommonObjects 
+ Returns a list of common objects matching the search criteria. 
+ Find POI Reques 
+ listBlocks 
+ Returns a list of blocks matching the search criteria. 
+ Find Block Request 
+ Get all blocks for a country in csv file. Country id is specified as path parameter. 
+ listOffices 
+ Returns a list of Speedy locations matching the search criteria. The method is deprecated. Use "listOfficesEx" instead 
+ Find Office Request 
+ Get location by id. The ID of the location is provided as parameter in URL path 
+ listOfficesEx 
+ Returns a list of Speedy locations matching the search criteria. The difference with "listOffices" method is in returning data structure 
+ Find Office Request 
+ getAdditionalUserParams 
+ Returns the list of additional user parameters 
+ There is no such method in API. 
+ getClientById 
+ Returns data for client by ID. Allowed values for clientId are only the ones of members of the user's contract and the predefined partners in the WebClients application. 
+ Get Client Request 
+ Client id is provided as URL path paramter. The response is the same as method using JSON schema. 
+ searchClients 
+ Returns data for clients by specified client id or other search criteria. 
+ Get Contact By External Id Request 
+ listContractClients 
+ Returns all client objects ( including logged user's ) having the same contract as logged client's contract. 
+ Get Contract Clients Request 
+ getAllowedDaysForTaking 
+ Returns the dates when the shipment can be ordered for pick-up. 
+ Pickup Terms Request 
+ addressSearch 
+ Returns a list of addresses matching the search criteria. 
+ There is no such method in API. 
+ calculate 
+ This method could be used for preliminary check-up of shipment's price. 
+ Calculation Request 
+ calculateMultipleServices 
+ This method could be used for preliminary check-up of shipment's price for a range of courier services. 
+ Calculation Request 
+ calculatePicking 
+ This is an alternative method for shipment price calculation where the parameter is of type ParamPicking. Clients are encouraged to use the method that best fits their needs. 
+ Calculation Request 
+ createBillOfLading 
+ The method used to create BOL. 
+ Create Shipment Request 
+ createPDF 
+ Used for creating PDF documents to be printed (BOLs, labels etc.) 
+ Print Request 
+ createPDFex 
+ Used for creating PDF documents to be printed (BOLs, labels etc.).
+Extension method for createPDF returning more detailed information. 
+ Extended Print Request 
+ getRoutingLabelInfo 
+ Returns routing information for specified parcel number. 
+ Label Info Request 
+ invalidatePicking 
+ Used to cancel BOL. Only allowed when the shipment is not picked up by Speedy. 
+ Cancel Shipment Request 
+ updateBillOfLading 
+ This method is used to update BOL (only allowed if BOL was created with pendingShipmentDescription = true). 
+ Update Shipment Request 
+ Full update of already created shipment. Allowed only if shipment is not requested for pick up or is not picked up yet.Currently saved shipment data is cleared and replaced with new shipment data 
+ addParcel 
+ This method is used to add parcel to an existing BOL (only allowed if BOL was created with pendingParcelsDescription = true). 
+ Add parcel Request 
+ Parcels can be added to shipments in pending parcels state (shipments created with pendingParcels flag true) 
+ finalizeBillOfLadingCreation 
+ Makes BOL "fully created" (only applies to BOLs created with pendingParcelsDescription = true). 
+ Finalize Pending Shipment Request 
+ createOrder 
+ Creates an order for shipments pick-up (i.e. a visit by courier of Speedy). 
+ Pickup Request 
+ getPickingParcels 
+ Returns a list with all parcels of a shipment. 
+ Shipment Information Request 
+ trackPicking 
+ This method is deprecated. Use trackPickingEx instead. 
+ Track Request 
+ trackPickingEx 
+ This method can be used to track the state/history of a shipment. 
+ Track Request 
+ trackParcel 
+ This method can be used to track the state/history of a shipment. 
+ Track Request 
+ trackParcelMultiple 
+ This method can be used to track the state/history of a shipment or a number of shipments. 
+ Track Request 
+ searchPickingsByRefNumber 
+ Search BOLs by reference codes (ref1 and/or ref2). 
+ Find Parcels By Reference Request 
+ getMicroregionId 
+ Returns the microregion id for provided GPS coordinates. 
+ There is no such method in API. 
+ listSpecialDeliveryRequirements 
+ Returns list with available special delivery requirements for logged user. 
+ Contract Info Request 
+ Get information about logged user contract 
+ validateAddress 
+ Validates address and returns result flag. 
+ Validate Address 
+ This method validates shipment address 
+ serializeAddress 
+ Returns JSON representation of specified address object 
+ There is no such method in API. 
+ deserializeAddress 
+ Returns ParamAddress constructed from specified JSON address string 
+ There is no such method in API. 
+ makeAddressString 
+ Returns ResultAddressString, providing information about specified address parameter. 
+ There is no such method in API. 
+ listCountries 
+ Returns a list of countries matching the search criteria. 
+ Find Country Request 
+ listCountriesEx 
+ Returns a list of countries matching the search criteria. 
+ Find Country Request 
+ listStates 
+ Returns list of states for a country that match search criteria 
+ Find State Request 
+ getStateById 
+Returns state by id 
+ Find State Request 
+ validatePostCode 
+ if siteId is provided: validates the post code against the site's post code range 
+ Validate Postcode Request 
+ searchSecondaryPickings 
+ Returns a list with all not canceled pickings, which are secondary to the picking with the specified billOfLading. 
+ Secondary Shipments Request 
+ getPickingExtendedInfo 
+ Returns extended information about the picking with the specified billOfLading. 
+ Shipment Information Request 
+ convertToWin1251 
+ Returns the transliterated input text as result, it excludes latin characters (a-z, A-Z), cyrillic characters (а-я, А–Я) and digits (0-9). 
+ It is automated when it is necessary. 
+ mapForeignBarcode 
+ Associates foreign parcel number to provided parcel Id. 
+ There is no such method in API. 
+Speedy, 2026. 
+ 

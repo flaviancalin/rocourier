@@ -1,0 +1,3820 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Speedy - REST API examples</title>
+<link href="api_examples.css" rel="stylesheet" type="text/css" />
+</head>
+
+<body>
+<a href="https://www.speedy.bg" target="_blank"><img src="images/logoSpeedy.png" title="Speedy" alt="Speedy"></a>
+<h1>Speedy - REST API examples</h1>
+<ul class="ulExampleLinks">
+    <li><a href="https://api.speedy.bg/web-api.html" class="preCodeAnchor" target="_blank">Rest API Documentation</a></li>
+</ul>
+All examples are based on the PHP cURL options, JSON structured data and standard html POST method.<br><br>
+Table of contents: <br>
+<ul class="ulExampleLinks">
+<li><a href="#CreateShipmentRequest" class="preCodeAnchor">Create Shipment Request examples</a></li>
+<li><a href="#PrintRequest" class="preCodeAnchor">Print Request example</a></li>
+<li><a href="#GetContractClientsRequest" class="preCodeAnchor">Get Contract Clients Request example</a></li>
+<li><a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request examples</a></li>
+<li><a href="#FindStateRequest" class="preCodeAnchor">Find State Request examples</a></li>
+<li><a href="#FindOfficeRequest" class="preCodeAnchor">Find Office Request examples</a></li>
+<li><a href="#FindSiteRequest" class="preCodeAnchor">Find Site Request examples</a></li><li><a href="#FindComplexRequest" class="preCodeAnchor">Find Complex Request example</a></li><li><a href="#FindStreetRequest" class="preCodeAnchor">Find Street Request examples</a></li><li><a href="#FindPoiRequest" class="preCodeAnchor">Find POI Request examples</a></li><li><a href="#DestinationServicesRequest" class="preCodeAnchor">Destination Services Request example</a></li>
+<li><a href="#CalculationRequest" class="preCodeAnchor">Calculation Request examples</a></li>
+<li><a href="#TrackRequest" class="preCodeAnchor">Track Request examples</a></li>
+<li><a href="#AddressExamples" class="preCodeAnchor">Address examples</a></li>
+<li><a href="#ParcelsExamples" class="preCodeAnchor">Describe parcels or pallets examples</a></li>   <li><a href="#FiscalReceipt" class="preCodeAnchor">Describe COD Fiscal Receipt Items</a></li></ul>
+   
+Guidelines<br>
+<ul class="ulExampleLinks">
+<li><a href="api_guidelines.pdf" class="preCodeAnchor" target="_blank">Simple guideline how to generate a waybill</a></li>
+<li><a href="#routingBarcode" class="preCodeAnchor">PHP example of how to generate a routing barcode (for clients who are generating their own labels)</a></li>
+<li><a href="#errorsExplanation" class="preCodeAnchor">Additional explanation of some errors</a></li><li><a href="#migration" class="preCodeAnchor">Migration from the old SOAP service to new REST API</a></li></ul>   
+   
+Other resources<br>
+<ul class="ulExampleLinks">
+<li><a href="https://services.speedy.bg/address_form/?language=EN" class="preCodeAnchor" target="_blank">Demo address form</a></li>
+<li><a href="https://services.speedy.bg/office_locator_widget_v3" class="preCodeAnchor" target="_blank">Office locator widget</a></li><li><a href="json/Speedy_API_examples_Postman_collection_v_1.4.0.rar" class="preCodeAnchor" target="_blank">JSON collection of the examples for Postman</a></li></ul><br>First we define some variables and functions used in examples below.
+<pre class="preCodeMain">
+#-> GLobal variables
+define('API_USERNAME', 'xxxxxx');
+define('API_PASSWORD', 'yyyyyy');
+define('API_BASE_URL', 'https://api.speedy.bg/v1/');
+define('LANGUAGE', 'EN');
+
+
+#-> Function for api requests via cURL functions. In the examples we are using POST requests.
+function apiRequest(&dollar;apiURL, &dollar;jsonData)
+   {
+   #-> Encode the array into JSON.
+   &dollar;jsonDataEncoded = json_encode(&dollar;jsonData);
+
+   #-> Initiate cURL
+   &dollar;curl = curl_init(&dollar;apiURL);
+
+   #-> Set curl options
+   curl_setopt(&dollar;curl, CURLOPT_POST, 1); // Tell cURL that we want to send a POST request.
+   curl_setopt(&dollar;curl, CURLOPT_SSL_VERIFYPEER, false); // Verify the peer's SSL certificate.
+   curl_setopt(&dollar;curl, CURLOPT_RETURNTRANSFER, true); // Stop showing results on the screen.
+   curl_setopt(&dollar;curl, CURLOPT_CONNECTTIMEOUT, 5); // The number of seconds to wait while trying to connect. Use 0 to wait indefinitely.
+   curl_setopt(&dollar;curl, CURLOPT_HTTPHEADER, array('Content-Type: application/json')); // Set the content type to application/json
+   curl_setopt(&dollar;curl, CURLOPT_POSTFIELDS, &dollar;jsonDataEncoded); // Attach our encoded JSON string to the POST fields.
+   
+   #-> Get the response
+   &dollar;jsonResponse = curl_exec(&dollar;curl);
+         
+   if ( &dollar;jsonResponse === FALSE)
+      { exit("cURL Error: ".curl_error(&dollar;curl)); }
+      
+   return(&dollar;jsonResponse);
+   }
+</pre><a name="CreateShipmentRequest" class="aAnchor"></a><br><span class="anchorName">Create Shipment Request examples</span> <a href="https://api.speedy.bg/web-api.html#href-create-shipment-req" class="aDocumentation" target="_blank">view API documentation</a>
+
+<ul class="ulExampleLinks">
+   <li><a href="#ShipmentToAnAddress" class="preCodeAnchor">Example 1a - A shipment to an address</a></li>
+   <li><a href="#ShipmentToAnOffice" class="preCodeAnchor">Example 1b - A shipment to a pickup point</a></li>
+   <li><a href="#ShipmentFromAnOfficeAndThirdPartyPayer" class="preCodeAnchor">Example 1c - A shipment from a drop off point and Third Party Payer</a></li>
+   <li><a href="#InjectedShipmentInAnOfficeInGreeceToAnAddressInGreece" class="preCodeAnchor">Example 1d - An injected shipment in drop off point in Greece to an address in Greece</a></li>
+   <li><a href="#ShipmentFromAnAddressToAnObject" class="preCodeAnchor">Example 1e - A shipment from an address to a merchant's object</a></li>
+   <li><a href="#ShipmentFromAnAddressToAnOffice" class="preCodeAnchor">Example 1f - A shipment from an address to a pickup point</a></li>
+   <li><a href="#MultiParcelShipmentToAPickupPoint" class="preCodeAnchor">Example 1g - A multi parcel shipment to a pickup point</a></li>
+</ul>
+
+<table cellpadding="0" cellspacing="10" border="0" class="tableExamples">
+   <tr>
+      <td class="column1">PHP example:</td>
+      <td class="column2">The same example as JSON:</td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode">
+<pre class="preCode"><a name="ShipmentToAnAddress"></a>#-> <b>Example 1a - A shipment to an address</b>
+
+#-> I. SENDER
+&dollar;senderArray = array(
+   'phone1' => array('number' => '0888112233'),
+   'contactName' => 'IVAN PETROV',
+   'email' => '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="91f8e7f0ffd1e1f4e5e3fee7bff3f6">[email&#160;protected]</a>',
+   /* 'clientId' => 1234567890 */ // Not required
+);
+/*
+* If you have a warehouse in Sofia, a shop in Varna and an office in Plovdiv, you'll have three objects with different clientIds, one for each object.
+* When you want to send from one of these addresses of your objects, you can set the appropriate 'clientId'.
+* If you skip it, the sender will be the default one for the username with all the address and contact information.
+* All your 'clientId's can be obtained from the result of the <a href="#GetContractClientsRequest" class="preCodeAnchor">Get Contract Clients Request</a>.
+*/
+
+#-> For drop off shipment (The 'dropoffOfficeId' property overrides the address details)
+//&dollar;senderArray['dropoffOfficeId'] = 2; // The 'dropoffOfficeId' can be obtained from the result of a <a href="#FindOfficeRequest" class="preCodeAnchor">Find Office Request</a>.
+
+
+#-> II. RECIPIENT
+&dollar;recipientArray = array(
+   'phone1' => array('number' => '0899445566'),
+   'privatePerson' => true,
+   'clientName' => 'VASIL GEORGIEV',
+   'email' => '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3c4a5d4f55507c5b59534e5b55594a125e5b">[email&#160;protected]</a>'
+);
+
+#-> If the shipment is to an address. There are <a href="#AddressExamples" class="preCodeAnchor">several options to define an address</a>. Check the examples below.
+&dollar;recipientAddressArray = array(
+   'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>.
+   'siteId' => 68134, // SOFIA. The 'siteId' can be obtained from the result of a <a href="#FindSiteRequest" class="preCodeAnchor">Find Site Request</a>.
+   'complexId' => 29, // A complex named 'KRASNA POLYANA 3'. The 'complexId' can be obtained from the result of a <a href="#FindComplexRequest"  class="preCodeAnchor">Find Complex Request</a>.
+   'streetId' => 3109, // A street named 'USTA GENCHO'. The 'streetId' can be obtained from the result of a <a href="#FindStreetRequest" class="preCodeAnchor">Find Street Request</a>.
+   'streetNo' => '1A',
+   'blockNo' => '301',
+   'entranceNo' => '2',
+   'floorNo' => '3',
+   'apartmentNo' => '4'
+);
+&dollar;recipientArray['address'] = &dollar;recipientAddressArray;
+
+
+#-> III. SERVICE DETAILS
+&dollar;serviceArray = array(
+   'autoAdjustPickupDate' => true, // Not mandatory
+   'serviceId' => 505, // The 'serviceId' can be obtained from the result of a <a href="#DestinationServicesRequest" class="preCodeAnchor">Destination Services Request</a>.
+   'saturdayDelivery' => true // Not mandatory. Use it if you want delivery on Saturday/Holiday.
+);
+
+/* Cash on delivery - Not mandatory */
+&dollar;cashOnDeliveryArray = array(
+   'amount' => 100,
+   'processingType' => 'CASH' // (CASH, POSTAL_MONEY_TRANSFER)
+);
+
+/* Options before payment - Not mandatory */
+&dollar;optionsBeforePaymentArray = array(
+   'option' => 'OPEN',
+   'returnShipmentServiceId' => 505,
+   'returnShipmentPayer' => 'SENDER' // (SENDER, RECIPIENT, THIRD_PARTY). The sender of the returning shipment is the recipient of the primary shipment.
+);
+/*
+* 'returnShipmentServiceId' is the service for the returning shipment in case the recipient refuses to accept the primary shipment.
+* It can be the same serviceId as in the primary shipment or one obtained from the result of a <a href="#DestinationServicesRequest" class="preCodeAnchor">Destination Services Request</a>.
+*/
+
+/* Declared value - Not mandatory */
+&dollar;declaredValueArray = array(
+   'amount' => 100,
+   'fragile' => true
+);
+
+/* Additional services */
+&dollar;additionalServicesArray = array(
+   'cod' => &dollar;cashOnDeliveryArray,
+   'obpd' => &dollar;optionsBeforePaymentArray,
+   'declaredValue' => &dollar;declaredValueArray
+);
+
+/* Add additional services to the main service array */
+&dollar;serviceArray['additionalServices'] = &dollar;additionalServicesArray;
+
+
+#-> IV. CONTENT OF THE PARCEL
+&dollar;contentArray = array(
+   'parcelsCount' => 1,
+   'contents' => 'MOBILE PHONE',
+   'package' => 'BOX',
+   'totalWeight' => 0.6
+);
+
+
+#-> V. PAYMENTS
+&dollar;paymentArray = array(
+   'courierServicePayer' => 'RECIPIENT', // (SENDER, RECIPIENT, THIRD_PARTY)
+   'declaredValuePayer' => 'RECIPIENT' // Mandatory only if the shipment has a 'declaredValue'.
+);
+
+
+#-> VI. JSON DATA
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'sender' => &dollar;senderArray, // You can skip the sender data. In this case the sender will be the default one for the username with all the address and contact information.
+   'recipient' => &dollar;recipientArray,
+   'service' => &dollar;serviceArray,
+   'content' => &dollar;contentArray,
+   'payment' => &dollar;paymentArray,
+   'ref1' => 'ORDER 123456'
+);
+
+
+#-> Create Shipment Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'shipment/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);
+</pre>
+      </td>
+      <td valign="top" class="tdCode"><pre class="preCode">A shipment to an address:<br>
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "sender" : {
+    "phone1" : {
+      "number" : "0888112233"
+    },
+    "contactName" : "IVAN PETROV",
+    "email" : "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="c5acb3a4ab85b5a0b1b7aab3eba7a2">[email&#160;protected]</a>"
+  },
+  "recipient" : {
+    "phone1" : {
+      "number" : "0899445566"
+    },
+    "privatePerson" : true,
+    "clientName" : "VASIL GEORGIEV",
+    "email" : "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="c3b5a2b0aaaf83a4a6acb1a4aaa6b5eda1a4">[email&#160;protected]</a>",
+    "address" : {
+      "countryId" : 100,
+      "siteId" : 68134,
+      "complexId" : 29,
+      "streetId" : 3109,
+      "streetNo" : "1A",
+      "blockNo" : "301",
+      "entranceNo" : "2",
+      "floorNo" : "3",
+      "apartmentNo" : "4"
+    }
+  },
+  "service" : {
+    "autoAdjustPickupDate" : true,
+    "serviceId" : 505,
+    "saturdayDelivery" : true,
+    "additionalServices" : {
+      "cod" : {
+        "amount" : 100,
+        "processingType" : "CASH"
+      },
+      "obpd" : {
+        "option" : "OPEN",
+        "returnShipmentServiceId" : 505,
+        "returnShipmentPayer" : "SENDER"
+      },
+      "declaredValue" : {
+        "amount" : 100,
+        "fragile" : true
+      }
+    }
+  },
+  "content" : {
+    "parcelsCount" : 1,
+    "contents" : "MOBILE PHONE",
+    "package" : "BOX",
+    "totalWeight" : 0.6
+  },
+  "payment" : {
+    "courierServicePayer" : "RECIPIENT",
+    "declaredValuePayer" : "RECIPIENT"
+  },
+  "ref1" : "ORDER 123456"
+}
+      </pre></td>
+   </tr>
+
+   <tr>
+      <td valign="top" class="tdCode">
+<pre class="preCode"><a name="ShipmentToAnOffice"></a>#-> <b>Example 1b - A shipment to a pickup point</b>
+
+#-> I. SENDER
+&dollar;senderArray = array(
+   'phone1' => array('number' => '0888112233'),
+   'contactName' => 'IVAN PETROV',
+   'email' => '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="bad3ccdbd4facadfcec8d5cc94d8dd">[email&#160;protected]</a>',
+   /* 'clientId' => 1234567890 */ // Not required
+);
+/*
+* If you have a warehouse in Sofia, a shop in Varna and an office in Plovdiv, you'll have three objects with different clientIds, one for each object.
+* When you want to send from one of these addresses of your objects, you can set the appropriate 'clientId'.
+* If you skip it, the sender will be the default one for the username with all the address and contact information.
+* All your 'clientId's can be obtained from the result of the <a href="#GetContractClientsRequest" class="preCodeAnchor">Get Contract Clients Request</a>.
+*/
+
+#-> For drop off shipment (The 'dropoffOfficeId' property overrides the address details)
+//&dollar;senderArray['dropoffOfficeId'] = 2; // The 'dropoffOfficeId' can be obtained from the result of a <a href="#FindOfficeRequest" class="preCodeAnchor">Find Office Request</a>.
+
+
+#-> II. RECIPIENT
+&dollar;recipientArray = array(
+   'phone1' => array('number' => '0899445566'),
+   'privatePerson' => true,
+   'clientName' => 'VASIL GEORGIEV',
+   'email' => '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="b7c1d6c4dedbf7d0d2d8c5d0ded2c199d5d0">[email&#160;protected]</a>',
+   // For self-collection shipment from a pickup point (use it instead of &dollar;recipientArray['address'])
+   'pickupOfficeId' => 14 // The 'pickupOfficeId' can be obtained from the result of a <a href="#FindOfficeRequest" class="preCodeAnchor">Find Office Request</a>.
+);
+
+
+#-> III. SERVICE DETAILS
+&dollar;serviceArray = array(
+   'autoAdjustPickupDate' => true, // Not mandatory
+   'serviceId' => 505, // The 'serviceId' can be obtained from the result of a <a href="#DestinationServicesRequest" class="preCodeAnchor">Destination Services Request</a>.
+   'saturdayDelivery' => true // Not mandatory. Use it if you want delivery on Saturday/Holiday.
+);
+
+/* Cash on delivery - Not mandatory */
+&dollar;cashOnDeliveryArray = array(
+   'amount' => 100,
+   'processingType' => 'CASH' // (CASH, POSTAL_MONEY_TRANSFER)
+);
+
+/* Options before payment - Not mandatory */
+&dollar;optionsBeforePaymentArray = array(
+   'option' => 'OPEN',
+   'returnShipmentServiceId' => 505,
+   'returnShipmentPayer' => 'SENDER' // (SENDER, RECIPIENT, THIRD_PARTY). The sender of the returning shipment is the recipient of the primary shipment.
+);
+/*
+* 'returnShipmentServiceId' is the service for the returning shipment in case the recipient refuses to accept the primary shipment.
+* It can be the same serviceId as in the primary shipment or one obtained from the result of a <a href="#DestinationServicesRequest" class="preCodeAnchor">Destination Services Request</a>.
+*/
+
+/* Declared value - Not mandatory */
+&dollar;declaredValueArray = array(
+   'amount' => 100,
+   'fragile' => true
+);
+
+/* Additional services */
+&dollar;additionalServicesArray = array(
+   'cod' => &dollar;cashOnDeliveryArray,
+   'obpd' => &dollar;optionsBeforePaymentArray,
+   'declaredValue' => &dollar;declaredValueArray
+);
+
+/* Add additional services to the main service array */
+&dollar;serviceArray['additionalServices'] = &dollar;additionalServicesArray;
+
+
+#-> IV. CONTENT OF THE PARCEL
+&dollar;contentArray = array(
+   'parcelsCount' => 1,
+   'contents' => 'MOBILE PHONE',
+   'package' => 'BOX',
+   'totalWeight' => 0.6
+);
+
+
+#-> V. PAYMENTS
+&dollar;paymentArray = array(
+   'courierServicePayer' => 'RECIPIENT', // (SENDER, RECIPIENT, THIRD_PARTY)
+   'declaredValuePayer' => 'RECIPIENT' // Mandatory only if the shipment has a 'declaredValue'.
+);
+
+
+#-> VI. JSON DATA
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'sender' => &dollar;senderArray, // You can skip the sender data. In this case the sender will be the default one for the username with all the address and contact information.
+   'recipient' => &dollar;recipientArray,
+   'service' => &dollar;serviceArray,
+   'content' => &dollar;contentArray,
+   'payment' => &dollar;paymentArray,
+   'ref1' => 'ORDER 123456'
+);
+
+
+#-> Create Shipment Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'shipment/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);
+</pre>
+      </td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+A shipment to a pickup point:<br>
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "sender" : {
+    "phone1" : {
+      "number" : "0888112233"
+    },
+    "contactName" : "IVAN PETROV",
+    "email" : "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="660f10070826160312140910480401">[email&#160;protected]</a>"
+  },
+  "recipient" : {
+    "phone1" : {
+      "number" : "0899445566"
+    },
+    "privatePerson" : true,
+    "clientName" : "VASIL GEORGIEV",
+    "email" : "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="11677062787d5176747e63767874673f7376">[email&#160;protected]</a>",
+    "pickupOfficeId" : 14
+  },
+  "service" : {
+    "autoAdjustPickupDate" : true,
+    "serviceId" : 505,
+    "saturdayDelivery" : true,
+    "additionalServices" : {
+      "cod" : {
+        "amount" : 100,
+        "processingType" : "CASH"
+      },
+      "obpd" : {
+        "option" : "OPEN",
+        "returnShipmentServiceId" : 505,
+        "returnShipmentPayer" : "SENDER"
+      },
+      "declaredValue" : {
+        "amount" : 100,
+        "fragile" : true
+      }
+    }
+  },
+  "content" : {
+    "parcelsCount" : 1,
+    "contents" : "MOBILE PHONE",
+    "package" : "BOX",
+    "totalWeight" : 0.6
+  },
+  "payment" : {
+    "courierServicePayer" : "RECIPIENT",
+    "declaredValuePayer" : "RECIPIENT"
+  },
+  "ref1" : "ORDER 123456"
+}      
+      </pre></td>
+   </tr>
+
+   <tr>
+      <td valign="top" class="tdCode">
+<pre class="preCode"><a name="ShipmentFromAnOfficeAndThirdPartyPayer"></a>#-> <b>Example 1c - A shipment from a drop off point and Third Party Payer</b>
+
+#-> I. SENDER
+&dollar;senderArray = array(
+   'phone1' => array('number' => '0888112233'),
+   'privatePerson' => false,
+   'clientName' => 'Company LTD',
+   'contactName' => 'IVAN PETROV',
+   'email' => '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="adc4dbccc3edddc8d9dfc2db83cfca">[email&#160;protected]</a>',
+   /* 'clientId' => 1234567890 */ // Not required
+   'dropoffOfficeId' => 2 // The 'dropoffOfficeId' can be obtained from the result of a <a href="#FindOfficeRequest" class="preCodeAnchor">Find Office Request</a>.
+);
+/*
+* If you have a warehouse in Sofia, a shop in Varna and an office in Plovdiv, you'll have three objects with different clientIds, one for each object.
+* When you want to send from one of these addresses of your objects, you can set the appropriate 'clientId'.
+* If you skip it, the sender will be the default one for the username with all the address and contact information.
+* All your 'clientId's can be obtained from the result of the Get Contract Clients Request.
+*/
+
+
+#-> II. RECIPIENT
+&dollar;recipientArray = array(
+   'phone1' => array('number' => '0899445566'),
+   'privatePerson' => true,
+   'clientName' => 'VASIL GEORGIEV',
+   'email' => '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="7c0a1d0f15103c1b19130e1b15190a521e1b">[email&#160;protected]</a>'
+);
+
+#-> If the shipment is to an address. There are several options to define an address. Check the examples below.
+&dollar;recipientAddressArray = array(
+   'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a Find Country Request.
+   'siteId' => 68134, // SOFIA. The 'siteId' can be obtained from the result of a Find Site Request.
+   'complexId' => 29, // A complex named 'KRASNA POLYANA 3'. The 'complexId' can be obtained from the result of a Find Complex Request.
+   'streetId' => 3109, // A street named 'USTA GENCHO'. The 'streetId' can be obtained from the result of a Find Street Request.
+   'streetNo' => '1A',
+   'blockNo' => '301',
+   'entranceNo' => '2',
+   'floorNo' => '3',
+   'apartmentNo' => '4'
+);
+&dollar;recipientArray['address'] = &dollar;recipientAddressArray;
+
+
+#-> III. SERVICE DETAILS
+&dollar;serviceArray = array(
+   'autoAdjustPickupDate' => true, // Not mandatory
+   'serviceId' => 505, // The 'serviceId' can be obtained from the result of a Destination Services Request.
+   'saturdayDelivery' => true // Not mandatory. Use it if you want delivery on Saturday/Holiday.
+);
+
+/* Cash on delivery - Not mandatory */
+&dollar;cashOnDeliveryArray = array(
+   'amount' => 100,
+   'processingType' => 'CASH' // (CASH, POSTAL_MONEY_TRANSFER)
+);
+
+/* Options before payment - Not mandatory */
+&dollar;optionsBeforePaymentArray = array(
+   'option' => 'OPEN',
+   'returnShipmentServiceId' => 505,
+   'returnShipmentPayer' => 'THIRD_PARTY' // (SENDER, RECIPIENT, THIRD_PARTY). The sender of the returning shipment is the recipient of the primary shipment.
+);
+/*
+* 'returnShipmentServiceId' is the service for the returning shipment in case the recipient refuses to accept the primary shipment.
+* It can be the same serviceId as in the primary shipment or one obtained from the result of a Destination Services Request.
+*/
+
+/* Declared value - Not mandatory */
+&dollar;declaredValueArray = array(
+   'amount' => 100,
+   'fragile' => true
+);
+
+/* Additional services */
+&dollar;additionalServicesArray = array(
+   'cod' => &dollar;cashOnDeliveryArray,
+   'obpd' => &dollar;optionsBeforePaymentArray,
+   'declaredValue' => &dollar;declaredValueArray
+);
+
+/* Add additional services to the main service array */
+&dollar;serviceArray['additionalServices'] = &dollar;additionalServicesArray;
+
+
+#-> IV. CONTENT OF THE PARCEL
+&dollar;contentArray = array(
+   'parcelsCount' => 1,
+   'contents' => 'MOBILE PHONE',
+   'package' => 'BOX',
+   'totalWeight' => 0.6
+);
+
+
+#-> V. PAYMENTS
+&dollar;paymentArray = array(
+   'courierServicePayer' => 'THIRD_PARTY', // (SENDER, RECIPIENT, THIRD_PARTY)
+   'declaredValuePayer' => 'THIRD_PARTY', // Mandatory only if the shipment has a 'declaredValue'.,
+   'thirdPartyClientId' => 1234567890  // All your 'clientId's can be obtained from the result of the Get Contract Clients Request.
+);
+
+
+#-> VI. JSON DATA
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'sender' => &dollar;senderArray, // You can skip the sender data. In this case the sender will be the default one for the username with all the address and contact information.
+   'recipient' => &dollar;recipientArray,
+   'service' => &dollar;serviceArray,
+   'content' => &dollar;contentArray,
+   'payment' => &dollar;paymentArray,
+   'ref1' => 'ORDER 123456'
+);
+
+
+#-> Create Shipment Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'shipment/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);
+</pre>
+      </td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+A shipment from a drop off point and Third Party Payer:<br>
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "sender" : {
+    "phone1" : {
+      "number" : "0888112233"
+    },
+    "privatePerson" : false,
+    "clientName" : "Company LTD",
+    "contactName" : "IVAN PETROV",
+    "email" : "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="ddb4abbcb39dadb8a9afb2abf3bfba">[email&#160;protected]</a>",
+    "dropoffOfficeId" : 2
+  },
+  "recipient" : {
+    "phone1" : {
+      "number" : "0899445566"
+    },
+    "privatePerson" : true,
+    "clientName" : "VASIL GEORGIEV",
+    "email" : "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="384e594b5154785f5d574a5f515d4e165a5f">[email&#160;protected]</a>",
+    "address" : {
+      "countryId" : 100,
+      "siteId" : 68134,
+      "complexId" : 29,
+      "streetId" : 3109,
+      "streetNo" : "1A",
+      "blockNo" : "301",
+      "entranceNo" : "2",
+      "floorNo" : "3",
+      "apartmentNo" : "4"
+    }
+  },
+  "service" : {
+    "autoAdjustPickupDate" : true,
+    "serviceId" : 505,
+    "saturdayDelivery" : true,
+    "additionalServices" : {
+      "cod" : {
+        "amount" : 100,
+        "processingType" : "CASH"
+      },
+      "obpd" : {
+        "option" : "OPEN",
+        "returnShipmentServiceId" : 505,
+        "returnShipmentPayer" : "THIRD_PARTY"
+      },
+      "declaredValue" : {
+        "amount" : 100,
+        "fragile" : true
+      }
+    }
+  },
+  "content" : {
+    "parcelsCount" : 1,
+    "contents" : "MOBILE PHONE",
+    "package" : "BOX",
+    "totalWeight" : 0.6
+  },
+  "payment" : {
+    "courierServicePayer" : "THIRD_PARTY",
+    "declaredValuePayer" : "THIRD_PARTY",
+    "thirdPartyClientId" : 1234567890
+  },
+  "ref1" : "ORDER 123456"
+}
+      </pre></td>
+   </tr>
+
+
+   <tr>
+      <td valign="top" class="tdCode">
+<pre class="preCode"><a name="InjectedShipmentInAnOfficeInGreeceToAnAddressInGreece"></a>#-> <b>Example 1d - An injected shipment in a drop off point in Greece to an address in Greece</b>
+
+#-> I. SENDER
+&dollar;senderArray = array(
+   'contactName' => 'JOHN SMITH',
+   'phone1' => array(
+      'number' => '+30217654321'
+   ),
+   'email' => '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="d9b3b6b1b799aab4b0adb1f7bab6b4">[email&#160;protected]</a>',
+   'dropoffOfficeId' => 52
+);
+
+
+#-> II. RECIPIENT
+&dollar;recipientArray = array(
+   'clientName' => 'GEORGIOS PAPADOPULUS',
+   'phone1' => array(
+      'number' => '+30211234567'
+   ),
+   'email' => '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="4522202a37222c2a360535243524212a352a30292a366b2237">[email&#160;protected]</a>',
+   'privatePerson' => true,
+   'address' => array(
+      'countryId' => 300, // GREECE
+      'siteName' => 'THESSALONIKI',
+      'postCode' => 54629,
+      'addressLine1' => '28 Monastiriou str',
+      'addressLine2' => 'Bus station' /* Not mandatory */
+   )
+);
+
+
+#-> III. SERVICE DETAILS
+&dollar;serviceArray = array(
+   'autoAdjustPickupDate' => true,
+   'serviceId' => 312,
+   'saturdayDelivery' => false
+);
+
+
+#-> IV. CONTENT OF THE PARCEL
+&dollar;contentArray = array(
+   'parcelsCount' => 1,
+   'contents' => 'Books',
+   'package' => 'ENVELOPE',
+   'totalWeight' => 0.5
+);
+
+
+#-> V. PAYMENTS
+&dollar;paymentArray = array(
+   'courierServicePayer' => 'SENDER', // (SENDER, RECIPIENT, THIRD_PARTY)
+);
+
+
+#-> VI. JSON DATA
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => 'EN',
+   'sender' => &dollar;senderArray,
+   'recipient' => &dollar;recipientArray,
+   'service' => &dollar;serviceArray,
+   'content' => &dollar;contentArray,
+   'payment' => &dollar;paymentArray,
+   'ref1' => 'ORDER 123456'
+);
+
+
+#-> Create Shipment Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'shipment/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);
+</pre>
+      </td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+An injected shipment in a drop off point in Greece to an address in Greece:<br>
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "sender" : {
+    "contactName" : "JOHN SMITH",
+    "phone1" : {
+      "number" : "+30217654321"
+    },
+    "email" : "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="0a606562644a7967637e6224696567">[email&#160;protected]</a>",
+    "dropoffOfficeId" : 52
+  },
+  "recipient" : {
+    "clientName" : "GEORGIOS PAPADOPULUS",
+    "phone1" : {
+      "number" : "+30211234567"
+    },
+    "email" : "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="b6d1d3d9c4d1dfd9c5f6c6d7c6d7d2d9c6d9c3dad9c598d1c4">[email&#160;protected]</a>",
+    "privatePerson" : true,
+    "address" : {
+      "countryId" : 300,
+      "siteName" : "THESSALONIKI",
+      "postCode" : 54629,
+      "addressLine1" : "28 Monastiriou str",
+      "addressLine2" : "Bus station"
+    }
+  },
+  "service" : {
+    "autoAdjustPickupDate" : true,
+    "serviceId" : 312,
+    "saturdayDelivery" : false
+  },
+  "content" : {
+    "parcelsCount" : 1,
+    "contents" : "Books",
+    "package" : "ENVELOPE",
+    "totalWeight" : 0.5
+  },
+  "payment" : {
+    "courierServicePayer" : "SENDER"
+  },
+  "ref1" : "ORDER 123456"
+}
+      </pre></td>
+   </tr>
+   
+   
+   <tr>
+      <td valign="top" class="tdCode">
+<pre class="preCode"><a name="ShipmentFromAnAddressToAnObject"></a>#-> <b>Example 1e - A shipment from an address to a merchant's object</b>
+
+#-> I. SENDER
+&dollar;senderArray = array(
+   'clientName' => 'IVAN PETROV',
+   'phone1' => array('number' => '0888112233'),
+   'privatePerson' => true
+);
+
+#-> There are <a href="#AddressExamples" class="preCodeAnchor">several options to define an address</a>. Check the examples below.
+&dollar;senderAddressArray = array(
+   'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>.
+   'siteId' => 68134, // SOFIA. The 'siteId' can be obtained from the result of a <a href="#FindSiteRequest" class="preCodeAnchor">Find Site Request</a>.
+   'complexId' => 29, // A complex named 'KRASNA POLYANA 3'. The 'complexId' can be obtained from the result of a <a href="#FindComplexRequest"  class="preCodeAnchor">Find Complex Request</a>.
+   'streetId' => 3109, // A street named 'USTA GENCHO'. The 'streetId' can be obtained from the result of a <a href="#FindStreetRequest" class="preCodeAnchor">Find Street Request</a>.
+   'streetNo' => '1A',
+   'blockNo' => '301',
+   'entranceNo' => '2',
+   'floorNo' => '3',
+   'apartmentNo' => '4'
+);
+&dollar;senderArray['address'] = &dollar;senderAddressArray;
+
+
+#-> II. RECIPIENT
+&dollar;recipientArray = array(
+   'clientId' => 1234567890, // An object of Company XYZ
+   'contactName' => 'VASIL GEORGIEV',
+   'phone1' => array('number' => '0899445566')
+);
+
+
+#-> III. SERVICE DETAILS
+&dollar;serviceArray = array(
+   'autoAdjustPickupDate' => true, // Not mandatory
+   'serviceId' => 505 // The 'serviceId' can be obtained from the result of a <a href="#DestinationServicesRequest" class="preCodeAnchor">Destination Services Request</a>.
+);
+
+
+#-> IV. CONTENT OF THE PARCEL
+&dollar;contentArray = array(
+   'parcelsCount' => 1,
+   'contents' => 'MOBILE PHONE',
+   'package' => 'BOX',
+   'totalWeight' => 1
+);
+
+
+#-> V. PAYMENTS
+&dollar;paymentArray = array(
+   'courierServicePayer' => 'RECIPIENT'
+);
+
+
+#-> VI. JSON DATA
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'sender' => &dollar;senderArray,
+   'recipient' => &dollar;recipientArray,
+   'service' => &dollar;serviceArray,
+   'content' => &dollar;contentArray,
+   'payment' => &dollar;paymentArray,
+   'ref1' => 'ORDER 123456'
+);
+
+
+#-> Create Shipment Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'shipment/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);
+</pre>
+      </td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+A shipment from an address to a merchant's object:<br>
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "sender" : {
+    "clientName" : "IVAN PETROV",
+    "phone1" : {
+      "number" : "0888112233"
+    },
+    "privatePerson" : true,
+    "address" : {
+      "countryId" : 100,
+      "siteId" : 68134,
+      "complexId" : 29,
+      "streetId" : 3109,
+      "streetNo" : "1A",
+      "blockNo" : "301",
+      "entranceNo" : "2",
+      "floorNo" : "3",
+      "apartmentNo" : "4"
+    }
+  },
+  "recipient" : {
+    "clientId" : 1234567890,
+    "contactName" : "VASIL GEORGIEV",
+    "phone1" : {
+      "number" : "0899445566"
+    }
+  },
+  "service" : {
+    "autoAdjustPickupDate" : true,
+    "serviceId" : 505
+  },
+  "content" : {
+    "parcelsCount" : 1,
+    "contents" : "MOBILE PHONE",
+    "package" : "BOX",
+    "totalWeight" : 1
+  },
+  "payment" : {
+    "courierServicePayer" : "RECIPIENT"
+  },
+  "ref1" : "ORDER 123456"
+}
+      </pre></td>
+   </tr>
+   
+   
+   <tr>
+      <td valign="top" class="tdCode">
+<pre class="preCode"><a name="ShipmentFromAnAddressToAnOffice"></a>#-> <b>Example 1f - A shipment from an address to a pickup point</b>
+
+#-> I. SENDER
+&dollar;senderArray = array(
+   'clientName' => 'IVAN PETROV',
+   'phone1' => array('number' => '0888112233'),
+   'privatePerson' => true
+);
+
+#-> There are <a href="#AddressExamples" class="preCodeAnchor">several options to define an address</a>. Check the examples below.
+&dollar;senderAddressArray = array(
+   'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>.
+   'siteId' => 68134, // SOFIA. The 'siteId' can be obtained from the result of a <a href="#FindSiteRequest" class="preCodeAnchor">Find Site Request</a>.
+   'complexId' => 29, // A complex named 'KRASNA POLYANA 3'. The 'complexId' can be obtained from the result of a <a href="#FindComplexRequest"  class="preCodeAnchor">Find Complex Request</a>.
+   'streetId' => 3109, // A street named 'USTA GENCHO'. The 'streetId' can be obtained from the result of a <a href="#FindStreetRequest" class="preCodeAnchor">Find Street Request</a>.
+   'streetNo' => '1A',
+   'blockNo' => '301',
+   'entranceNo' => '2',
+   'floorNo' => '3',
+   'apartmentNo' => '4'
+);
+&dollar;senderArray['address'] = &dollar;senderAddressArray;
+
+
+#-> II. RECIPIENT
+&dollar;recipientArray = array(
+   'clientId' => 1234567890, // Company XYZ
+   'contactName' => 'VASIL GEORGIEV',
+   'phone1' => array('number' => '0899445566'),
+   'pickupOfficeId' => 2
+);
+
+
+#-> III. SERVICE DETAILS
+&dollar;serviceArray = array(
+   'autoAdjustPickupDate' => true, // Not mandatory
+   'serviceId' => 505 // The 'serviceId' can be obtained from the result of a <a href="#DestinationServicesRequest" class="preCodeAnchor">Destination Services Request</a>.
+);
+
+
+#-> IV. CONTENT OF THE PARCEL
+&dollar;contentArray = array(
+   'parcelsCount' => 1,
+   'contents' => 'MOBILE PHONE',
+   'package' => 'BOX',
+   'totalWeight' => 1
+);
+
+
+#-> V. PAYMENTS
+&dollar;paymentArray = array(
+   'courierServicePayer' => 'RECIPIENT'
+);
+
+
+#-> VI. JSON DATA
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'sender' => &dollar;senderArray,
+   'recipient' => &dollar;recipientArray,
+   'service' => &dollar;serviceArray,
+   'content' => &dollar;contentArray,
+   'payment' => &dollar;paymentArray,
+   'ref1' => 'ORDER 123456'
+);
+
+
+#-> Create Shipment Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'shipment/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);
+</pre>
+      </td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+A shipment from an address to a pickup point:<br>
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "sender" : {
+    "clientName" : "IVAN PETROV",
+    "phone1" : {
+      "number" : "0888112233"
+    },
+    "privatePerson" : true,
+    "address" : {
+      "countryId" : 100,
+      "siteId" : 68134,
+      "complexId" : 29,
+      "streetId" : 3109,
+      "streetNo" : "1A",
+      "blockNo" : "301",
+      "entranceNo" : "2",
+      "floorNo" : "3",
+      "apartmentNo" : "4"
+    }
+  },
+  "recipient" : {
+    "clientId" : 1234567890,
+    "contactName" : "VASIL GEORGIEV",
+    "phone1" : {
+      "number" : "0899445566"
+    },
+    "pickupOfficeId" : 2
+  },
+  "service" : {
+    "autoAdjustPickupDate" : true,
+    "serviceId" : 505
+  },
+  "content" : {
+    "parcelsCount" : 1,
+    "contents" : "MOBILE PHONE",
+    "package" : "BOX",
+    "totalWeight" : 1
+  },
+  "payment" : {
+    "courierServicePayer" : "RECIPIENT"
+  },
+  "ref1" : "ORDER 123456"
+}
+      </pre></td>
+   </tr>   
+
+
+
+   <tr>
+      <td valign="top" class="tdCode">
+<pre class="preCode"><a name="MultiParcelShipmentToAPickupPoint"></a>#-> <b>Example 1g - A multi parcel shipment to a pickup point</b>
+
+#-> I. SENDER
+&dollar;senderArray = array(
+   'phone1' => array('number' => '0888112233'),
+   'contactName' => 'IVAN PETROV',
+   'email' => '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="a1c8d7c0cfe1d1c4d5d3ced78fc3c6">[email&#160;protected]</a>',
+   /* 'clientId' => 1234567890 */ // Not required
+);
+/*
+* If you have a warehouse in Sofia, a shop in Varna and an office in Plovdiv, you'll have three objects with different clientIds, one for each object.
+* When you want to send from one of these addresses of your objects, you can set the appropriate 'clientId'.
+* If you skip it, the sender will be the default one for the username with all the address and contact information.
+* All your 'clientId's can be obtained from the result of the <a href="#GetContractClientsRequest" class="preCodeAnchor">Get Contract Clients Request</a>.
+*/
+
+#-> For drop off shipment (The 'dropoffOfficeId' property overrides the address details)
+//&dollar;senderArray['dropoffOfficeId'] = 2; // The 'dropoffOfficeId' can be obtained from the result of a <a href="#FindOfficeRequest" class="preCodeAnchor">Find Office Request</a>.
+
+
+#-> II. RECIPIENT
+&dollar;recipientArray = array(
+   'phone1' => array('number' => '0899445566'),
+   'privatePerson' => true,
+   'clientName' => 'VASIL GEORGIEV',
+   'email' => '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="2a5c4b5943466a4d4f45584d434f5c04484d">[email&#160;protected]</a>',
+   // For self-collection shipment from a pickup point (use it instead of &dollar;recipientArray['address'])
+   'pickupOfficeId' => 14 // The 'pickupOfficeId' can be obtained from the result of a <a href="#FindOfficeRequest" class="preCodeAnchor">Find Office Request</a>.
+);
+
+
+#-> III. SERVICE DETAILS
+&dollar;serviceArray = array(
+   'autoAdjustPickupDate' => true, // Not mandatory
+   'serviceId' => 505, // The 'serviceId' can be obtained from the result of a <a href="#DestinationServicesRequest" class="preCodeAnchor">Destination Services Request</a>.
+   'saturdayDelivery' => true // Not mandatory. Use it if you want delivery on Saturday/Holiday.
+);
+
+/* Cash on delivery - Not mandatory */
+&dollar;cashOnDeliveryArray = array(
+   'amount' => 100,
+   'processingType' => 'CASH' // (CASH, POSTAL_MONEY_TRANSFER)
+);
+
+/* Options before payment - Not mandatory */
+&dollar;optionsBeforePaymentArray = array(
+   'option' => 'OPEN',
+   'returnShipmentServiceId' => 505,
+   'returnShipmentPayer' => 'SENDER' // (SENDER, RECIPIENT, THIRD_PARTY). The sender of the returning shipment is the recipient of the primary shipment.
+);
+/*
+* 'returnShipmentServiceId' is the service for the returning shipment in case the recipient refuses to accept the primary shipment.
+* It can be the same serviceId as in the primary shipment or one obtained from the result of a <a href="#DestinationServicesRequest" class="preCodeAnchor">Destination Services Request</a>.
+*/
+
+/* Declared value - Not mandatory */
+&dollar;declaredValueArray = array(
+   'amount' => 100,
+   'fragile' => true
+);
+
+/* Additional services */
+&dollar;additionalServicesArray = array(
+   'cod' => &dollar;cashOnDeliveryArray,
+   'obpd' => &dollar;optionsBeforePaymentArray,
+   'declaredValue' => &dollar;declaredValueArray
+);
+
+/* Add additional services to the main service array */
+&dollar;serviceArray['additionalServices'] = &dollar;additionalServicesArray;
+
+
+#-> IV. CONTENT OF THE PARCEL
+// Array for all parcels. All dimensions are in centimeters.
+&dollar;parcelsArray = array();
+
+// Parcel 1
+&dollar;parcelSizeArray = array(
+   'width' => 10,
+   'depth' => 20,
+   'height' => 30
+);
+&dollar;parcelArray = array(
+   'seqNo' => 1,
+   'size' => &dollar;parcelSizeArray,
+   'weight' => 1.5,
+   'ref1' => 'ORDER 123456, 1st Box'
+);
+&dollar;parcelsArray[] = &dollar;parcelArray; // Add first parcel
+
+// Parcel 2
+&dollar;parcelSizeArray = array(
+   'width' => 5,
+   'depth' => 15,
+   'height' => 25
+);
+&dollar;parcelArray = array(
+   'seqNo' => 2,
+   'size' => &dollar;parcelSizeArray,
+   'weight' => 0.5,
+   'ref1' => 'ORDER 123456, 2nd Box'
+);
+&dollar;parcelsArray[] = &dollar;parcelArray; // Add the second parcel
+
+&dollar;contentArray = array(
+   'parcelsCount' => 1,
+   'contents' => 'MOBILE PHONE',
+   'package' => 'BOX',
+   'totalWeight' => 0.6,
+   'parcels' => &dollar;parcelsArray
+);
+
+&dollar;contentArray = array(
+   'parcelsCount' => 1,
+   'contents' => 'MOBILE PHONE',
+   'package' => 'BOX',
+   'totalWeight' => 0.6
+);
+
+
+#-> V. PAYMENTS
+&dollar;paymentArray = array(
+   'courierServicePayer' => 'RECIPIENT', // (SENDER, RECIPIENT, THIRD_PARTY)
+   'declaredValuePayer' => 'RECIPIENT' // Mandatory only if the shipment has a 'declaredValue'.
+);
+
+
+#-> VI. JSON DATA
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'sender' => &dollar;senderArray, // You can skip the sender data. In this case the sender will be the default one for the username with all the address and contact information.
+   'recipient' => &dollar;recipientArray,
+   'service' => &dollar;serviceArray,
+   'content' => &dollar;contentArray,
+   'payment' => &dollar;paymentArray,
+   'ref1' => 'ORDER 123456'
+);
+
+
+#-> Create Shipment Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'shipment/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);
+</pre>
+      </td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+A multi parcel shipment to a pickup point:<br>
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "sender" : {
+    "phone1" : {
+      "number" : "0888112233"
+    },
+    "contactName" : "IVAN PETROV",
+    "email" : "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="4b223d2a250b3b2e3f39243d65292c">[email&#160;protected]</a>"
+  },
+  "recipient" : {
+    "phone1" : {
+      "number" : "0899445566"
+    },
+    "privatePerson" : true,
+    "clientName" : "VASIL GEORGIEV",
+    "email" : "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="88fee9fbe1e4c8efede7faefe1edfea6eaef">[email&#160;protected]</a>",
+    "pickupOfficeId" : 14
+  },
+  "service" : {
+    "autoAdjustPickupDate" : true,
+    "serviceId" : 505,
+    "saturdayDelivery" : true,
+    "additionalServices" : {
+      "cod" : {
+        "amount" : 100,
+        "processingType" : "CASH"
+      },
+      "obpd" : {
+        "option" : "OPEN",
+        "returnShipmentServiceId" : 505,
+        "returnShipmentPayer" : "SENDER"
+      },
+      "declaredValue" : {
+        "amount" : 100,
+        "fragile" : true
+      }
+    }
+  },
+  "content" : {
+    "parcelsCount" : 1,
+    "contents" : "MOBILE PHONE",
+    "package" : "BOX",
+    "totalWeight" : 0.6,
+    "parcels" : [ {
+      "seqNo" : 1,
+      "size" : {
+        "width" : 10,
+        "depth" : 20,
+        "height" : 30
+      },
+      "weight" : 1.5,
+      "ref1" : "ORDER 123456, 1st Box"
+    }, {
+      "seqNo" : 2,
+      "size" : {
+        "width" : 5,
+        "depth" : 15,
+        "height" : 25
+      },
+      "weight" : 0.5,
+      "ref1" : "ORDER 123456, 2nd Box"
+    } ]
+  },
+  "payment" : {
+    "courierServicePayer" : "RECIPIENT",
+    "declaredValuePayer" : "RECIPIENT"
+  },
+  "ref1" : "ORDER 123456"
+}
+      </pre></td>
+   </tr>
+
+      
+</table><a name="PrintRequest" class="aAnchor"></a><br><span class="anchorName">Print Request example</span> <a href="https://api.speedy.bg/web-api.html#href-print-req" class="aDocumentation" target="_blank">view API documentation</a>   
+<table cellpadding="0" cellspacing="10" border="0" class="tableExamples">
+   <tr>
+      <td class="column1">PHP example:</td>
+      <td class="column2">The same example as JSON:</td>
+   </tr>   
+   <tr>
+      <td valign="top" class="tdCode">
+         #-> <b>Example 1. Print a waybill (with one parcel).</b> 
+         <pre class="preCode">
+&dollar;parcelsArray = array(
+   array(
+      'parcel' => array(
+         'id' => '1234567890'
+      )
+   )
+);
+
+#-> The JSON data.
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'paperSize' => 'A4', // A4, A6, A4_4xA6
+   'parcels' => &dollar;parcelsArray
+);
+
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'print/', &dollar;jsonData);
+         
+header("Content-type: application/octet-stream");
+header("Content-Type: application/pdf");
+   
+echo &dollar;jsonResponse;
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "paperSize" : "A4",
+  "parcels" : [ {
+    "parcel" : {
+      "id" : "1234567890"
+    }
+  } ],
+  "additionalWaybillSenderCopy" : "NONE"
+}      
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode">
+         #-> <b>Example 2. Print a waybill created with more than one parcel.</b> 
+         <pre class="preCode">
+&dollar;parcelsArray = array(
+   array(
+      'parcel' => array(
+         'id' => '1234567890' // The first parcel is always the waybill number
+      )
+   ),
+   array(
+      'parcel' => array(
+         'id' => '123456789024' // Second parcel of the 1234567890 waybill (it is a unique number returned by the <a href="#CreateShipmentRequest" class="preCodeAnchor">Create Shipment Request</a>)
+      )
+   ),
+   array(
+      'parcel' => array(
+         'id' => '123456789030' // Third parcel of the 1234567890 waybill (it is a unique number)
+      )
+   )
+);
+
+#-> The JSON data.
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'paperSize' => 'A4', // A4, A6, A4_4xA6
+   'parcels' => &dollar;parcelsArray
+);
+
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'print/', &dollar;jsonData);
+         
+header("Content-type: application/octet-stream");
+header("Content-Type: application/pdf");
+   
+echo &dollar;jsonResponse;
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "paperSize" : "A4",
+  "parcels" : [ { 
+      "parcel" : { 
+          "id" : "1234567890" 
+          } 
+      }, { 
+      "parcel" : { 
+          "id" : "123456789024" 
+          } 
+      }, { 
+      "parcel" : { 
+          "id" : "123456789030" 
+          } 
+       } ],
+  "additionalWaybillSenderCopy" : "NONE"
+}      
+      </pre></td>
+   </tr>
+</table><a name="GetContractClientsRequest" class="aAnchor"></a><br><span class="anchorName">Get Contract Clients Request example</span><br>Retrieve all clientIds, of the own contract, and other details like names, addresses etc. Use the clientIds in your requests. <a href="&dollar;apiDocumentationUrl#href-contract-clients-req" class="aDocumentation" target="_blank">view API documentation</a>   
+<table cellpadding="0" cellspacing="10" border="0" class="tableExamples">
+   <tr>
+      <td class="column1">PHP example:</td>
+      <td class="column2">The same example as JSON:</td>
+   </tr>      
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> JSON DATA
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE
+);
+
+#-> Get Contract Clients Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'client/contract/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN"
+}      
+      </pre></td>
+   </tr>
+</table><a name="FindCountryRequest" class="aAnchor"></a><br><span class="anchorName">Find Country Request examples</span><br>Get 'id' and other details for countries. The search can be by name, part of the name or country ISO code. The 'id' is the unique identifier of the country and is used to define an address. <a href="https://api.speedy.bg/web-api.html#href-find-country-req" class="aDocumentation" target="_blank">view API documentation</a>   
+<table cellpadding="0" cellspacing="10" border="0" class="tableExamples">
+   <tr>
+      <td class="column1">PHP example:</td>
+      <td class="column2">The same example as JSON:</td>
+   </tr>    
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 1. Search by full country name.</b>
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'name' => 'ROMANIA'
+);
+/*
+* The result from the example will return all data for ROMANIA such as id, isoAlpha2, isoAlpha3, currencyCode, postCodeFormats, requireState etc.
+* If the result for a country has a property named 'currencyCode' and selected service allows it, you can use Cash On Delivery in your parcels for this country. 
+*/
+
+#-> Find Country Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'location/country/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "name" : "ROMANIA"
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 2. Search by part of the country name.</b>
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'name' => 'GER' // The 'name' is partial
+);
+/* The result from the example will return all countries which contain 'GER' in their names: GERMANY, ALGERIA, NIGER, NIGERIA. */
+
+#-> Find Country Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'location/country/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "name" : "GER"
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 3. Search by country isoAlpha2.</b>
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'isoAlpha2' => 'GR'
+);
+/* The result from the example will return all data for GREECE. The 'isoAlpha2' and 'isoAlpha3' are unique. */
+
+#-> Find Country Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'location/country/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "isoAlpha2" : "GR"
+}
+      </pre></td>
+   </tr>
+</table><a name="FindStateRequest" class="aAnchor"></a><br><span class="anchorName">Find State Request examples</span><br>Get 'id' (stateId) and other details for states. The search can be by name, part of the name. The 'id' is the unique identifier of the state and is used to define an address. <a href="https://api.speedy.bg/web-api.html#href-find-state-req" class="aDocumentation" target="_blank">view API documentation</a>   
+<table cellpadding="0" cellspacing="10" border="0" class="tableExamples">
+   <tr>
+      <td class="column1">PHP example:</td>
+      <td class="column2">The same example as JSON:</td>
+   </tr>    
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 1. Search by full state name.</b>
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'countryId' => 840, // USA
+   'name' => 'ALABAMA'
+);
+/*
+* The result from the example will return all data for ALABAMA including its id.
+*/
+
+#-> Find Country Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'location/state/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "countryId" : 840,
+  "name" : "ALABAMA"
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 2a. Search by part of state name.</b>
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'countryId' => 840, // USA
+   'name' => 'AR'
+);
+/* The result from the example will return data for states in USA,
+* witch contain 'AR' in their names: 'ARKANSAS' and 'ARIZONA'. You will have to select one of the records. 
+*/
+
+#-> Find Country Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'location/state/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "countryId" : 840,
+  "name" : "AR"
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 2b. Search by part of state name.</b>
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'countryId' => 124, // CANADA
+   'name' => 'N'
+);
+/* The result from the example will return data for states in CANADA,
+* witch contain 'AR' in their names: 'NEW BRUNSWICK', 'NEWFOUNDLAND AND LABRADOR', 'NOVA SCOTIA', etc. You will have to select one of the records. 
+*/
+
+#-> Find Country Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'location/state/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "countryId" : 124,
+  "name" : "N"
+}
+      </pre></td>
+   </tr>   
+</table><a name="FindOfficeRequest" class="aAnchor"></a><br><span class="anchorName">Find Office Request examples</span><br>Get 'id' and other details for drop off/pickup locations. The search can be by name, part of name, site etc. The 'id' is the unique identifier of the drop off/pickup location and is used in create shipment or calculation requests. <a href="https://api.speedy.bg/web-api.html#href-find-office-req" class="aDocumentation" target="_blank">view API documentation</a>
+<table cellpadding="0" cellspacing="10" border="0" class="tableExamples">
+   <tr>
+      <td class="column1">PHP example:</td>
+      <td class="column2">The same example as JSON:</td>
+   </tr>    
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 1. Find drop off/pickup locations in a country.</b>
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'countryId' => 100, // BULGARIA
+);
+/* The result from the example will return all drop off/pickup locations in BULGARIA. 
+*  To find drop off/pickup locations in ROMANIA use 642 instead of 100 for countryId. For GREECE use 300. 
+*/
+
+#-> Find Office Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'location/office/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "countryId" : 100
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 2. Find drop off/pickup locations in a site.</b>
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'siteId' => 68134, // SOFIA
+);
+/* The result from the example will return all drop off/pickup locations in SOFIA. */
+
+#-> Find Office Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'location/office/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "siteId" : 68134
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 3. Find drop off/pickup location by country and part of the name. The 'countryId' is not mandatory.</b>
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'countryId' => 100, // BULGARIA
+   'name' => 'SOM' // The name can be partial
+);
+/* The result from the example will return all drop off/pickup locations in BULGARIA which names or addresess contain 'SOM'. */
+
+#-> Find Office Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'location/office/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "countryId" : 100,
+  "name" : "SOM" 
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 4. Find drop off/pickup locations in a site by part of the name. The 'siteId' is not mandatory.</b>
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'siteId' => 68134, // SOFIA
+   'name' => 'SOM' // The name can be partial
+);
+/* The result from the example will return all drop off/pickup locations in SOFIA which names contain 'SOM'. */
+
+#-> Find Office Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'location/office/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "siteId" : 68134,
+  "name" : "SOM" 
+}
+      </pre></td>
+   </tr>
+
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 5. Find drop off/pickup locations by type.</b>
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'officeType' => array("APT") // "APT", "OFFICE"
+);
+/* The result from the example will return only lockers */
+
+#-> Find Office Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'location/office/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "officeType" : ["APT"]
+}
+      </pre></td>
+   </tr>
+   
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 6a. Find drop off/pickup locations by office feature.</b>
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'officeFeatures' => array("CARGO_TYPE_PALLET") // "CARD_PAYMENT", "CASH_PAYMENT", "DROP_OFF", "PICK_UP", "CARGO_TYPE_PARCEL", "CARGO_TYPE_PALLET", "CARGO_TYPE_TYRE"
+);
+/* The result from the example will return only drop off/pickup locations providing pallet service */
+
+#-> Find Office Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'location/office/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "officeFeatures" : ["CARGO_TYPE_PALLET"]
+}
+      </pre></td>
+   </tr>   
+
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 6b. Find drop off/pickup locations by a combination of office features.</b>
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'officeFeatures' => array("CARGO_TYPE_TYRE", "CARD_PAYMENT") // "CARD_PAYMENT", "CASH_PAYMENT", "DROP_OFF", "PICK_UP", "CARGO_TYPE_PARCEL", "CARGO_TYPE_PALLET", "CARGO_TYPE_TYRE"
+);
+/* The result from the example will return only drop off/pickup locations which are providing delivery of car tyres and payment by card. */
+
+#-> Find Office Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'location/office/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "officeFeatures" : ["CARGO_TYPE_TYRE", "CARD_PAYMENT"]
+}
+      </pre></td>
+   </tr>   
+
+</table>   <a name="FindSiteRequest" class="aAnchor"></a><br><span class="anchorName">Find Site Request examples</span><br>Get site details such as id, type, name etc. Use these details to define an address. The 'id' is the unique identifier of the site. <a href="https://api.speedy.bg/web-api.html#href-find-site-req" class="aDocumentation" target="_blank">view API documentation</a>
+<table cellpadding="0" cellspacing="10" border="0" class="tableExamples">
+   <tr>
+      <td class="column1">PHP example:</td>
+      <td class="column2">The same example as JSON:</td>
+   </tr> 
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 1. Search by part of the site name.</b>
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'countryId' => 100, // BULGARIA
+   'name' => 'DOBR'
+);
+/* The result from the example will return data (such as id, type, post code) for all sites in BULGARIA,
+* witch contain 'DOBR' in their names: 'DOBRINISHTE', 'DOBRICH', 'DOBRA POLYANA' etc. 
+*/
+
+#-> Find site Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'location/site/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "countryId" : 100, 
+  "name" : "DOBR"
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 2. Search by exact site name. The site names in BULGARIA are not unique.</b>
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'countryId' => 100, // BULGARIA
+   'name' => 'DOBRICH'
+);
+/* The result from the example will return 3 sites in BULGARIA but with 3 different types, post codes, regions, coordinates etc.
+* You will have to select one of the records or add another filter for more precise result. 
+*/
+
+#-> Find site Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'location/site/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "countryId" : 100, 
+  "name" : "DOBRICH"
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 3. Search site by name and post code. The combination from the name and post code is unique.</b>
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'countryId' => 100, // BULGARIA
+   'name' => 'DOBRICH', // The name can be partial
+   'postCode' => 9300 
+);
+/* The result from the example will be an exact match for the search criteria and will return only one site. */
+
+#-> Find site Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'location/site/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "countryId" : 100, 
+  "name" : "DOBRICH",
+  "postCode" : 9300
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 4. Search by site post code. The post codes in BULGARIA are not unique.</b>
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'countryId' => 100, // BULGARIA
+   'postCode' => 1475 
+);
+/* The result from the example will return two sites with this post code: 'PLANA' and 'ZHELEZNITSA'. 
+* You will have to select one of the records or add another filter for more precise result. 
+*/
+
+#-> Find site Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'location/site/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "countryId" : 100, 
+  "postCode" : "1475"
+}  
+      </pre></td>
+   </tr>   
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 5. Search by site name, type and region. The combination from these three elements is unique.</b>
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'countryId' => 100, // BULGARIA
+   'type' => 'gr.', 
+   'name' => 'KOSTENETS', // The name can be partial
+   'region' => 'SOFIA' // The region can be partial
+);
+/* The result from the example will be an exact match for the search criteria and will return only one site. */
+
+#-> Find site Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'location/site/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "countryId" : 100, 
+  "type" : "gr.", 
+  "name" : "KOSTENETS", 
+  "region" : "SOFIA" 
+}
+      </pre></td>
+   </tr>
+</table>   <a name="FindComplexRequest" class="aAnchor"></a><br><span class="anchorName">Find Complex Request examples</span><br>Get complex details such as id, type and name. Use these details to define an address. The 'id' is the identifier of the complex. <a href="https://api.speedy.bg/web-api.html#href-find-complex-req" class="aDocumentation" target="_blank">view API documentation</a>   
+<table cellpadding="0" cellspacing="10" border="0" class="tableExamples">
+   <tr>
+      <td class="column1">PHP example:</td>
+      <td class="column2">The same example as JSON:</td>
+   </tr>    
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 1. Search by part of the complex name.</b>
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'siteId' => 68134, // SOFIA
+   'name' => 'KRASN'
+);
+/* The result from the example will return data such as id, type, name for all complexes in SOFIA,
+* witch contain 'KRASN' in their names: 'KRASNA POLYANA 1', 'KRASNA POLYANA 2', 'KRASNO SELO' etc. 
+*/
+
+#-> Find Complex Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'location/complex/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "siteId" : 68134,
+  "name" : "KRASN"
+}
+      </pre></td>
+   </tr> 
+</table><a name="FindStreetRequest" class="aAnchor"></a><br><span class="anchorName">Find Street Request examples</span><br>Get the street details and use them to define an address. The 'id' is the unique identifier of the street. <a href="https://api.speedy.bg/web-api.html#href-find-street-req" class="aDocumentation" target="_blank">view API documentation</a>   
+<table cellpadding="0" cellspacing="10" border="0" class="tableExamples">
+   <tr>
+      <td class="column1">PHP example:</td>
+      <td class="column2">The same example as JSON:</td>
+   </tr>  
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 1. Search street details by part of the name.</b>
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'siteId' => 68134, // SOFIA
+   'name' => 'USTA'
+);
+/* The result from the example will return data (such as id, type and name) for all streets in SOFIA,
+* witch contain 'USTA' in their names: 'USTA GENCHO', 'TSANKO DYUSTABANOV'. You will have to select one of the records. 
+*/
+
+#-> Find Street Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'location/street/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "siteId" : 68134,
+  "name" : "USTA"
+}
+      </pre></td>
+   </tr>   
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 2. Search street details by full street name.</b>
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'siteId' => 68134, // SOFIA
+   'name' => 'VASIL LEVSKI'
+);
+/* The result from the example will return 3 streets in SOFIA named 'VASIL LEVSKI',
+* but with 3 different types: 'bul.', 'ul.' and 'pl.', and you will have to select one of the records. 
+*/
+
+#-> Find Street Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'location/street/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "siteId" : 68134,
+  "name" : "VASIL LEVSKI"
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 3. Search street details by full name and type.</b>
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'siteId' => 68134, // SOFIA
+   'name' => 'VASIL LEVSKI',
+   'type' => 'bul.'
+);
+/* The result from the example will be an exact match for the search criteria and will return only one street. */
+
+#-> Find Street Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'location/street/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "siteId" : 68134,
+  "name" : "VASIL LEVSKI",
+  "type" : "bul."
+}  
+      </pre></td>
+   </tr>
+</table><a name="FindPoiRequest" class="aAnchor"></a><br><span class="anchorName">Find POI Request examples</span><br>Get the POI details and use them to define an address. The 'id' is the unique identifier of the POI. <a href="https://api.speedy.bg/web-api.html#href-find-poi-req" class="aDocumentation" target="_blank">view API documentation</a>   
+<table cellpadding="0" cellspacing="10" border="0" class="tableExamples">
+   <tr>
+      <td class="column1">PHP example:</td>
+      <td class="column2">The same example as JSON:</td>
+   </tr>  
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 1. Search poi details by part of the name.</b>
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'siteId' => 68134, // SOFIA, BULGARIA
+   'name' => 'NATIONAL' // The name can be partial
+);
+/* The result from the example will return data (such as id, type and name) for POIs in SOFIA,
+* witch contain 'NATIONAL' in their names: 'NATIONAL ART GALLERY', 'NATIONAL PALACE OF CHILDREN', 'NATIONAL MUSEUM OF HISTORY', etc. You will have to select one of the records. 
+*/
+
+#-> Find Street Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'location/poi/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "siteId" : 68134,
+  "name" : "NATIONAL"
+}
+      </pre></td>
+   </tr>
+</table><a name="DestinationServicesRequest" class="aAnchor"></a><br><span class="anchorName">Destination Services Request examples</span><br>Destination Services Request will return all valid services between the sender and recipient addresses. <a href="https://api.speedy.bg/web-api.html#href-destination-services-req-url" class="aDocumentation" target="_blank">view API documentation</a>.
+<table cellpadding="0" cellspacing="10" border="0" class="tableExamples">
+   <tr>
+      <td class="column1">PHP example:</td>
+      <td class="column2">The same example as JSON:</td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 1. The sender has clientId, the recipient is a private person.</b>
+#-> SENDER
+&dollar;senderArray = array(
+   'clientId' => 1234567890
+);
+/* 
+* If you have a warehouse in Sofia, a shop in Varna and an office in Plovdiv, you'll have three objects with different clientIds, one for each object.
+* When you want to send from one of these addresses of your objects, you can set the appropriate 'clientId'. 
+* If you skip it, the sender will be the default one for the username with all the address and contact information. 
+* All your 'clientId's can be obtained from the result of the <a href="#GetContractClientsRequest" class="preCodeAnchor">Get Contract Clients Request</a>.
+*/
+
+#-> RECIPIENT
+&dollar;recipientArray = array(
+   'privatePerson' => true,
+   'addressLocation' => array(
+      'siteId' => 68134 // SOFIA
+   )
+); 
+/* There is no need to define full address. The price of the courier service is the same for different addresses in a site. */
+
+#-> JSON DATA
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'date' => date('Y-m-d'),
+   'sender' => &dollar;senderArray, // You can skip the sender data. In this case the sender will be the default one for the username with all the address and contact information.
+   'recipient' => &dollar;recipientArray
+); 
+
+#-> Destination Services Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'services/destination', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "date" : "2021-05-31",
+  "sender" : {
+    "clientId" : 1234567890
+  },
+  "recipient" : {
+    "privatePerson" : true,
+    "addressLocation" : {
+      "siteId" : 68134
+    }
+  }
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 2. The sender has clientId, the recipient is a private person in another country.</b>
+#-> SENDER
+&dollar;senderArray = array(
+   'clientId' => 1234567890
+);
+/* 
+* If you have a warehouse in Sofia, a shop in Varna and an office in Plovdiv, you'll have three objects with different clientIds, one for each object.
+* When you want to send from one of these addresses of your objects, you can set the appropriate 'clientId'. 
+* If you skip it, the sender will be the default one for the username with all the address and contact information. 
+* All your 'clientId's can be obtained from the result of the <a href="#GetContractClientsRequest" class="preCodeAnchor">Get Contract Clients Request</a>.
+*/
+
+#-> RECIPIENT
+&dollar;recipientArray = array(
+   'privatePerson' => true,
+   'addressLocation' => array(
+      'countryId' => 300, // GREECE
+      'postCode' => 54248 // Thessaloniki
+   )
+);
+
+#-> JSON DATA
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'date' => date('Y-m-d'),
+   'sender' => &dollar;senderArray, 
+   'recipient' => &dollar;recipientArray
+);
+
+#-> Destination Services Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'services/destination', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "date" : "2021-05-31",
+  "sender" : {
+    "clientId" : 1234567890
+  },
+  "recipient" : {
+    "privatePerson" : true,
+    "addressLocation" : {
+      "countryId" : 300,
+      "postCode" : "54248"
+    }
+  }
+}
+      </pre></td>
+   </tr>
+</table><a name="CalculationRequest" class="aAnchor"></a><br><span class="anchorName">Calculation Request Example</span> <a href="https://api.speedy.bg/web-api.html#href-calculation-req" class="aDocumentation" target="_blank">view API documentation</a>   
+<table cellpadding="0" cellspacing="10" border="0" class="tableExamples">
+   <tr>
+      <td class="column1">PHP example:</td>
+      <td class="column2">The same example as JSON:</td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> IA. SENDER (from an address)
+&dollar;senderArray = array(
+   'clientId' => 1234567890
+);
+/* 
+* If you have a warehouse in Sofia, a shop in Varna and an office in Plovdiv, you'll have three objects with different clientIds, one for each object.
+* When you want to send from one of these addresses of your objects, you can set the appropriate 'clientId'. 
+* If you skip it, the sender will be the default one for the username with all the address and contact information. 
+* All your 'clientId's can be obtained from the result of the <a href="#GetContractClientsRequest" class="preCodeAnchor">Get Contract Clients Request</a>.
+*/
+
+#-> IB. SENDER (from a drop off location)
+&dollar;senderArray = array(
+   'clientId' => 1234567890,
+   'dropoffOfficeId' => 2 // The 'dropoffOfficeId' property overrides the address details
+);
+
+
+
+#-> IIA. RECIPIENT (to an address)
+&dollar;recipientArray = array(
+   'privatePerson' => true,
+   'addressLocation' => array(
+   'siteId' => 10135 // VARNA. The 'siteId' can be obtained from the result of a <a href="#FindSiteRequest" class="preCodeAnchor">Find Site Request</a>.
+   )
+);
+
+#-> IIB. RECIPIENT (for self-collection shipment from a pickup point)
+&dollar;recipientArray = array(
+   'privatePerson' => true,
+   'pickupOfficeId' => 77 // VARNA - OFFICE. The 'pickupOfficeId' can be obtained from the result of a <a href="#FindOfficeRequest" class="preCodeAnchor">Find Office Request</a>.
+);
+
+
+
+#-> III. SERVICE DETAILS
+&dollar;serviceArray = array(
+   'autoAdjustPickupDate' => true,
+   'serviceIds' => array(505) // The 'serviceId' list can be obtained from the result of a <a href="#DestinationServicesRequest" class="preCodeAnchor">Destination Services Request</a>.
+);
+
+#-> Additional services
+/* Cash on delivery - Not mandatory */
+&dollar;cashOnDeliveryArray = array(
+   'amount' => 100,
+   'processingType' => 'CASH' // (CASH, POSTAL_MONEY_TRANSFER)
+);
+
+/* Options before payment - Not mandatory */
+&dollar;optionsBeforePaymentArray = array(
+   'option' => 'OPEN', 
+   'returnShipmentServiceId' => 505, 
+   'returnShipmentPayer' => 'SENDER' // (SENDER, RECIPIENT, THIRD_PARTY). The sender of the returning shipment is the recipient of the primary shipment.
+);
+/* 
+The 'returnShipmentServiceId' property is the service for the returning shipment in case the recipient refuses to accept the primary shipment. 
+It can be the same serviceId as in the primary shipment or one obtained from the result of a <a href="#DestinationServicesRequest" class="preCodeAnchor">Destination Services Request</a>.
+*/
+
+/* Declared value - Not mandatory */
+&dollar;declaredValueArray = array(
+   'amount' => 100, 
+   'fragile' => true 
+);
+
+/* Additional services */
+&dollar;additionalServicesArray = array(
+   'cod' => &dollar;cashOnDeliveryArray,
+   'obpd' => &dollar;optionsBeforePaymentArray,
+   'declaredValue' => &dollar;declaredValueArray
+);
+
+/* Add additional services to the main service array */
+&dollar;serviceArray['additionalServices'] = &dollar;additionalServicesArray;
+
+
+
+#-> IV. CALCULATION CONTENT OF THE PARCEL
+&dollar;contentArray = array(
+   'parcelsCount' => 1,
+   'totalWeight' => 0.6
+);
+
+
+#-> V. PAYMENTS
+&dollar;paymentArray = array(
+   'courierServicePayer' => 'RECIPIENT' // (SENDER, RECIPIENT, THIRD_PARTY)
+);
+
+
+#-> VI. JSON DATA.
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'sender' => &dollar;senderArray, // You can skip the sender data. In this case the sender will be the default one for the username with all the address and contact information.
+   'recipient' => &dollar;recipientArray,
+   'service' => &dollar;serviceArray,
+   'content' => &dollar;contentArray,
+   'payment' => &dollar;paymentArray
+);
+
+
+#-> Calculate Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'calculate/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+A calculation to an address
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "sender" : {
+    "clientId" : 1234567890
+  },
+  "recipient" : {
+    "privatePerson" : true,
+    "addressLocation" : {
+      "siteId" : 10135
+    }
+  },
+  "service" : {
+    "autoAdjustPickupDate" : true,
+    "serviceIds" : [ 505 ],
+    "additionalServices" : {
+      "cod" : {
+        "amount" : 100.0,
+        "processingType" : "CASH"
+      },
+      "declaredValue" : {
+        "amount" : 100.0,
+        "fragile" : true,
+        "ignoreIfNotApplicable" : true
+      },
+      "obpd" : {
+        "option" : "OPEN",
+        "returnShipmentServiceId" : 505,
+        "returnShipmentPayer" : "SENDER"
+      }
+    }
+
+  },
+  "content" : {
+    "parcelsCount" : 1,
+    "totalWeight" : 0.6
+  },
+  "payment" : {
+    "courierServicePayer" : "RECIPIENT"
+  }
+}
+
+
+
+A calculation to a pickup location
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "sender" : {
+    "clientId" : 1234567890
+  },
+  "recipient" : {
+    "privatePerson" : true,
+    "pickupOfficeId" : 77
+  },
+  "service" : {
+    "autoAdjustPickupDate" : true,
+    "serviceIds" : [ 505 ],
+    "additionalServices" : {
+      "cod" : {
+        "amount" : 100.0,
+        "processingType" : "CASH"
+      },
+      "declaredValue" : {
+        "amount" : 100.0,
+        "fragile" : true,
+        "ignoreIfNotApplicable" : true
+      },
+      "obpd" : {
+        "option" : "OPEN",
+        "returnShipmentServiceId" : 505,
+        "returnShipmentPayer" : "SENDER"
+      }
+    }
+
+  },
+  "content" : {
+    "parcelsCount" : 1,
+    "totalWeight" : 0.6
+  },
+  "payment" : {
+    "courierServicePayer" : "RECIPIENT"
+  }
+}
+      </pre></td>
+   </tr>
+</table><a name="TrackRequest" class="aAnchor"></a><br><span class="anchorName">Track Request examples</span><br>For testing purposes, please use the provided bills of lading: 299999990, 299999991, 299999992, 299999993. <a href="&dollar;apiDocumentationUrl#href-track-req" class="aDocumentation" target="_blank">view API documentation</a><br><br>
+Good practices using the tracking method:<br>
+- Use the tracking method 3 to 5 times per day for a shipment or on demand;<br>
+- In case you are tracking the shipment more than once, and updating its status locally, set the "lastOperationOnly" property to "true". The volume of data in the response will be smaller and the execution time faster.<br>
+- Do not track already delivered shipments. The following statuses are final for a shipment, and after such a status, there will be no other status:<br>
+<ul>
+   <li>-14 Delivered</li>
+   <li>124 Delivered Back to Sender</li>
+   <li>125 Destroyed</li>
+   <li>127 Theft/Burglary</li>
+   <li>128 Canceled</li>
+   <li>129 Administrative Closure</li>
+</ul>
+- Do not track old shipments for which you are receiving such an error message "Shipment data is no longer available";<br>
+- Do not track shipments with the error message "Shipment is not accessible". You haven't permission to do it;<br>
+- Avoid to track the shipments during nighttime. At this time the shipments are traveling and you will not receive any valuable information.<br>
+
+<table cellpadding="0" cellspacing="10" border="0" class="tableExamples">
+   <tr>
+      <td class="column1">PHP example:</td>
+      <td class="column2">The same example as JSON:</td>
+   </tr>   
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 1. Track a parcel.</b>
+&dollar;parcelsArray = array(
+   array('id' => 299999990)
+);
+
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'parcels' => &dollar;parcelsArray
+);
+
+#-> Track parcel Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'track/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "parcels" : [ {
+    "id" : "299999990"
+  } ]
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 2. Track a parcel and return only last operation.</b>
+&dollar;parcelsArray = array(
+   array('id' => 299999990)
+);
+
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'parcels' => &dollar;parcelsArray,
+   'lastOperationOnly' => true
+);
+
+#-> Track parcel Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'track/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "parcels" : [ {
+    "id" : "299999990"
+  } ],
+  "lastOperationOnly" : true
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 3. Track more than one (up to 10) parcels with one request.</b>
+&dollar;parcelsArray = array(
+   array('id' => 299999990),
+   array('id' => 299999991),
+   array('id' => 299999992),
+   array('id' => 299999993)
+);
+
+&dollar;jsonData = array(
+   'userName' => API_USERNAME,
+   'password' => API_PASSWORD,
+   'language' => LANGUAGE,
+   'parcels' => &dollar;parcelsArray
+);
+
+#-> Track parcel Request
+&dollar;jsonResponse = apiRequest(API_BASE_URL.'track/', &dollar;jsonData);
+&dollar;jsonResponse = json_decode(&dollar;jsonResponse, true);
+
+#-> Print the result
+print_r(&dollar;jsonResponse);     
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+{
+  "userName" : "xxxxxx",
+  "password" : "yyyyyy",
+  "language" : "EN",
+  "parcels" : [ {
+    "id" : "299999990"
+  }, {
+    "id" : "299999991"
+  }, {
+    "id" : "299999992"
+  }, {
+    "id" : "299999993"
+  } ]
+}
+      </pre></td>
+   </tr>  
+</table><a name="AddressExamples" class="aAnchor"></a><br><span class="anchorName">Address examples</span><br>
+The address structure is used to provide addresses. Addresses are two types:<br>
+- Address type 1 (local addresses - currently supported by Romania and Bulgaria);<br>
+- Address type 2 (foreign addresses - all non-local countries);<br>
+'addressType' property obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a></p>
+
+<p>When address is required (i.e. when clientId is null), the following rule must be met:<br>
+not empty street (streetId or type&name) and (streetNo or blockNo)<br>
+or<br>
+not empty complex (complexId or type&name) and (streetNo or blockNo)<br>
+or<br>
+not empty poi (poiId)<br>
+or<br>
+all components of the address within the site stored in addressNote.</p>
+
+<p>If the addressType is 1 and 'addressNomenclature' property for the site is 1 or 2, you should try to define the address using ids of site, street, complex etc.<br>
+or by exact match from 'complexType' and 'complexName' or/and by exact match from 'streetType' and 'streetName'.<br>
+When the address is well defined via ids or/and matches it will be processed automatically.<br>
+Otherwise the address will be placed in the 'addressNote' property. It will not be processed automatically and there are probabilities for mistakes and delay of the delivery.
+</p>   
+<table cellpadding="0" cellspacing="10" border="0" class="tableExamples">
+   <tr>
+      <td class="column1">PHP example:</td>
+      <td class="column2">The same example as JSON:</td>
+   </tr>   
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 1. Defined address via ids</b> (the 'addressType' property has a value 1 and 'addressNomenclature' property of the site has value 1 or 2).
+&dollar;recipientAddressArray = array(
+   'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>.
+   'siteId' => 68134, // SOFIA. The 'siteId' can be obtained from the result of a <a href="#FindSiteRequest" class="preCodeAnchor">Find Site Request</a>.
+   'complexId' => 29, // A complex named 'KRASNA POLYANA 3'. The 'complexId' can be obtained from the result of a <a href="#FindComplexRequest"  class="preCodeAnchor">Find Complex Request</a>.
+   'streetId' => 3109, // A street named 'USTA GENCHO'. The 'streetId' can be obtained from the result of a <a href="#FindStreetRequest" class="preCodeAnchor">Find Street Request</a>.
+   'streetNo' => '1A',
+   'blockNo' => '301',
+   'entranceNo' => '2',
+   'floorNo' => '3',
+   'apartmentNo' => '4'
+);
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+"address" : {
+  "countryId" : 100,
+  "siteId" : 68134,
+  "streetId" : 3109,
+  "streetNo" : "1A",
+  "complexId" : 29,
+  "blockNo" : "301",
+  "entranceNo" : "2",
+  "floorNo" : "3",
+  "apartmentNo" : "4"
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 2a. An address defined by exact match from 'siteType' and 'siteName', and exact match from 'streetType' and 'streetName'</b> 
+#-> (the 'addressType' property has a value 1 and 'addressNomenclature' property of the site has value 1 or 2).
+&dollar;recipientAddressArray = array(
+   'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>. 
+   'siteType' => 'gr.', // The 'siteType' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>.
+   'siteName' => 'SOFIA', 
+   'streetType' => 'ul.', // The 'streetType' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>.
+   'streetName' => 'USTA GENCHO', // The 'streetName' can be obtained from the result of a <a href="#FindStreetRequest" class="preCodeAnchor">Find Street Request</a>.
+   'streetNo' => '1A'
+);
+/* 
+* If there is exact match from 'siteType' and 'siteName', the id of the site will be added automatically. 
+* If there is exact match from 'streetType' and 'streetName', the id of the street will be added automatically. 
+* If there is not exact match from 'streetType' and 'streetName' the address will be placed in the 'addressNote' property.
+*/
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+"address" : {
+  "countryId" : 100,
+  "siteType" : "gr.",
+  "siteName" : "SOFIA",
+  "streetType" : "ul.",
+  "streetName" : "USTA GENCHO",
+  "streetNo" : "1A"
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 2b. An address defined by exact match from 'siteType' and 'postCode', and exact match from 'streetType' and 'streetName'</b> 
+#-> (the 'addressType' property has a value 1 and 'addressNomenclature' property of the site has value 1 or 2).
+&dollar;recipientAddressArray = array(
+   'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>. 
+   'siteName' => 'SOFIA',
+   'postCode' => '1330',
+   'streetType' => 'ul.', // The 'streetType' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>.
+   'streetName' => 'USTA GENCHO', // The 'streetName' can be obtained from the result of a <a href="#FindStreetRequest" class="preCodeAnchor">Find Street Request</a>.
+   'streetNo' => '1A'
+);
+/* 
+* If there is exact match from 'siteType' and 'postCode', the id of the site will be added automatically. 
+* If there is exact match from 'streetType' and 'streetName', the id of the street will be added automatically. 
+* If there is not exact match from 'streetType' and 'streetName' the address will be placed in the 'addressNote' property.
+*/
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+"address" : {
+  "countryId" : 100,
+  "siteName" : "SOFIA",
+  "postCode" : "1331",
+  "streetType" : "ul.",
+  "streetName" : "USTA GENCHO",
+  "streetNo" : "1A"
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 3. An address defined by ids of the site and the complex, and an exact match between 'streetType' and 'streetName'</b> 
+#-> (the 'addressType' property has a value 1 and 'addressNomenclature' property of the site has value 1 or 2).
+&dollar;recipientAddressArray = array(
+   'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>. 
+   'siteId' => 68134, // SOFIA. The 'siteId' can be obtained from the result of a <a href="#FindSiteRequest" class="preCodeAnchor">Find Site Request</a>.
+   'complexId' => 29, // A complex named 'KRASNA POLYANA 3'. The 'complexId' can be obtained from the result of a <a href="#FindComplexRequest"  class="preCodeAnchor">Find Complex Request</a>.
+   'streetType' => 'ul.', // The 'streetType' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>.
+   'streetName' => 'USTA GENCHO', // The 'streetName' can be obtained from the result of a <a href="#FindStreetRequest" class="preCodeAnchor">Find Street Request</a>.
+   'streetNo' => '1A'
+);
+/* 
+* If there is exact match from 'streetType' and 'streetName', the id of the street will be added automatically. 
+* If there is not exact match from 'streetType' and 'streetName' the address will be placed in the 'addressNote' property.
+*/
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+"address" : {
+  "countryId" : 100,
+  "siteId" : 68134,
+  "complexId" : 29,
+  "streetType" : "ul.",
+  "streetName" : "USTA GENCHO",
+  "streetNo" : "1A"
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 4a. An address defined by exact match from 'complexType' and 'complexName' or/and exact match from 'streetType' and 'streetName'</b> 
+#-> (the 'addressType' property has a value 1 and 'addressNomenclature' property of the site has value 1 or 2).
+&dollar;recipientAddressArray = array(
+   'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>. 
+   'siteId' => 68134, // SOFIA. The 'siteId' can be obtained from the result of a <a href="#FindSiteRequest" class="preCodeAnchor">Find Site Request</a>.
+   'complexType' => 'zhk', // 'complexType' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>.
+   'complexName' => 'KRASNA POLYANA 3', // The 'complexName' can be obtained from the result of a <a href="#FindComplexRequest"  class="preCodeAnchor">Find Complex Request</a>.
+   'streetType' => 'ul.', // The 'streetType' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>.
+   'streetName' => 'USTA GENCHO', // The 'streetName' can be obtained from the result of a <a href="#FindStreetRequest" class="preCodeAnchor">Find Street Request</a>.
+   'streetNo' => '1A'
+);
+/*
+* If there is exact match from 'complexType' and 'complexName', the id of the complex will be added automatically. 
+* If there is exact match from 'streetType' and 'streetName', the id of the street will be added automatically.
+* If there are not exact matches, the address will be placed in the 'addressNote' property.
+*/
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+"address" : {
+  "countryId" : 100,
+  "siteId" : 68134,
+  "complexType" : "zhk",
+  "complexName" : "KRASNA POLYANA 3",
+  "streetType" : "ul.",
+  "streetName" : "USTA GENCHO",
+  "streetNo" : "1A"
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 4b. An address defined by exact match from 'complexType' and 'complexName'</b> 
+#-> (the 'addressType' property has a value 1 and 'addressNomenclature' property of the site has value 1 or 2).
+&dollar;recipientAddressArray = array(
+   'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>. 
+   'siteId' => 68134, // SOFIA. The 'siteId' can be obtained from the result of a <a href="#FindSiteRequest" class="preCodeAnchor">Find Site Request</a>.
+   'complexType' => 'zhk', // 'complexType' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>.
+   'complexName' => 'KRASNA POLYANA 3', // The 'complexName' can be obtained from the result of a <a href="#FindComplexRequest"  class="preCodeAnchor">Find Complex Request</a>.
+   'blockNo' => '37', 
+   'entranceNo' => '1', 
+   'apartmentNo' => '2'
+);
+/*
+* If there is exact match from 'complexType' and 'complexName', the id of the complex will be added automatically. 
+* If there are not exact matches, the address will be placed in the 'addressNote' property.
+*/
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+"address" : {
+  "countryId" : 100,
+  "siteId" : 68134,
+  "complexType" : "zhk",
+  "complexName" : "KRASNA POLYANA 3",
+  "blockNo" : "37",
+  "entranceNo" : "1",
+  "apartmentNo" : "2"
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 5. An address defined by 'siteId' and exact match from 'streetType' and 'streetName'.</b>
+&dollar;recipientAddressArray = array(
+   'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>. 
+   'siteId' => 68134, // SOFIA. The 'siteId' can be obtained from the result of a <a href="#FindSiteRequest" class="preCodeAnchor">Find Site Request</a>.
+   'streetType' => 'ul.', // The 'streetType' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>.
+   'streetName' => 'USTA GENCHO', // The 'streetName' can be obtained from the result of a <a href="#FindStreetRequest" class="preCodeAnchor">Find Street Request</a>.
+   'streetNo' => '1A'
+);
+/* 
+* If there is exact match from 'streetType' and 'streetName', the id of the street will be added automatically. 
+* If there is not exact match, the address will be placed in the 'addressNote' property.
+*/
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+"address" : {
+  "countryId" : 100,
+  "siteId" : 68134,
+  "streetType" : "ul.",
+  "streetName" : "USTA GENCHO",
+  "streetNo" : "1A"
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 6. The address defined by 'poiId' and some additional info filled in the 'addressNote'.</b>
+&dollar;recipientAddressArray = array(
+   'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>. 
+   'siteId' => 68134, // SOFIA. The 'siteId' can be obtained from the result of a <a href="#FindSiteRequest" class="preCodeAnchor">Find Site Request</a>.
+   'poiId' => 68134000483088, // NATIONAL ART GALLERY. The 'poiId' can be obtained from the result of a <a href="#FindPoiRequest" class="preCodeAnchor">Find POI Request</a>.
+   'addressNote' => '2nd floor, office 201'
+);
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+"address" : {
+  "countryId" : 100,
+  "siteId" : 68134,
+  "poiId" : 68134000483088,
+  "addressNote" : "2nd floor, office 201"
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 7a. The whole address is placed in the 'addressNote' field. 
+#-> It will be not processed automatically and there are probabilities for mistakes and delay of the delivery.</b>
+&dollar;recipientAddressArray = array(
+   'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>. 
+   'siteId' => 68134, // SOFIA. The 'siteId' can be obtained from the result of a <a href="#FindSiteRequest" class="preCodeAnchor">Find Site Request</a>.
+   'addressNote' => 'ul. USTA GENCHO, No.1A, bl.301, ent.2, fl.3, ap.4' 
+);
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+"address" : {
+  "countryId" : 100,
+  "siteId" : 68134,
+  "addressNote" : "ul. USTA GENCHO, No.1A, bl.301, ent.2, fl.3, ap.4"
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 7b. The whole address is placed in the 'addressNote' field. 
+#-> It will be not processed automatically and there are probabilities for mistakes and delay of the delivery.</b>
+&dollar;recipientAddressArray = array(
+   'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>. 
+   'siteType' => 'gr.', // The 'siteType' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>.
+   'siteName' => 'SOFIA', 
+   'addressNote' => 'ul. USTA GENCHO, No.1A, bl.301, ent.2, fl.3, ap.4' 
+);
+/* If there is exact match from 'siteType' and 'siteName', the id of the site will be added automatically. */
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+"address" : {
+  "countryId" : 100,
+  "siteType" : "gr.",
+  "siteName" : "SOFIA",
+  "addressNote" : "ul. USTA GENCHO, No.1A, bl.301, ent.2, fl.3, ap.4"
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 7c. The whole address is placed in the 'addressNote' field. 
+#-> It will be not processed automatically and there are probabilities for mistakes and delay of the delivery.</b>
+&dollar;recipientAddressArray = array(
+   'countryId' => 100, // BULGARIA. The 'countryId' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>. 
+   'siteName' => 'SOFIA', 
+   'postCode' => 1330, 
+   'addressNote' => 'ul. USTA GENCHO, No.1A, bl.301, ent.2, fl.3, ap.4' 
+);
+/* If there is exact match from 'siteName' asd 'postCode', the id of the site will be added automatically. */
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+"address" : {
+  "countryId" : 100,
+  "siteName" : "SOFIA",
+  "postCode" : "1330",  
+  "addressNote" : "ul. USTA GENCHO, No.1A, bl.301, ent.2, fl.3, ap.4"
+}  
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 8a. A foreign address (the addressType property has a value 2).</b>
+&dollar;recipientAddressArray = array(
+   'countryId' => 276, // GERMANY. The 'countryId' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>. 
+   'siteName' => 'MUNICH', 
+   'postCode' => 80331, // Depends from the 'postCodeFormats' property from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>. It shows the required post code format. 
+   'addressLine1' => 'Sankt-Jakobs-Platz 1', // Required for 'addressType' 2
+   'addressLine2' => 'Munich Stadtmuseum' /* Not mandatory */
+);
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+"address" : {
+  "countryId" : 276,
+  "siteName" : "MUNICH",
+  "postCode" : "80331",  
+  "addressLine1" : "Sankt-Jakobs-Platz 1",
+  "addressLine2" : "Munich Stadtmuseum"
+}    
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 8b. A foreign address (the addressType property has a value 2).</b>
+&dollar;recipientAddressArray = array(
+   'countryId' => 300, // GREECE. The 'countryId' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>. 
+   'siteName' => 'THESSALONIKI', 
+   'postCode' => 54629, // Depends from the 'postCodeFormats' property from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>. It shows the required post code format. 
+   'addressLine1' => '28 Monastiriou str', // Required for 'addressType' 2
+   'addressLine2' => 'Bus station' /* Not mandatory */
+);
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+"address" : {
+  "countryId" : 300,
+  "siteName" : "THESSALONIKI",
+  "postCode" : "54629",  
+  "addressLine1" : "28 Monastiriou str",
+  "addressLine2" : "Bus station"
+}    
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 8c. A foreign address (the addressType property has a value 2).</b>
+&dollar;recipientAddressArray = array(
+   'countryId' => 250, // FRANCE. The 'countryId' can be obtained from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>. 
+   'siteName' => 'PARIS', 
+   'postCode' => 75016, // Depends from the 'postCodeFormats' property from the result of a <a href="#FindCountryRequest" class="preCodeAnchor">Find Country Request</a>. It shows the required post code format. 
+   'addressLine1' => '24 Rue du Commandant Guilbaud', // Required for 'addressType' 2
+   'addressLine2' => 'Parc des Princes Stadium' /* Not mandatory */
+);
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+"address" : {
+  "countryId" : 250,
+  "siteName" : "PARIS",
+  "postCode" : "75016",  
+  "addressLine1" : "24 Rue du Commandant Guilbaud",
+  "addressLine2" : "Parc des Princes Stadium"
+}    
+      </pre></td>
+   </tr>
+</table><a name="ParcelsExamples" class="aAnchor"></a><br><span class="anchorName">Describe parcels or pallets examples</span> <a href="https://api.speedy.bg/web-api.html#href-ds-shipment-content-parcel" class="aDocumentation" target="_blank">view API documentation</a>
+<table cellpadding="0" cellspacing="10" border="0" class="tableExamples">
+   <tr>
+      <td class="column1">PHP example:</td>
+      <td class="column2">The same example as JSON:</td>
+   </tr>      
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+// Array for all parcels. All dimensions are in centimeteres. For pallets use standart pallet's dimensions such as 120/80/130.
+&dollar;parcelsArray = array(); 
+
+// Parcel 1
+&dollar;parcelSizeArray = array(
+   'width' => 10,
+   'depth' => 20,
+   'height' => 30
+);
+&dollar;parcelArray = array(
+   'seqNo' => 1,
+   'size' => &dollar;parcelSizeArray,
+   'weight' => 1.5,
+   'ref1' => 'ORDER 123456, 1st Box'
+);
+&dollar;parcelsArray[] = &dollar;parcelArray; // Add first parcel
+
+// Parcel 2
+&dollar;parcelSizeArray = array(
+   'width' => 5,
+   'depth' => 15,
+   'height' => 25
+);
+&dollar;parcelArray = array(
+   'seqNo' => 2,
+   'size' => &dollar;parcelSizeArray,
+   'weight' => 0.5,
+   'ref1' => 'ORDER 123456, 2nd Box'
+);
+&dollar;parcelsArray[] = &dollar;parcelArray; // Add second parcel
+
+&dollar;contentArray['parcels'] = &dollar;parcelsArray; // Add all parcels in the content array in the <a href="#CreateShipmentRequest" class="preCodeAnchor">Create Shipment Request</a> above.
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+  "parcels" : [ {
+    "seqNo" : 1,
+    "size" : {
+      "width" : 10,
+      "height" : 30,
+      "depth" : 20
+    },
+    "weight" : 1.5,
+    "ref1" : "ORDER 123456, 1st Box"
+  }, {
+    "seqNo" : 2,
+    "size" : {
+      "width" : 5,
+      "height" : 25,
+      "depth" : 15
+    },
+    "weight" : 0.5,
+    "ref1" : "ORDER 123456, 2nd Box"
+  } ]
+      </pre></td>
+   </tr>
+</table>  <a name="FiscalReceipt" class="aAnchor"></a><br><span class="anchorName">Describe COD Fiscal Receipt Items</span> <a href="https://api.speedy.bg/web-api.html#href-ds-shipment-cod-fiscal-receipt-item" class="aDocumentation" target="_blank">view API documentation</a>
+<table cellpadding="0" cellspacing="10" border="0" class="tableExamples">
+   <tr>
+      <td class="column1">PHP example:</td>
+      <td class="column2">The same example as JSON:</td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 1. Description of items.</b>
+&dollar;serviceArray = array(
+   'serviceId' => 505,
+   'additionalServices' => array(
+      'cod' => array(
+         'anount' => 81.8,
+         'fiscalReceiptItems' => array(
+            array(
+               'description' => 'Shoes',
+               'vatGroup' => 'Б',
+               'amount' => 50,
+               'amountWithVat' => 60
+            ),
+            array(
+               'description' => 'Book 1, Book 2',
+               'vatGroup' => 'Г',
+               'amount' => 20,
+               'amountWithVat' => 21.8
+            )
+         )
+      )
+   )
+)
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+"service": {
+   "serviceId": 505,
+   "additionalServices": {
+      "cod": {
+         "amount": 81.8,
+         "fiscalReceiptItems": [
+            {
+            "description": "Shoes",
+            "vatGroup": "Б",
+            "amount": "50",
+            "amountWithVat": "60"
+            },
+            {
+            "description": "Book 1, Book 2",
+            "vatGroup": "Г",
+            "amount": "20",
+            "amountWithVat": "21.8"
+            }
+         ]
+      }
+   }
+}
+      </pre></td>
+   </tr>
+   <tr>
+      <td valign="top" class="tdCode"><pre class="preCode">
+#-> <b>Example 2. Description of an invoice.</b>
+&dollar;serviceArray = array(
+   'serviceId' => 505,
+   'additionalServices' => array(
+      'cod' => array(
+         'anount' => 60,
+         'fiscalReceiptItems' => array(
+            array(
+               'description' => 'Invoice 123456',
+               'vatGroup' => 'Б',
+               'amount' => 50,
+               'amountWithVat' => 60
+            )
+         )
+      )
+   )
+)
+</pre></td>
+      <td valign="top" class="tdCode"><pre class="preCode">
+"service": {
+   "serviceId": 505,
+   "additionalServices": {
+      "cod": {
+         "amount": 60,
+         "fiscalReceiptItems": [
+            {
+            "description": "Invoice 123456",
+            "vatGroup": "Б",
+            "amount": "50",
+            "amountWithVat": "60"
+            }
+         ]
+      }
+   }
+}
+      </pre></td>
+   </tr>
+</table><a name="routingBarcode" class="aAnchor"></a><br><span class="anchorName">PHP example of how to generate a routing barcode (for clients who are generating their own labels)</span>
+<pre class="preCodeMain">      
+#-> Example data
+&dollar;parcelNumber = 63528915673;
+&dollar;number = 1270302; // Tour number received from the routing information for the office
+&dollar;officeId = 127; // ID of the office received from the routing information for the office
+&dollar;hubId = 12; // ID of the hub received from the routing information for the office
+
+
+#-> Build a routing barcode
+list(&dollar;routingBarcode, &dollar;routingBarcodeClean) = buildRoutingBarcode(&dollar;parcelNumber, &dollar;officeId, &dollar;number);
+
+
+echo "parcelNumber: &dollar;parcelNumber&lt;br&gt;";
+echo "routingBarcode: &dollar;routingBarcode&lt;br&gt;"; // Example output: 1 - 000 6 352 882 066 4 - 128 000 102 28 1 6
+echo "routingBarcodeClean: &dollar;routingBarcodeClean&lt;br&gt;"; // Example output: 1000635288206641280001022816
+
+
+#-> Build a routing barcode
+function buildRoutingBarcode(&dollar;parcelNumber, &dollar;officeId, &dollar;number)
+      {
+      #-> Format parcel number
+      &dollar;parcelNumberLength = strlen(&dollar;parcelNumber);
+      &dollar;numberOfAdditionalParcelNumberSymbols = 14 - &dollar;parcelNumberLength;
+      for ( &dollar;i = 0; &dollar;i < &dollar;numberOfAdditionalParcelNumberSymbols; &dollar;i++ )
+            { &dollar;parcelNumber = 0 . &dollar;parcelNumber; }
+
+      #-> Adding spaces to the parcel number
+      &dollar;parcelNumberString = (string)&dollar;parcelNumber;
+      &dollar;positions = array(3, 4, 7, 10, 13);
+      &dollar;parcelNumberFormated = '';
+      for (&dollar;i = 0; &dollar;i < strlen(&dollar;parcelNumberString); &dollar;i++) {
+            &dollar;parcelNumberFormated .= &dollar;parcelNumberString[&dollar;i];
+            if (in_array(&dollar;i + 1, &dollar;positions) && &dollar;i + 1 < strlen(&dollar;parcelNumberString)) {
+                  &dollar;parcelNumberFormated .= ' ';
+            }
+      }
+
+      #-> Format office
+      &dollar;officeIdLength = strlen(&dollar;officeId);
+      &dollar;numberOfAdditionalOfficeSymbols = 3 - &dollar;officeIdLength;
+      for ( &dollar;i = 0; &dollar;i < &dollar;numberOfAdditionalOfficeSymbols; &dollar;i++ )
+            { &dollar;officeId = 0 . &dollar;officeId; }
+
+      #-> Format tour number
+      &dollar;number = substr(&dollar;number, -3);
+
+      #-> Routing day
+      &dollar;routingDay = date('d', strtotime('+1 day'));
+
+      #-> Build a routing barcode
+      &dollar;routingBarcode = 1 . ' - ' . &dollar;parcelNumberFormated . ' - ' . &dollar;officeId . ' 000 ' . &dollar;number . ' ' . &dollar;routingDay . ' ' . 1;
+
+      #-> Build clean routing barcode used for the Verhoeff Algorithm (without spaces, dashes, etc.)
+      &dollar;routingBarcodeClean = 1 . &dollar;parcelNumber . &dollar;officeId . '000' . &dollar;number . &dollar;routingDay . 1;
+
+      #-> Generate check sum using Verhoeff Algorithm
+      &dollar;checkSum = verhoeffGenerateCheckSum(&dollar;routingBarcodeClean);
+
+      #-> Append the check sum to the routing barcode
+      &dollar;routingBarcode .= ' ' . &dollar;checkSum;
+      &dollar;routingBarcodeClean .= &dollar;checkSum;
+
+      #-> Return the routing barcode
+      return array(&dollar;routingBarcode, &dollar;routingBarcodeClean);
+      }
+
+
+#-> Generate check sum using Verhoeff Algorithm
+function verhoeffGenerateCheckSum(&dollar;num) {
+      &dollar;d = [
+         [0,1,2,3,4,5,6,7,8,9],
+         [1,2,3,4,0,6,7,8,9,5],
+         [2,3,4,0,1,7,8,9,5,6],
+         [3,4,0,1,2,8,9,5,6,7],
+         [4,0,1,2,3,9,5,6,7,8],
+         [5,9,8,7,6,0,4,3,2,1],
+         [6,5,9,8,7,1,0,4,3,2],
+         [7,6,5,9,8,2,1,0,4,3],
+         [8,7,6,5,9,3,2,1,0,4],
+         [9,8,7,6,5,4,3,2,1,0]
+      ];
+
+      &dollar;p = [
+         [0,1,2,3,4,5,6,7,8,9],
+         [1,5,7,6,2,8,3,0,9,4],
+         [5,8,0,3,7,9,6,1,4,2],
+         [8,9,1,6,0,4,3,5,2,7],
+         [9,4,5,3,1,2,6,8,7,0],
+         [4,2,8,6,5,7,3,9,0,1],
+         [2,7,9,3,8,0,6,4,1,5],
+         [7,0,4,6,9,1,3,2,5,8]
+      ];
+
+      &dollar;inv = [0,4,3,2,1,5,6,7,8,9];
+
+      &dollar;c = 0;
+      &dollar;num = strrev(&dollar;num);
+
+      for (&dollar;i = 0; &dollar;i < strlen(&dollar;num); &dollar;i++) {
+            &dollar;c = &dollar;d[&dollar;c][&dollar;p[(&dollar;i + 1) % 8][&dollar;num[&dollar;i]]];
+      }
+
+      return &dollar;inv[&dollar;c];
+}
+</pre> <a name="errorsExplanation"></a><br>
+<h1>Additional explanation of some errors</h1>
+<div class="divErrors">
+
+   <ul class="ulExampleLinks">
+      <li><a class="preCodeAnchor" href="#address_nomenclatures_required">Access to detailed/licensed address nomenclatures required</a></li>
+      <li><a class="preCodeAnchor" href="#collection-term-expired">Collection time is after courier address serving deadline. You can change collection date to next available day</a></li>
+      <li><a class="preCodeAnchor" href="#sla.cod.moneyTransfer.money-transfer-not-allowed-for-sender">Money transfer amount not allowed for the selected sender</a></li>
+      <li><a class="preCodeAnchor" href="#connection_exception">No connection to external carrier ACS</a></li>
+      <li><a class="preCodeAnchor" href="#sla.cod.obpDetails.apt-pickup-not-allowed-with-obp">Options before payment details: Options before payment are not allowed for shipments with Locker pickup</a></li>
+      <li><a class="preCodeAnchor" href="#sla.cod.obpDetails.sla.serviceId.service-not-allowed">Options before payment details: Service not allowed</a></li>
+      <li><a class="preCodeAnchor" href="#content.parcels..require_parcel_size">Parcels: Parcel size is required</a></li>
+      <li><a class="preCodeAnchor" href="#payment.csPayment.payerRole.payer-should-be-contract-client-or-own-client">Payer: Your own client or contract client should be payer or sender</a></li>
+      <li><a class="preCodeAnchor" href="#receiver.address.siteId.valid-locality-id">Recipient Locality: Invalid site</a></li>
+      <li><a class="preCodeAnchor" href="#receiver.phone-1.num.invalid_phone">Recipient Phone 1: Invalid phone number</a></li>
+      <li><a class="preCodeAnchor" href="#shipment_party_validator.recipient.office.invalid">Recipient - Pickup office: Invalid recipient pickup office</a></li>
+      <li><a class="preCodeAnchor" href="#receiver.address.postCode.invalid-postcode">Recipient Post code: Invalid post code</a></li>
+      <li><a class="preCodeAnchor" href="#address-collection-abroad-not-allowed">Sender site is not served on pickup date</a></li>
+      <li><a class="preCodeAnchor" href="#sla.serviceId.service-not-allowed">Service: Service not allowed</a></li>
+      <li><a class="preCodeAnchor" href="#shipment-data-no-longer-available">Shipment data is no longer available</a></li>
+      <li><a class="preCodeAnchor" href="#shipment-not-accessible">Shipment is not accessible</a></li>
+      <li><a class="preCodeAnchor" href="#content.weight.weight-over-maximum">Weight is over allowed maximum of 30kg. for selected service</a></li>
+   </ul>
+
+
+
+<a name="address_nomenclatures_required" class="aAnchorErrors"></a><br><span class="anchorNameErrors">Access to detailed/licensed address nomenclatures required</span>
+<table cellpadding="0" cellspacing="10" border="0" class="tableErrors">
+   <tr>
+      <td valign="top" class="tdCode column1"><pre class="preCode">
+"context" : "",
+"message" : "Access to detailed/licensed address nomenclatures required ({errorCode})",</pre></td>
+      <td valign="top" class="tdCode column2">To receive information from some methods such as "Get All Streets", "Get All Complexes", "Get All Blocks", and "Get All Points of Interests" a license for address nomenclatures is required.
+         Such license can be purchased from <a href="https://www.datamap.bg" target="_blank">DATAMAP-EUROPE</a>.
+Your Speedy representative can assist you. After purchasing we will permit your username to access the nomenclature.
+      </td>
+   </tr>
+</table>
+
+
+
+<a name="collection-term-expired" class="aAnchorErrors"></a><br><span class="anchorNameErrors">Collection time is after courier address serving deadline. You can change collection date to next available day</span>
+<table cellpadding="0" cellspacing="10" border="0" class="tableErrors">
+   <tr>
+      <td valign="top" class="tdCode column1"><pre class="preCode">
+"context" : "collection-term-expired",
+"message" : "Collection time is after courier address serving deadline. You can change collection date to next available day ({errorCode}),</pre></td>
+      <td valign="top" class="tdCode column2">The reason for such an error is that the shipment creation moment is after the end of the working time of the couriers or the serving time of the city/village of the sender.<br>
+The error is displayed when the shipment is from an address and you skipped "pickupDate" property or provided the current date.<br>
+         To avoid similar errors you can use the "autoAdjustPickupDate" property (service -> autoAdjustPickupDate) or set another future pickup date.<br>
+         "autoAdjustPickupDate" will set automatically the next possible date. In case you want to specify the date, you can select one from the next  10 possible pickup dates that can be retrieved using the <a href="https://api.speedy.bg/web-api.html#href-pickup-terms-req" class="preCodeAnchor" target="_blank">Pickup Terms</a> method.
+      </td>
+   </tr>
+</table>
+
+
+
+<a name="sla.cod.moneyTransfer.money-transfer-not-allowed-for-sender" class="aAnchorErrors"></a><br><span class="anchorNameErrors">Money transfer amount not allowed for the selected sender</span>
+<table cellpadding="0" cellspacing="10" border="0" class="tableErrors">
+   <tr>
+      <td valign="top" class="tdCode column1"><pre class="preCode">
+"context" : "sla.cod.moneyTransfer.money-transfer-not-allowed-for-sender",
+"message" : "Money transfer amount not allowed for the selected sender ({errorCode}),</pre></td>
+      <td valign="top" class="tdCode column2">Possible reasons for such error can be:<br>
+         - The usage of the money transfer has to be allowed in the contract of the sender. For more information, please get in touch with your Speedy representative.<br>
+         - Money transfer is a domestic additional service allowed only for shipments within Bulgaria.
+      </td>
+   </tr>
+</table>
+
+
+
+<a name="connection_exception" class="aAnchorErrors"></a><br><span class="anchorNameErrors">No connection to external carrier ACS</span>
+<table cellpadding="0" cellspacing="10" border="0" class="tableErrors">
+   <tr>
+      <td valign="top" class="tdCode column1"><pre class="preCode">
+"context" : "connection_exception",
+"message" : "No connection to external carrier ACS ({errorCode})",</pre></td>
+      <td valign="top" class="tdCode column2">For some international shipments we are using external carrier partners. The error "says" the connection to our external carrier is temporary unavailable. Try again later.
+      </td>
+   </tr>
+</table>
+
+
+
+<a name="sla.cod.obpDetails.apt-pickup-not-allowed-with-obp" class="aAnchorErrors"></a><br><span class="anchorNameErrors">Options before payment details: Options before payment are not allowed for shipments with Locker pickup</span>
+<table cellpadding="0" cellspacing="10" border="0" class="tableErrors">
+   <tr>
+      <td valign="top" class="tdCode column1"><pre class="preCode">
+"context" : "sla.cod.obpDetails.apt-pickup-not-allowed-with-obp",
+"message" : "Options before payment details: Options before payment are not allowed for shipments with Locker pickup ({errorCode})",</pre></td>
+      <td valign="top" class="tdCode column2">Тhe options before payment are not allowed for shipments to a locker. The reason is that the potential return is not allowed.<br>
+The locker is a machine, and there is no courier to hand over the shipment for contents check.
+   </td>
+   </tr>
+</table>
+
+
+
+<a name="sla.cod.obpDetails.sla.serviceId.service-not-allowed" class="aAnchorErrors"></a><br><span class="anchorNameErrors">Options before payment details: Service not allowed</span>
+<table cellpadding="0" cellspacing="10" border="0" class="tableErrors">
+   <tr>
+      <td valign="top" class="tdCode column1"><pre class="preCode">
+"context" : "sla.cod.obpDetails.sla.serviceId.service-not-allowed",
+"message" : "Options before payment details: Service not allowed ({errorCode})",</pre></td>
+      <td valign="top" class="tdCode column2">The provided service in the "obpd" structure is not allowed or not applicable between the locations of the sender and the recipient.<br>
+         Usually, the service for the return is the same as the primary one. Also, you can call the <a href="https://api.speedy.bg/web-api.html#href-destination-services-req" class="preCodeAnchor" target="_blank">Destination Services</a> method to get all valid services that you can use.
+   </td>
+   </tr>
+</table>
+
+
+
+<a name="content.parcels..require_parcel_size" class="aAnchorErrors"></a><br><span class="anchorNameErrors">Parcels: Parcel size is required</span>
+<table cellpadding="0" cellspacing="10" border="0" class="tableErrors">
+   <tr>
+      <td valign="top" class="tdCode column1"><pre class="preCode">
+"context" : "content.parcels..require_parcel_size",
+"message" : "Parcels: Parcel size is required ({errorCode})",</pre></td>
+      <td valign="top" class="tdCode column2">The error indicates that for the shipment with provided data, parcel sizes are required. Describe the parcels in the "content" > "parcels" structure of the used method for calculating or creating a shipment.<br>
+         Here are some examples of how to do it <a href="#ParcelsExamples" class="preCodeAnchor" target="_blank">Describe parcels or pallets examples</a>.
+   </td>
+   </tr>
+</table>
+
+
+
+<a name="payment.csPayment.payerRole.payer-should-be-contract-client-or-own-client" class="aAnchorErrors"></a><br><span class="anchorNameErrors">Payer: Your own client or contract client should be payer or sender</span>
+<table cellpadding="0" cellspacing="10" border="0" class="tableErrors">
+   <tr>
+      <td valign="top" class="tdCode column1"><pre class="preCode">
+"context" : "payment.csPayment.payerRole.payer-should-be-contract-client-or-own-client",
+"message" : "Payer: Your own client or contract client should be payer or sender ({errorCode})",</pre></td>
+      <td valign="top" class="tdCode column2">The error means that you (the user who is creating the shipment) have to be the payer of the courier service or the sender of the shipment.<br>
+It may refer to the payer of the declared value if it is provided or to the packaging if it must be paid.<br>
+Please, check the <a href="https://api.speedy.bg/web-api.html#href-ds-shipment-payment" class="preCodeAnchor" target="_blank">Shipment Payment</a> structure.<br>
+Regardless of whether you are the sender or the recipient, always try to represent yourself using your client ID (the "cliеntId" property) in the "sender" or the "recipient" structure. The "clientId" summarizes your address and company data. Using the "clientId" property, there is no need to provide address details and client name. Using the ID, we are recognizing you.<br>
+In case you are a third party, you must always be the payer of the courier service. Set your client ID in the "thirdPartyClientId" property and "courierServicePayer" property to "THIRD_PARTY" (in the "ShipmentPayment" structure).<br>
+You can retrieve your client IDs using a "<a href="https://api.speedy.bg/web-api.html#href-contract-clients-req" target="_blank">Get Contract Clients</a>" request.
+   </td>
+   </tr>
+</table>
+
+
+
+<a name="receiver.address.siteId.valid-locality-id" class="aAnchorErrors"></a><br><span class="anchorNameErrors">Recipient Locality: Invalid site</span>
+<table cellpadding="0" cellspacing="10" border="0" class="tableErrors">
+   <tr>
+      <td valign="top" class="tdCode column1"><pre class="preCode">
+"context" : "receiver.address.siteId.valid-locality-id",
+"message" : "Recipient Locality: Invalid site ({errorCode})",</pre></td>
+      <td valign="top" class="tdCode column2">Such an error appears because of an invalid recipient site (city/village). Check the recipient address data. Possible mistakes are:<br>
+- The "siteId" property has an invalid value. The "siteId" can be found using the <a href="https://api.speedy.bg/web-api.html#href-find-state-req" target="_blank">Find Site</a> request. Also, all site IDs in Bulgaria/Romania can be retrieved and stored locally via the <a href="https://api.speedy.bg/web-api.html#href-get-all-sites-req" target="_blank">Get All Sites</a> requst.<br>
+- An invalid name was provided in the "siteName" property. It has to contain only the name of the site ("SOFIA", "VARNA", etc.), without any other details as type, postcode, etc. Keep in mind that there can be more than one site with the same name, so you can try to provide additional information, such as the postcode in the appropriate field.<br>
+- Invalid combination of values for the "siteName" and "postCode" properties.<br>
+- Invalid combination of values for the "siteId" and "postCode" properties (in general, the combination of these two properties is possible, but if you are providing "siteId", there is no need to provide any other data for the site).
+   </td>
+   </tr>
+</table>
+
+
+
+<a name="receiver.phone-1.num.invalid_phone" class="aAnchorErrors"></a><br><span class="anchorNameErrors">Recipient Phone 1: Invalid phone number</span>
+<table cellpadding="0" cellspacing="10" border="0" class="tableErrors">
+   <tr>
+      <td valign="top" class="tdCode column1"><pre class="preCode">
+"context" : "receiver.phone-1.num.invalid_phone",
+"message" : "Recipient Phone 1: Invalid phone number ({errorCode})",</pre></td>
+      <td valign="top" class="tdCode column2">You receive such an error because the phone number of the recipient is not valid, and it doesn't match the rules. 
+      It is important that the number is correct. On the phone number, the recipient receives messages about the shipment.<br>
+How to avoid such an error? Review the <a href="https://api.speedy.bg/web-api.html#href-ds-shipment-recipient" target="_blank">documentation</a> and check if the number matches the rules in the description. Check the number's length too. Another basic validation is that the mobile phone numbers have a length of 10 digits.
+Also, before the main request for waybill creation, you can use the <a href="https://api.speedy.bg/web-api.html#href-validate-phone-req" target="_blank">Validate Phone</a> method to check the phone number.
+   </td>
+   </tr>
+</table>
+
+
+
+<a name="shipment_party_validator.recipient.office.invalid" class="aAnchorErrors"></a><br><span class="anchorNameErrors">Recipient - Pickup office: Invalid recipient pickup office</span>
+<table cellpadding="0" cellspacing="10" border="0" class="tableErrors">
+   <tr>
+      <td valign="top" class="tdCode column1"><pre class="preCode">
+"context" : "shipment_party_validator.recipient.office.invalid",
+"message" : "Recipient - Pickup office: Invalid recipient pickup office (id: {officeId}) ({errorCode})",</pre></td>
+      <td valign="top" class="tdCode column2">The provided pickup point is not working on the calculated delivery date, or it is permanently closed.<br>
+To avoid such errors, you can download a full list of drop off/pickup locations, store it locally, and offer the users to select from this list. To retrieve the list once per day is enough.
+   </td>
+   </tr>
+</table>
+
+
+
+<a name="receiver.address.postCode.invalid-postcode" class="aAnchorErrors"></a><br><span class="anchorNameErrors">Recipient Post code: Invalid post code</span>
+<table cellpadding="0" cellspacing="10" border="0" class="tableErrors">
+   <tr>
+      <td valign="top" class="tdCode column1"><pre class="preCode">
+"context" : "receiver.address.postCode.invalid-postcode",
+"message" : "Recipient Post code: Invalid post code ({errorCode})",</pre></td>
+      <td valign="top" class="tdCode column2">The error means that the provided postcode is invalid or not served by our international partners if the shipment is for another country. Before calling the "Create Shipment" method, you can validate the postcode using the <a href="https://api.speedy.bg/web-api.html#href-validate-postcode-req" target="_blank">Validate Postcode</a> request.
+         Also, you can download a list with all post codes in Bulgaria and Romania using the <a href="https://api.speedy.bg/web-api.html#href-get-all-postcodes-req">Get All Postcodes</a> method and make your own validation.<br>
+         In case the recipient is not in Bulgaria or Romania, you can realize other validation. Call the <a href="https://api.speedy.bg/web-api.html#href-find-country-req" target="_blank">Find Country</a> request, and check the <a href="https://api.speedy.bg/web-api.html#href-find-country-resp">Find Country Response</a> for the "postCodeFormats" property. It will show you the required postcodes formats.
+   </td>
+   </tr>
+</table>
+
+
+<a name="address-collection-abroad-not-allowed" class="aAnchorErrors"></a><br><span class="anchorNameErrors">Sender site is not served on pickup date</span>
+<table cellpadding="0" cellspacing="10" border="0" class="tableErrors">
+   <tr>
+      <td valign="top" class="tdCode column1"><pre class="preCode">
+"context" : "address-collection-abroad-not-allowed",
+"message" : "Sender site is not served on pickup date ({errorCode})",</pre></td>
+      <td valign="top" class="tdCode column2">The pickup date has to be a working day (not a holiday), and the site to be serviced on the date.<br>
+         To avoid such errors, you can use the "autoAdjustPickupDate" property in the <a href="https://api.speedy.bg/web-api.html#href-create-shipment-req" class="preCodeAnchor" target="_blank">Create Shipment</a> method. This property will automatically set the first available date for pickup.<br>
+If you still want to use the "pickupDate" property, you can call the "Pickup Terms" method to receive the next 10 available dates for pickup and provide one of them for "pickupDate".
+   </td>
+   </tr>
+</table>
+
+
+
+<a name="sla.serviceId.service-not-allowed" class="aAnchorErrors"></a><br><span class="anchorNameErrors">Service: Service not allowed</span>
+<table cellpadding="0" cellspacing="10" border="0" class="tableErrors">
+   <tr>
+      <td valign="top" class="tdCode column1"><pre class="preCode">
+"context" : "sla.serviceId.service-not-allowed",
+"message" : "Service: Service not allowed ({errorCode})",</pre></td>
+      <td valign="top" class="tdCode column2">The provided service is not allowed or not applicable. When you know the recipient's address, you can call the <a href="https://api.speedy.bg/web-api.htmlhttps://api.speedy.bg/web-api.html#href-destination-services-req" class="preCodeAnchor" target="_blank">Destination Services</a> method to get all valid services you can use in this case.</td>
+   </tr>
+</table>
+
+
+
+<a name="shipment-data-no-longer-available" class="aAnchorErrors"></a><br><span class="anchorNameErrors">Shipment data is no longer available</span>
+<table cellpadding="0" cellspacing="10" border="0" class="tableErrors">
+   <tr>
+      <td valign="top" class="tdCode column1"><pre class="preCode">
+"context" : "shipment-data-no-longer-available",
+"message" : "Shipment data is no longer available ({errorCode})",</pre></td>
+      <td valign="top" class="tdCode column2">The error appears when the <a href="https://api.speedy.bg/web-api.html#href-track-req" class="preCodeAnchor" target="_blank">Track</a> method is used. It means that the shipment is old, and we do not provide data for shipments older than 6 months.<br>
+Please, contact your Speedy representative if you need information about an old shipment.
+      </td>
+   </tr>
+</table>
+
+
+
+<a name="shipment-not-accessible" class="aAnchorErrors"></a><br><span class="anchorNameErrors">Shipment is not accessible</span>
+<table cellpadding="0" cellspacing="10" border="0" class="tableErrors">
+   <tr>
+      <td valign="top" class="tdCode column1"><pre class="preCode">
+"context" : "shipment-not-accessible",
+"message" : "Shipment is not accessible ({errorCode})",</pre></td>
+      <td valign="top" class="tdCode column2">The shipment you are trying to track is not yours. The users cannot track shipments created by other users from different contracts, even if the contracts are for the same client.<br>
+         Verify that the user you are using in the request for retrieving the information is the same one who created the waybill.<br>
+         If in the scope of the contract, there is more than one user, each one of them can check waybills created by another one.
+      </td>
+   </tr>
+</table>
+
+
+
+<a name="content.weight.weight-over-maximum" class="aAnchorErrors"></a><br><span class="anchorNameErrors">Weight: Weight is over allowed maximum of 30kg. for selected service ({errorCode})</span>
+<table cellpadding="0" cellspacing="10" border="0" class="tableErrors">
+   <tr>
+      <td valign="top" class="tdCode column1"><pre class="preCode">
+"context" : "content.weight.weight-over-maximum",
+"message" : "Weight: Weight is over allowed maximum of 30kg. for selected service ({errorCode})",</pre></td>
+      <td valign="top" class="tdCode column2">Such an error appears when the weight is more than what is allowed for the service or the destination.<br>
+In case you are providing parcel size, also check the provided dimensions.<br>
+We are calculating volumetric weight based on the sizes. The volumetric weight is determined at a ratio 1 cubic meter = 200 kg.<br>
+For example, the volumetric weight of a parcel with dimensions 63 x 46 x 53 in centimeters is 0.63 x 0.46 x 0.53 * 200 = 30.719 kg.<br>
+The tariff weight of the parcel on which it is charged is the higher between the physical and volumetric weight.<br>
+You can receive more information by visiting our website or contacting your Speedy representative.
+      </td>
+   </tr>
+</table>
+
+
+</div><style>
+   #migration table tr td {
+    height: auto;
+    font: 12px PlutoSansDPDLight, Arial, Helvetica;
+    color: #444444;
+    background-color: #FAFAFA;
+    border: 1px solid #E9E9E9;
+    padding: 10px;
+   }
+   #migration h2 {
+      font-size: 17px;
+   }
+   #migration th {
+   font-weight: bold;
+    font-size: 15px;
+    padding: 0;
+    margin: 0;
+   }
+   #migration h5 {
+   font-weight: bold;
+    font-size: 14px;
+    padding: 0;
+    margin: 0;
+   }
+</style>
+
+<h1>Migration from the old SOAP web services to new REST API</h1>
+<div id="migration">
+
+   <table cellpadding="0" cellspacing="10" border="0" class="tableExamples">
+      <tr>
+         <th>SOAP web method</th>
+         <th>REST API request</th>
+      </tr>    
+     
+     <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-login" target="_blank">login</a></h5>  login </td>
+         <td>There is no login method. You need to use username and password in every method.</td>
+      </tr>
+      <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-isSessionActive" target="_blank">isSessionActive</a></h5>  Returns whether the session is active. </td>
+         <td>It is not necessary in API.</td>
+      </tr>
+      <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-listServices" target="_blank">listServices</a></h5> Returns the list of courier services valid on this date. </td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-services-req" target="_blank">Services Request</a></h5> Get available services for date and destination</td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-listServicesForSites" target="_blank">listServicesForSites</a>  
+</h5> Returns the list of courier services valid on this date and sites.
+ </td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-destination-services-req" target="_blank">Destination Services Request</a></h5> Get available services for date and destination</td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-getWeightInterval" target="_blank">getWeightInterval</a> </h5> Returns the min/max weight allowed for the given shipment parameters.</td>
+         <td>There is no such method in API.</td>
+      </tr>
+
+        <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-listSites" target="_blank">listSites</a></h5> Returns a list of sites matching the search criteria. The method is deprecated. Use "listSitesEx" instead</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-find-site-req" target="_blank">Find Site Request</a></h5> Get all sites for a country in csv file. Country id is specified as path parameter</td>
+      </tr>
+
+      <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-listSitesEx" target="_blank">listSitesEx</a>  </h5> Returns a list of sites. The algorithm aims to find the closest matches.</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-find-site-req" target="_blank">Find Site Request</a></h5> Get all sites for a country in csv file. Country id is specified as path parameter</td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-getAddressNomenclature" target="_blank">getAddressNomenclature</a>  </h5> </td>
+        <td><h5><a href="https://api.speedy.bg/web-api.html#href-get-all-countries-req">Get All Countries Request, 
+Get All States Request,
+Get All Sites Request
+Get All Streets Request 
+Get All Complexes Request
+Get All Blocks Request
+Get All Points of Interest Request</a></h5></td>
+      </tr>
+
+      <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-getPickingDeliveryInfo" target="_blank">getPickingDeliveryInfo</a>      </h5> This method can be used to get delivery information of a shipment. If picking is not delivered "null" is returned
+ </td>
+        <td><h5><a href="https://api.speedy.bg/web-api.html#href-track-req" target="_blank">Track Request</a></h5></td>
+      </tr>
+
+        <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-listAllSites" target="_blank">listAllSites</a>  </h5> Returns a list of all sites for country. In case no country is specified, the method defaults to sites in Bulgaria</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-get-all-sites-req" target="_blank">Get All Sites Request</a></h5> Get all sites for a country in csv file. Country id is specified as path parameter</td>
+      </tr>
+
+        <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-getSiteById" target="_blank">getSiteById</a>  </h5> Returns a site by ID.</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-find-site-req" target="_blank">Find Site Request</a></h5> Get all sites for a country in csv file. Country id is specified as path parameter</td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-getSitesByAddrNomenType" target="_blank">getSitesByAddrNomenType</a>    </h5> Returns sites having either full or partial address nomenclature (streets, quarters etc.).</td>
+        <td><h5><a href="https://api.speedy.bg/web-api.html#href-find-site-req" target="_blank">Find Site Request</a></h5> </td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-listStreetTypes" target="_blank">listStreetTypes</a>      </h5> Returns a list of the most common types of streets.
+</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-find-country-req" target="_blank">Find Country Request</a></h5> </td>
+      </tr>
+
+        <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-listQuarterTypes" target="_blank">listQuarterTypes</a>         </h5> Returns a list of the most common types of quarters (districts).</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-find-country-req" target="_blank">Find Country Request</a></h5> </td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-listStreets" target="_blank">listStreets</a>    </h5> Returns a list of streets matching the search criteria.
+</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-find-street-req" target="_blank">Find Street Request</a></h5> Get street by id. Street id is provided as parameter in URL path</td>
+      </tr>
+
+      <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-listQuarters" target="_blank">listQuarters</a>     </h5> Returns a list of quarters matching the search criteria.
+</td>
+        <td><h5><a href="https://api.speedy.bg/web-api.html#href-find-complex-req" target="_blank">Find Complex Request</a></h5> </td> 
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-listCommonObjects" target="_blank">listCommonObjects</a>      </h5> Returns a list of common objects matching the search criteria.</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-find-poi-req" target="_blank">Find POI Reques</a></h5> </td> 
+      </tr>
+
+
+      <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-listBlocks" target="_blank">listBlocks</a>  </h5> Returns a list of blocks matching the search criteria.</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-find-block-req" target="_blank">Find Block Request</a></h5> Get all blocks for a country in csv file. Country id is specified as path parameter.</td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-listOffices" target="_blank">listOffices</a>    </h5> Returns a list of Speedy locations matching the search criteria. The method is deprecated. Use "listOfficesEx" instead</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-find-office-req" target="_blank">Find Office Request</a></h5> Get location by id. The ID of the location is provided as parameter in URL path</td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-listOfficesEx" target="_blank">listOfficesEx</a>       </h5> Returns a list of Speedy locations matching the search criteria. The difference with "listOffices" method is in returning data structure</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-find-office-req" target="_blank">Find Office Request</a></h5> </td> 
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-getAdditionalUserParams" target="_blank">getAdditionalUserParams</a>        </h5> Returns the list of additional user parameters</td>
+        <td>There is no such method in API.</td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-getClientById" target="_blank">getClientById</a>  </h5> Returns data for client by ID. Allowed values for clientId are only the ones of members of the user's contract and the predefined partners in the WebClients application.</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-client-req" target="_blank">Get Client Request</a></h5> Client id is provided as URL path paramter. The response is the same as method using JSON schema.</td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-searchClients" target="_blank">searchClients</a>     </h5> Returns data for clients by specified client id or other search criteria.</td>
+        <td><h5><a href="https://api.speedy.bg/web-api.html#href-get-external-contact-req" target="_blank">Get Contact By External Id Request</a></h5> </td> 
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-listContractClients" target="_blank">listContractClients</a>     </h5> Returns all client objects ( including logged user's ) having the same contract as logged client's contract.</td>
+        <td><h5><a href="https://api.speedy.bg/web-api.html#href-contract-clients-req" target="_blank">Get Contract Clients Request</a></h5> </td> 
+      </tr>
+
+        <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-getAllowedDaysForTaking" target="_blank">getAllowedDaysForTaking</a>       </h5> Returns the dates when the shipment can be ordered for pick-up.</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-pickup-terms-req" target="_blank">Pickup Terms Request</a></h5> </td> 
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-addressSearch" target="_blank">addressSearch</a>          </h5> Returns a list of addresses matching the search criteria.</td>
+        <td>There is no such method in API.</td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-calculate" target="_blank">calculate</a>    </h5> This method could be used for preliminary check-up of shipment's price.</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-calculation-req" target="_blank">Calculation Request</a></h5> </td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-calculateMultipleServices" target="_blank">calculateMultipleServices</a>      </h5> This method could be used for preliminary check-up of shipment's price for a range of courier services.</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-calculation-req" target="_blank">Calculation Request</a></h5> </td>
+      </tr>
+
+      <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-calculatePicking" target="_blank">calculatePicking</a>        </h5> This is an alternative method for shipment price calculation where the parameter is of type ParamPicking. Clients are encouraged to use the method that best fits their needs.</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-calculation-req" target="_blank">Calculation Request</a></h5> </td>
+      </tr>
+
+
+      <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-createBillOfLading" target="_blank">createBillOfLading</a>    </h5> The method used to create BOL.</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-create-shipment-req" target="_blank">Create Shipment Request</a></h5> </td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-createPDF" target="_blank">createPDF</a>   </h5> Used for creating PDF documents to be printed (BOLs, labels etc.)</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-print-req" target="_blank">Print Request</a></h5> </td>
+      </tr>
+
+      <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-createPDFEx" target="_blank">createPDFex</a>  </h5> Used for creating PDF documents to be printed (BOLs, labels etc.).
+Extension method for createPDF returning more detailed information.</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-extended-print-req" target="_blank">Extended Print Request</a></h5> </td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-getRoutingLabelInfo" target="_blank">getRoutingLabelInfo</a>   </h5> Returns routing information for specified parcel number.</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-label-inf-req" target="_blank">Label Info Request</a></h5> </td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-invalidatePicking" target="_blank">invalidatePicking</a>      </h5> Used to cancel BOL. Only allowed when the shipment is not picked up by Speedy.</td>
+        <td><h5><a href="https://api.speedy.bg/web-api.html#href-cancel-shipment-req" target="_blank">Cancel Shipment Request</a></h5> </td>
+      </tr>
+
+        <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-updateBillOfLading" target="_blank">updateBillOfLading</a>   </h5> This method is used to update BOL (only allowed if BOL was created with pendingShipmentDescription = true).</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-update-shipment-req" target="_blank">Update Shipment Request</a></h5> Full update of already created shipment. Allowed only if shipment is not requested for pick up or is not picked up yet.Currently saved shipment data is cleared and replaced with new shipment data </td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-addParcel" target="_blank">addParcel</a>   </h5> This method is used to add parcel to an existing BOL (only allowed if BOL was created with pendingParcelsDescription = true).</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-add-parcel-req" target="_blank">Add parcel Request</a></h5> Parcels can be added to shipments in pending parcels state (shipments created with pendingParcels flag true)</td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-finalizeBillOfLadingCreation" target="_blank">finalizeBillOfLadingCreation</a>     </h5> Makes BOL "fully created" (only applies to BOLs created with pendingParcelsDescription = true).</td>
+          <td><h5><a href="https://api.speedy.bg/web-api.html#href-finalize-req" target="_blank">Finalize Pending Shipment Request</a></h5> </td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-createOrder" target="_blank">createOrder</a>   </h5> Creates an order for shipments pick-up (i.e. a visit by courier of Speedy).</td>
+          <td><h5><a href="https://api.speedy.bg/web-api.html#href-pickup-req" target="_blank">Pickup Request</a></h5> </td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-getPickingParcels" target="_blank">getPickingParcels</a>    </h5> Returns a list with all parcels of a shipment.</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-shipment-info-req" target="_blank">Shipment Information Request</a></h5> </td>
+      </tr>
+
+      <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-trackPicking" target="_blank">trackPicking</a>    </h5> This method is deprecated. Use trackPickingEx instead.</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-track-req" target="_blank">Track Request</a></h5></td>
+      </tr>
+
+      <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-trackPickingEx" target="_blank">trackPickingEx</a>    </h5> This method can be used to track the state/history of a shipment.</td>
+          <td><h5><a href="https://api.speedy.bg/web-api.html#href-track-req" target="_blank">Track Request</a></h5></td>
+      </tr>
+
+      <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-trackParcel" target="_blank">trackParcel</a>  </h5> This method can be used to track the state/history of a shipment.</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-track-req" target="_blank">Track Request</a></h5></td>
+      </tr>
+
+      <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-trackParcelMultiple" target="_blank">trackParcelMultiple</a>  </h5> This method can be used to track the state/history of a shipment or a number of shipments.</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-track-req" target="_blank">Track Request</a></h5></td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-searchPickingsByRefNumber" target="_blank">searchPickingsByRefNumber</a>  </h5> Search BOLs by reference codes (ref1 and/or ref2).</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-find-parcels-req" target="_blank">Find Parcels By Reference Request</a></h5></td>
+      </tr>
+
+      <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-getMicroregionId" target="_blank">getMicroregionId</a>    </h5> Returns the microregion id for provided GPS coordinates.</td>
+         <td>There is no such method in API.</td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-listSpecialDeliveryRequirements" target="_blank">listSpecialDeliveryRequirements</a>       </h5> Returns list with available special delivery requirements for logged user.</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-contract-info-req" target="_blank">Contract Info Request</a></h5> Get information about logged user contract </td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-validateAddress" target="_blank">validateAddress</a>    </h5> Validates address and returns result flag.</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-validate-address-req" target="_blank">Validate Address</a></h5> This method validates shipment address </td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-serializeAddress" target="_blank">serializeAddress</a>      </h5> Returns JSON representation of specified address object</td>
+        <td>There is no such method in API.</td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-deserializeAddress" target="_blank">deserializeAddress</a>      </h5> Returns ParamAddress constructed from specified JSON address string</td>
+         <td>There is no such method in API.</td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-makeAddressString" target="_blank">makeAddressString</a>       </h5> Returns ResultAddressString, providing information about specified address parameter.</td>
+         <td>There is no such method in API.</td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-listCountries" target="_blank">listCountries</a>       </h5> Returns a list of countries matching the search criteria.</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-find-country-req" target="_blank">Find Country Request</a></h5> </td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-listCountriesEx" target="_blank">listCountriesEx</a>      </h5> Returns a list of countries matching the search criteria.</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-find-country-req" target="_blank">Find Country Request</a></h5> </td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-listStates" target="_blank">listStates</a>        </h5> Returns list of states for a country that match search criteria</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-find-state-req" target="_blank">Find State Request</a></h5> </td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-getStateById" target="_blank">getStateById</a>      </h5>Returns state by id</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-find-state-req" target="_blank">Find State Request</a></h5>  </td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-validatePostCode" target="_blank">validatePostCode</a>      </h5> if siteId is provided: validates the post code against the site's post code range</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-validate-postcode-req" target="_blank">Validate Postcode Request</a></h5>  </td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-searchSecondaryPickings" target="_blank">searchSecondaryPickings</a>      </h5> Returns a list with all not canceled pickings, which are secondary to the picking with the specified billOfLading.</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-secondary-shipments-req" target="_blank">Secondary Shipments Request</a></h5>  </td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-getPickingExtendedInfo" target="_blank">getPickingExtendedInfo</a>        </h5> Returns extended information about the picking with the specified billOfLading.</td>
+         <td><h5><a href="https://api.speedy.bg/web-api.html#href-shipment-info-req" target="_blank">Shipment Information Request</a></h5>  </td>
+      </tr>
+
+       <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-convertToWin1251" target="_blank">convertToWin1251</a>          </h5> Returns the transliterated input text as result, it excludes latin characters (a-z, A-Z), cyrillic characters (а-я, А–Я) and digits (0-9).</td>
+        <td>It is automated when it is necessary. </td>
+      </tr>
+
+        <tr>
+         <td><h5><a href="https://services.speedy.bg/eps/docs/#ahn-m-mapForeignBarcode" target="_blank">mapForeignBarcode</a>          </h5> Associates foreign parcel number to provided parcel Id.</td>
+        <td>There is no such method in API. </td>
+      </tr>
+
+   </table>
+</div>Speedy, 2026.<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a48179cc09afe465',t:'MTc5MTU5MTc5OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

@@ -8,7 +8,8 @@
     "setup": "prisma generate && prisma migrate dev",
     "start": "remix-serve ./build/server/index.js",
     "docker-start": "npx prisma migrate deploy && npm run start",
-    "prisma:deploy": "prisma migrate deploy"
+    "prisma:deploy": "prisma migrate deploy",
+    "test": "node --test tests/*.test.mjs"
   },
   "type": "module",
   "engines": {

@@ -38,7 +38,9 @@ export default function PrivacyPolicy() {
           <li><strong>Customer shipping data:</strong> recipient name, phone number, email address, shipping address (street, city, county, postal code, country).</li>
           <li><strong>Shipping preference:</strong> selected courier, selected delivery method (home delivery or pickup point), selected pickup point name and address.</li>
           <li><strong>AWB data:</strong> generated shipping label numbers (AWB), shipping status.</li>
-          <li><strong>Merchant settings:</strong> API credentials for courier services (FAN Courier, Sameday, Cargus, GLS, Packeta), sender address, default shipping preferences. Credentials are stored in a secured database accessible only to the App.</li>
+          <li><strong>Merchant settings:</strong> API credentials for courier services (FAN Courier, Sameday, Cargus, GLS, Packeta, DPD), sender address, default shipping preferences. Credentials are stored in a secured database accessible only to the App.</li>
+          <li><strong>Support access:</strong> when the merchant leaves "Access for the Picklo team" on (Picklo → Help), Picklo staff can view and adjust the store's Picklo configuration to resolve support requests, using the permissions granted at installation. Staff never see courier or invoicing passwords. Every action is recorded in the store's activity log, and the merchant can turn access off at any time.</li>
+          <li><strong>Support messages:</strong> questions sent from Picklo → Help (name, email and message text) are stored to answer them.</li>
         </ul>
         <p>We do <strong>not</strong> collect payment card data, bank details, or any sensitive financial information.</p>
 
@@ -62,6 +64,7 @@ export default function PrivacyPolicy() {
           <li><strong>Cargus</strong> — cargus.ro</li>
           <li><strong>GLS Romania</strong> — gls-romania.ro</li>
           <li><strong>Packeta</strong> — packeta.com</li>
+          <li><strong>DPD Romania</strong> — dpd.ro</li>
         </ul>
         <p>
           Each courier processes data under their own privacy policy. Picklo transmits only the

@@ -3,7 +3,7 @@ import { render } from "preact";
 
 const POINT_LABELS = {
   fan: "FANbox", sameday: "Sameday easybox", cargus: "Cargus Ship & Go",
-  gls: "GLS ParcelShop", packeta: "Packeta / Z-BOX",
+  gls: "GLS ParcelShop", packeta: "Packeta / Z-BOX", dpd: "DPDbox / Punct DPD",
 };
 
 export default function extension() {

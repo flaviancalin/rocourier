@@ -1,0 +1,6391 @@
+ 
+ Web API Documentation 
+ Your delivery experts
+ Web API Integration
+ Table of Contents
+ 1. Introduction 
+ 1.1. Scope 
+ 1.2. Terms And Conditions 
+ 1.3. Overview 
+ 1.4. JSON Schema 
+ 1.5. Examples 
+ 1.6. RSS Feed 
+ 2. Overall Description 
+ 2.1. Shipment Service 
+ 2.1.1. Create Shipment 
+ 2.1.1.1. Create Shipment Request (CreateShipmentRequest) 
+ 2.1.1.2. Create Shipment Response (CreateShipmentResponse) 
+ 2.1.2. Cancel Shipment 
+ 2.1.2.1. Cancel Shipment Request (CancelShipmentRequest) 
+ 2.1.2.2. Cancel Shipment Response (CancelShipmentResponse) 
+ 2.1.3. Add parcel 
+ 2.1.3.1. Add parcel Request (AddParcelRequest) 
+ 2.1.3.2. Add parcel Response (AddParcelResponse) 
+ 2.1.4. Finalize Pending Shipment 
+ 2.1.4.1. Finalize Pending Shipment Request (FinalizePendingShipmentRequest) 
+ 2.1.4.2. Finalize Pending Shipment Response (FinalizePendingShipmentResponse) 
+ 2.1.5. Shipment Information 
+ 2.1.5.1. Shipment Information Request (ShipmentInformationRequest) 
+ 2.1.5.2. Shipment Information Response (ShipmentInformationResponse) 
+ 2.1.6. Secondary Shipments 
+ 2.1.6.1. Secondary Shipments Request (SecondaryShipmentsRequest) 
+ 2.1.6.2. Secondary Shipments Response (SecondaryShipmentsResponse) 
+ 2.1.7. Update Shipment 
+ 2.1.7.1. Update Shipment Request (UpdateShipmentRequest) 
+ 2.1.7.2. Update Shipment Response (UpdateShipmentResponse) 
+ 2.1.8. Update Shipment Properties 
+ 2.1.8.1. Update Shipment Properties Request (UpdateShipmentPropertiesRequest) 
+ 2.1.8.2. Update Shipment Properties Response (UpdateShipmentPropertiesRequest) 
+ 2.1.9. Find Parcels By Reference 
+ 2.1.9.1. Find Parcels By Reference Request (FindParcelsByRefRequest) 
+ 2.1.9.2. Find Parcels By Reference Response (FindParcelsByRefResponse) 
+ 2.1.10. Handover To Courier 
+ 2.1.10.1. Handover To Courier Request (HandoverToCourierRequest) 
+ 2.1.10.2. Handover To Courier Response (HandoverToCourierResponse) 
+ 2.1.11. Handover To Midway Carrier 
+ 2.1.11.1. Handover To Midway Carrier Request (HandoverToMidwayCarrierRequest) 
+ 2.1.11.2. Handover To Midway Carrier Response (HandoverToMidwayCarrierResponse) 
+ 2.1.12. Barcode Information 
+ 2.1.12.1. Barcode Information Request (BarcodeInformationRequest) 
+ 2.1.12.2. Barcode Information Response (BarcodeInformationResponse) 
+ 2.2. Print Service 
+ 2.2.1. Print
+ 2.2.1.1. Print Request (PrintRequest) 
+ 2.2.1.2. Print Response (PrintResponse) 
+ 2.2.2. Extended Print
+ 2.2.2.1. Extended Print Request 
+ 2.2.2.2. Extended Print Response (ExtendedPrintResponse) 
+ 2.2.3. Label Info
+ 2.2.3.1. Label Info Request (LabelInfoRequest) 
+ 2.2.3.2. Label Info Response (LabelInfoResponse) 
+ 2.2.4. Print Voucher
+ 2.2.4.1. Print Voucher Request (PrintVoucherRequest) 
+ 2.2.4.2. Print Voucher Response (PrintVoucherResponse) 
+ 2.3. Track And Trace Service 
+ 2.3.1. Track
+ 2.3.1.1. Track Request (TrackRequest) 
+ 2.3.1.2. Track Response (TrackResponse) 
+ 2.3.2. Bulk Tracking Data Files
+ 2.3.2.1. Bulk Tracking Data Files Request (BulkTrackingDataFilеsRequest) 
+ 2.3.2.2. Bulk Tracking Data Files Response (BulkTrackingDataFilеsResponse) 
+ 2.4. Pickup 
+ 2.4.1. Pickup
+ 2.4.1.1. Pickup Request (PickupRequest) 
+ 2.4.1.2. Pickup Response (PickupResponse) 
+ 2.4.2. Pickup Terms
+ 2.4.2.1. Pickup Terms Request (PickupTermsRequest) 
+ 2.4.2.2. Pickup Terms Response (PickupTermsResponse) 
+ 2.5. Location Service 
+ 2.5.1. Country 
+ 2.5.1.1. Get Country
+ 2.5.1.1.1. Get Country Request (GetCountryRequest) 
+ 2.5.1.1.2. Get Country Response (GetCountryResponse) 
+ 2.5.1.2. Find Country
+ 2.5.1.2.1. Find Country Request (FindCountryRequest) 
+ 2.5.1.2.2. Find Country Response (FindCountryResponse) 
+ 2.5.1.3. Get All Countries
+ 2.5.1.3.1. Get All Countries Request (GetAllCountriesRequest) 
+ 2.5.1.3.2. Get All Countries Response (GetAllCountriesResponse) 
+ 2.5.2. State 
+ 2.5.2.1. Get State
+ 2.5.2.1.1. Get State Request (GetStateRequest) 
+ 2.5.2.1.2. Get State Response (GetStateResponse) 
+ 2.5.2.2. Find State
+ 2.5.2.2.1. Find State Request (FindStateRequest) 
+ 2.5.2.2.2. Find State Response (FindStateResponse) 
+ 2.5.2.3. Get All States
+ 2.5.2.3.1. Get All States Request (GetAllStatesRequest) 
+ 2.5.2.3.2. Get All States Response (GetAllStatesResponse) 
+ 2.5.3. Site 
+ 2.5.3.1. Get Site
+ 2.5.3.1.1. Get Site Request (GetSiteRequest) 
+ 2.5.3.1.2. Get Site Response (GetSiteResponse) 
+ 2.5.3.2. Find Site
+ 2.5.3.2.1. Find Site Request (FindSiteRequest) 
+ 2.5.3.2.2. Find Site Response (FindSiteResponse) 
+ 2.5.3.3. Get All Sites
+ 2.5.3.3.1. Get All Sites Request (GetAllSitesRequest) 
+ 2.5.3.3.2. Get All Sites Response (GetAllSitesResponse) 
+ 2.5.4. Street 
+ 2.5.4.1. Get Street
+ 2.5.4.1.1. Get Street Request (GetStreetRequest) 
+ 2.5.4.1.2. Get Street Response (GetStreetResponse) 
+ 2.5.4.4. Find Street
+ 2.5.4.4. Find Street Request (FindStreetRequest) 
+ 2.5.4.5. Find Street Response (FindStreetResponse) 
+ 2.5.4.4. Get All Streets
+ 2.5.4.4.1. Get All Streets Request (GetAllStreetsRequest) 
+ 2.5.4.4.2. Get All Streets Response (GetAllStreetsResponse) 
+ 2.5.5. Complex 
+ 2.5.5.1. Get Complex Request
+ 2.5.5.1.1. Get Complex Request (GetComplexRequest) 
+ 2.5.5.1.2. Get Complex Response (GetComplexResponse) 
+ 2.5.5.2. Find Complex
+ 2.5.5.2.1. Find Complex Request (FindComplexRequest) 
+ 2.5.5.2.2. Find Complex Response (FindComplexResponse) 
+ 2.5.5.3. Get All Complexes
+ 2.5.5.3.1. Get All Complexes Request (GetAllComplexesRequest) 
+ 2.5.5.3.2. Get All Complexes Response (GetAllComplexesResponse) 
+ 2.5.6. Block 
+ 2.5.6.1. Find Block Request
+ 2.5.6.1.1. Find Block Request (FindBlockRequest) 
+ 2.5.6.1.2. Find Block Response (FindBlockResponse) 
+ 2.5.6.2. Get All Blocks
+ 2.5.6.2.1. Get All Blocks Request (GetAllBlocksRequest) 
+ 2.5.6.2.2. Get All Blocks Response (GetAllBlocksResponse) 
+ 2.5.7. Point of Interest (POI) 
+ 2.5.7.1. Get POI
+ 2.5.7.1.1. Get POI Request (GetPOIRequest) 
+ 2.5.7.1.2. Get POI Response (GetPOIResponse) 
+ 2.5.7.2. Find POI
+ 2.5.7.2.1. Find POI Request (FindPOIRequest) 
+ 2.5.7.2.2. Find POI Response (FindPOIResponse) 
+ 2.5.7.3. Get All Points of Interest
+ 2.5.7.3.1. Get All Points of Interest Request (GetAllPOIRequest) 
+ 2.5.7.3.2. Get All Points of Interest Response (GetAllPOIResponse) 
+ 2.5.8. Postcodes 
+ 2.5.8.1. Get All Postcodes Request
+ 2.5.8.1.1. Get All Postcodes Request (GetAllPostcodesRequest) 
+ 2.5.8.1.2. Get All Postcodes Response (GetAllPostcodesResponse) 
+ 2.5.9. Office 
+ 2.5.9.1. Get Office
+ 2.5.9.1.1. Get Office Request (GetOfficeRequest) 
+ 2.5.9.1.2. Get Office Response (GetOfficeResponse) 
+ 2.5.9.2. Find Office
+ 2.5.9.2.1. Find Office Request (FindOfficeRequest) 
+ 2.5.9.2.2. Find Office Response (FindOfficeResponse) 
+ 2.5.9.3. Find Nearest Offices
+ 2.5.9.3.1. Find Nearest Offices Request (FindNearestOfficesRequest) 
+ 2.5.9.3.2. Find Nearest Offices Response (FindNearestOfficesResponse) 
+ 2.6. Calculation Service 
+ 2.6.1. Calculation Request (CalculationRequest) 
+ 2.6.2. Calculation Response (CalculationResponse) 
+ 2.7. Client Service 
+ 2.7.1. Get Client
+ 2.7.1.1. Get Client Request (GetClientRequest) 
+ 2.7.1.2. Get Client Response (GetClientResponse) 
+ 2.7.2. Get Contract Clients
+ 2.7.2.1. Get Contract Clients Request (GetContractClientsRequest) 
+ 2.7.2.2. Get Contract Clients Response (GetContractClientsResponse) 
+ 2.7.3. Create Contact
+ 2.7.3.1. Create Contact Request (CreateContactRequest) 
+ 2.7.3.2. Create Contact Response (CreateContactResponse) 
+ 2.7.4. Get Contact By External Id
+ 2.7.4.1. Get Contact By External Id Request (GetContactByExternalIdRequest) 
+ 2.7.4.2. Get Contact By External Id Response (GetContactByExternalIdResponse) 
+ 2.7.5. Get Own Client Id
+ 2.7.5.1. Get Own Client Id Request (GetOwnClientIdRequest) 
+ 2.7.5.2. Get Own Client Id Response (GetOwnClientIdResponse) 
+ 2.7.6. Contract Info
+ 2.7.6.1. Contract Info Request (ContractInfoRequest) 
+ 2.7.6.2. Contract Info Response (ContractInfoResponse) 
+ 2.8. Validation Service 
+ 2.8.1. Validate Address
+ 2.8.1.1. Validate Address Request (ValidateAddressRequest) 
+ 2.8.2.2. Validate Address Response (ValidationResponse) 
+ 2.8.2. Validate Post Code
+ 2.8.2.1. Validate Post Code Request (ValidatePostCodeRequest) 
+ 2.8.2.2. Validate Post Code Response (ValidationResponse) 
+ 2.8.3. Validate Phone
+ 2.8.3.1. Validate Phone Request (ValidatePhoneRequest) 
+ 2.8.3.2. Validate Phone Response (ValidationResponse) 
+ 2.8.4. Validate Shipment
+ 2.8.4.1. Validate Shipment Request (ValidateShipmentRequest) 
+ 2.8.4.2. Validate Shipment Response (ValidationResponse) 
+ 2.9. Services Service 
+ 2.9.1. Services
+ 2.9.1.1. Services Request (ServicesRequest) 
+ 2.9.1.2. Services Response (ServicesResponse) 
+ 2.9.2. Destination Services
+ 2.9.2.1. Destination Services Request (DestinationServicesRequest) 
+ 2.9.2.2. Destination Services Response (DestinationServicesResponse) 
+ 2.10. Payments Service 
+ 2.10.1. Payout
+ 2.10.1.1. Payout Request (PayoutRequest) 
+ 2.10.1.2. Payout Response (PayoutResponse) 
+ 3. Data Structures 
+ 3.1. Shipment Service (ShipmentService) 
+ 3.1.1. Shipment Additional Services (ShipmentAdditionalServices) 
+ 3.1.1.1. COD Additional Service (ShipmentCODAdditionalService) 
+ 3.1.1.1.1. Shipment COD Fiscal Receipt Item (ShipmentCODFiscalReceiptItem) 
+ 3.1.1.2. Declared Value (Extended liability) Additional Service(ShipmentDeclaredValueAdditionalService) 
+ 3.1.1.3. Shipment Return Additional services (ShipmentReturnAdditionalServices) 
+ 3.1.1.3.1. Return of Documents (ROD) Additional service (ShipmentRODAdditionalService) 
+ 3.1.1.3.2. Return Receipt Additional Service (ShipmentReturnReceiptAdditionalService) 
+ 3.1.1.3.3. SWAP Additional Service (ShipmentSWAPAdditionalService) 
+ 3.1.1.3.4. Return of Pallets (ROP) Additional Service (ShipmentROPAdditionalService) 
+ 3.1.1.3.4.1. ROP Additional Service Lines (ShipmentROPAdditionalServiceLine) 
+ 3.1.1.3.5. Return Voucher Additional Service (ShipmentReturnVoucherAdditionalService) 
+ 3.1.1.3.6. Electronic Return Receipt Additional Service (ShipmentElectronicReturnReceiptAdditionalService) 
+ 3.1.1.4. Options before payment details Additional Service (ShipmentOBPD) 
+ 3.2. Shipment Content (ShipmentContent) 
+ 3.2.1. Shipment Parcel (ShipmentParcel) 
+ 3.2.1.1. Shipment Parcel Size (ShipmentParcelSize) 
+ 3.2.1.2. External carrier parcel number (ExternalCarrierParcelNumber) 
+ 3.2.1.3. Shipment Parcel Goods (ShipmentParcelGoods) 
+ 3.3. Shipment Payment (ShipmentPayment) 
+ 3.3.1. Shipment Discount Card (ShipmentDiscountCardId) 
+ 3.3.2. Bank Account (BankAccount) 
+ 3.4. Shipment Sender And Recipient 
+ 3.4.1. Shipment Sender (ShipmentSender) 
+ 3.4.2. Shipment Recipient (ShipmentRecipient) 
+ 3.4.3. Shipment Address (ShipmentAddress) 
+ 3.4.3.1. Address (Address) 
+ 3.4.4. Shipment Phone Number (ShipmentPhoneNumber) 
+ 3.4.5. Auto-select Nearest Office Policy (AutoSelectNearestOfficePolicy) 
+ 3.5. Shipment Parcels 
+ 3.5.1. Created Shipment Parcel (CreatedShipmentParcel) 
+ 3.5.2. Shipment Parcel Reference (ShipmentParcelRef) 
+ 3.5.3. Parcel Handover (ParcelHandover) 
+ 3.5.4. Track Shipment Parcel Reference (TrackShipmentParcelRef) 
+ 3.5.5. Midway Carrier Parcel Handover (MidwayCarrierParcelHandover) 
+ 3.6. Shipment Price (ShipmentPrice) 
+ 3.6.1. Shipment Price Amount (ShipmentPriceAmount) 
+ 3.6.2. Return Amounts (ReturnAmounts) 
+ 3.6.2.1. Money Transfer Premium (MoneyTransferPremium) 
+ 3.7. Errors (Error) 
+ 3.8. Parcel to Print (ParcelToPrint) 
+ 3.8.1. Parcel to Print Additional Barcode (ParcelToPrintAdditionalBarcode) 
+ 3.8.2. Label Info (LabelInfo) 
+ 3.9. TrackedParcel (TrackedParcel) 
+ 3.9.1. Tracked Parcel Operation (TrackedParcelOperation) 
+ 3.9.1.1. Tracked Parcel Operation Additional Info (TrackedParcelOperationAdditionalInfo) 
+ 3.9.1.1.1. Tracked Parcel Operation Predict Additional Info (TrackedParcelOperationAdditionalInfoPredict) 
+ 3.9.2. External Carrier Parcel Number Details (ExternalCarrierParcelNumberDetails) 
+ 3.10. Pickup order (PickupOrder) 
+ 3.11. Country 
+ 3.11.1. Address Nomenclature Type (AddressNomenclatureType) 
+ 3.12. State 
+ 3.13. Site 
+ 3.14. Street 
+ 3.15. Complex 
+ 3.16. Block 
+ 3.17. Point of interest (PointOfInterest) 
+ 3.18. Office (Office) 
+ 3.18.1. Office working time schedule (OfficeWorkingTimeSchedule) 
+ 3.19. Calculation Service (CalculationService) 
+ 3.20. Calculation Sender (CalculationSender) 
+ 3.21. Calculation Recipient (CalculationRecipient) 
+ 3.22. Calculation Address Location (AddressLocation) 
+ 3.23. Calculation Content (CalculationContent) 
+ 3.24. Calculation Result (CalculationResult) 
+ 3.25. Client (Client) 
+ 3.26. Shipment (Shipment) 
+ 3.26.1. Sender (Sender) 
+ 3.26.2. Recipient (Recipient) 
+ 3.26.3. Content (Content) 
+ 3.26.3.1. Parcel (Parcel) 
+ 3.26.4. Payment (Payment) 
+ 3.26.4.1. CODPayment (CODPayment) 
+ 3.26.5. Shipment Delivery (ShipmentDelivery) 
+ 3.26.6. Primary Shipment (PrimaryShipment) 
+ 3.26.7. Secondary Shipment (SecondaryShipment) 
+ 3.26.8. Shipment Parcel Number (ShipmentParcelNumber) 
+ 3.27. Courier Service 
+ 3.27.1. AdditionalCourierServices 
+ 3.27.1.1. AdditionalCourierService 
+ 3.28. Extended Courier Service 
+ 3.29. Bulk Tracking Data File 
+ 3.30. Payout 
+ 3.30.1. Payout Details 
+ 3.31. SpecialDeliveryRequirements 
+ 3.31.1. Requirement 
+ 3.32. OfficeResult 
+ 3.33. CODAdditionalServiceContractInfo 
+ 3.33.1. CODInternationalAnnexContractInfo 
+ 3.34. RoutingInformation 
+ 3.34.1. Tour 
+ 4. Appendixes 
+ 4.1. Appendix 1 - Track And Trace Operation Codes 
+ 4.2. Appendix 2 - Exception Codes for Track and Trace Operations 
+ 4.3. Appendix 3 - Error Codes 
+ 1. Introduction
+ This document is a specification for web service API integration for external clients. The web service API provides methods for creating shipments, printing parcels, pickup requests, tracking and etc.
+ To get a test account please send us an e-mail to [email protected] 
+ and provide the following info:
+ Name
+ Company name
+ Direct Phone number
+ To get technical support for the integration please send us an e-mail to [email protected] 
+ and provide the following info:
+ UserName
+ Error context (if relevant)
+ Error message (if relevant)
+ and detailed explanation of the situation you need support for.
+ 1.1. Scope
+ This document specifies Web Service API used to connect external customers to the core system functionality to create, print or track shipments and parcels, using available courier services with their limitations, additional services and options.
+ 1.2. Terms And Conditions
+ Date data types referred in this document that contains actual dates (without time) should be passed as "yyyy-MM-dd" formatted string in the request. Date responses are in the same format.
+ Date data types referred in this document as datetime should be passed as "yyyy-MM-ddTHH:mm:ssZ" formatted string in the request. Datetime responses are in the same format.
+ Boolean data types referred in this document in url based requests could be passed as "true/false, 1/0, y/n, yes/no" case insensitive values. In JSON fields boolean values allowed are only "true/false".
+ Response data structures may be changed in the future adding additional fields. Therefore, client applications should be able to accept unknown fields in responses for backward compatibility
+ Letters in text fields which are not in Windows-1251 encoding (ANSI (Latin) + Cyrillic + some special characters) are transliterated to Latin alphabet in Windows-1251 character encoding table. For more details visit https://en.wikipedia.org/wiki/Windows-1251. 
+ 1.3. Overview
+ The document specifies communication protocol for integration, which is request/response based over HTTP. Each method provides REST/JSON schema to send requests to the server and receive response in JSON (but not in any case) format.
+ In addition, each method supports URL GET schema to simplify integrations. This approach is a deviation from standard REST patterns for implementation, but however is identified as easy for integration, well accepted and requested by customers.
+ The web service API requires user password authentication for each method. All users have a reference to a single client. Some clients may have contracts which include more than one member (different departments/offices etc).
+ Depending on his/her permissions, a user is either allowed to work with shipments of these members or not.
+ 1.4. JSON Schema
+ API JSON schema is available for download here 
+ 1.5. Examples
+ Examples can be found here 
+ 1.6. RSS Feed
+ RSS Feed 
+ 2. Overall Description
+ BASE_URL=https://api.dpd.ro/v1
+ 2.1. Shipment Service
+ Web service URL: BASE_URL/shipment
+ 2.1.1.1. Create Shipment Request (CreateShipmentRequest)
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Input parameters:
+ CreateShipmentRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ id 
+ String 
+ No 
+ Shipment id 
+ Shipment ID from provided range. If shipment ID is empty the system will generate and return it in response 
+ sender 
+ ShipmentSender 
+ No 
+ Defines the sender of the shipment and shipment's pickup place. If not specified, the logged user is considered as a sender. 
+ recipient 
+ ShipmentRecipient 
+ Yes 
+ Defines the recipient of the shipment and shipment’s delivery place. 
+ service 
+ ShipmentService 
+ Yes 
+ Defines shipment service level agreement. 
+ content 
+ ShipmentContent 
+ Yes 
+ Defines shipment’s content - number of parcels, weight, size, etc. 
+ payment 
+ ShipmentPayment 
+ Yes 
+ Defines who-pays-what in shipment and other payment parameters. 
+ shipmentNote 
+ String 
+ No 
+ Customer’s note associated with the shipment. 
+ 200 characters 
+ ref1 
+ String 
+ No 
+ Reference number or text. 
+ 30 
+ ref2 
+ String 
+ No 
+ Reference number or text. 
+ 30 
+ consolidationRef 
+ String 
+ No 
+ Consolidation reference number or text. 
+ 30 
+ requireUnsuccessfulDeliveryStickerImage 
+ Boolean 
+ No 
+ Require unsuccessful delivery sticker image flag. 
+ View request examples 
+ 2.1.1.2. Create Shipment Response (CreateShipmentResponse)
+ Output parameters:
+ CreateShipmentResponse 
+ Name 
+ Type 
+ Data 
+ id 
+ String 
+ Generated shipment id. 
+ parcels 
+ CreatedShipmentParcel []
+ Generated parcels. 
+ price 
+ ShipmentPrice 
+ Returned, if customer has access to view the amounts of the shipment. 
+ pickupDate 
+ Date (date) 
+ Shipment pickup date. 
+ deliveryDeadline 
+ Date (datetime) 
+ Deadline for delivery. Returned, if available. 
+ error 
+ Error 
+ Response error. 
+ 2.1.2.1. Cancel Shipment Request (CancelShipmentRequest)
+ Web service URL: BASE_URL/shipment/cancel
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Or
+ Web service URL: BASE_URL/shipment
+ Method: DELETE
+ Content-type: application/json; charset =utf-8
+ Cancel shipment. Shipment can be cancelled, it is not ordered yet.
+ CancelShipmentRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ shipmentId 
+ String 
+ Yes 
+ Shipment id 
+ Should have access rights to cancel the shipment. 
+ comment 
+ String 
+ Yes 
+ Cancel comment 
+ Max 1024 
+ 2.1.2.2. Cancel Shipment Response (CancelShipmentResponse)
+ Cancel response is an empty JSON, if the shipment is successfully cancelled. Otherwise, an error is included.
+ CancelShipmentResponse 
+ Name 
+ Type 
+ Data 
+ error 
+ Error 
+ Response error 
+ 2.1.3.1. Add parcel Request (AddParcelRequest)
+ Parcels can be added to shipments in pending parcels state (shipments created with pendingParcels flag true)
+ Web service URL: BASE_URL/shipment/add_parcel
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ AddParcelRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ shipmentId 
+ String 
+ Yes 
+ Shipment id 
+ Should refer shipment in pending parcels state (not finalized yet with finalizePendingShipment method). 
+ parcel 
+ ShipmentParcel 
+ Yes 
+ Parcel to add. Parcel id and sequence number are auto-generated and therefore ignored if present in request 
+ codAmount 
+ Double 
+ No 
+ COD amount to add with this parcel to increase total COD amount 
+ codFiscalReceiptItems 
+ ShipmentCODFiscalReceiptItem [] 
+ This feature depends on country regulations and must be enabled for client contract. The value in codAmount is ignored if fiscal receipt items are provided. To use fiscal receipt items in this method the shipment must have COD defined with fiscal receipt already or COD must be emty List of items to add in current fiscal receipt items list to issue receipt on behalf of client If shipment has fiscal receipt items, the COD amount is the total amount with VAT of all fiscal receipt items. 
+ declaredValueAmount 
+ Double 
+ No 
+ Declared value (extended liability) amount to add with this parcel to increase total amount 
+ If this parcel increases the amount of declared value, the shipment should be opened with Declared value (extended liability) additional service 
+ 2.1.3.2. Add Parcel Response (AddParcelResponse)
+ Add parcel response returns generated parcel. Otherwise, an error is included.
+ CancelShipmentResponse 
+ Name 
+ Type 
+ Data 
+ parcel 
+ CreatedShipmentParcel 
+ Created shipment parcel (with generated id and sequence number) 
+ error 
+ Error 
+ Response error 
+ 2.1.4.1. Finalize Pending Shipment Request (FinalizePendingShipmentRequest)
+ Pending shipments (opened with pendingParcels flag equal to true) should be finalized with this method
+ Web service URL: BASE_URL/shipment/finalize
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ FinalizePendingShipmentRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ shipmentId 
+ String 
+ Yes 
+ Shipment id 
+ Should refer shipment in pending parcels state (not finalized yet with finalizePendingShipment method). 
+ 2.1.4.2. Finalize Pending Shipment Response (FinalizePendingShipmentResponse)
+ The response is the same as CreateShipmentResponse. 
+ 2.1.5.1. Shipment Information Request (ShipmentInformationRequest)
+ This method provides shipment information
+ Web service URL: BASE_URL/shipment/info
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ ShipmentInformationRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ shipmentIds 
+ String[] 
+ Yes 
+ Shipment ids 
+ 2.1.5.2. Shipment Information Response (ShipmentInformationResponse)
+ ShipmentInformationResponse 
+ Name 
+ Type 
+ Data 
+ shipments 
+ Shipment [] 
+ Shipment information 
+ error 
+ Error 
+ Response error 
+ 2.1.6.1. Secondary Shipments Request (SecondaryShipmentsRequest)
+ This method provides secondary shipments information
+ Web service URL: BASE_URL/shipment/ {shipmentId} /secondary
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ SecondaryShipmentsRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ types 
+ enum[] (array with values from enum:
+ ["RETURN_SHIPMENT", "STORAGE_PAYMENT", "REDIRECT", "SEND_BACK", "MONEY_TRANSFER", "TRANSPORT_DAMAGED", "RETURN_VOUCHER"])
+ (Same as enum in field type in PrimaryShipment ) 
+ Yes 
+ Filters the list for shipments of the specified type(s) only. No filter is applied if not provided (all secondary shipments are returned). RETURN_SHIPMENT - any of return of documents (rod) / returnReceipt / swap / return of pallets (rop)
+ STORAGE_PAYMENT - warehouse charges
+ REDIRECT - redirect shipment
+ SEND_BACK - return to sender
+ MONEY_TRANSFER - money transfer
+ TRANSPORT_DAMAGED - damaged shipment transport
+ VOUCHER_RETURN - return with voucher
+ 2.1.6.2. Secondary Shipments Response (SecondaryShipmentsResponse)
+ SecondaryShipmentsResponse 
+ Name 
+ Type 
+ Data 
+ shipments 
+ SecondaryShipment [] 
+ List of secondary shipments 
+ error 
+ Error 
+ Response error 
+ 2.1.7.1. Update Shipment Request (UpdateShipmentRequest)
+ Web service URL: BASE_URL/shipment/update
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Full update of already created shipment. Allowed only if shipment is not requested for pick up or is not picked up yet.
+ Currently saved shipment data is cleared and replaced with new shipment data
+ Input parameters:
+ UpdateShipmentRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ CreateShipmentRequest fields are here 
+ id 
+ String 
+ Yes 
+ Shipment id 
+ Shipment with that id must exisists, should be accessible to method caller and shipment state must allow requested property update 
+ 2.1.7.2. Update Shipment Response (UpdateShipmentResponse)
+ Response is CreateShipmentResponse - same returned in createShipment method
+ Output parameters:
+ UpdateShipmentResponse 
+ Name 
+ Type 
+ Data 
+ CreateShipmentResponse fields are here 
+ 2.1.8.1. Update Shipment Properties Request (UpdateShipmentPropertiesRequest)
+ Web service URL: BASE_URL/shipment/update/properties
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Update shipment properties. All properties can be changed if shipment is not requested for pick up or is not picked up yet.
+ Recipient phone and COD properties can be updated after pickup request if shipment is still not given to courier for delivery and is not cancelled or closed
+ Input parameters:
+ UpdateShipmentPropertiesRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ id 
+ String 
+ Yes 
+ Shipment id 
+ Shipment with that id must exisists, should be accessible to method caller and shipment state must allow requested property update 
+ properties 
+ Map<String, String> 
+ Yes 
+ The map key is shipment property name and the map value is new propery value to be set in shipment. 
+ The allowed key (property) names are the same as url parameter names (synonims) defined in CreateShipmentRequest 
+ The values expected to be in the format defined for corresponding url parameter in that method sepcification. 
+ 2.1.8.2. Update Shipment Propeties Response (UpdateShipmentPropertiesResponse)
+ Response is UpdateShipmentResponse - same returned in updateShipment method
+ Output parameters:
+ UpdateShipmentPropertiesResponse 
+ Name 
+ Type 
+ Data 
+ UpdateShipmentResponse fields are here 
+ 2.1.9.1. Find Parcels By Reference Request (FindParcelsByRefRequest)
+ This method returns parcels by reference number
+ Web service URL: BASE_URL/shipment/search
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ FindParcelsByRefRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ ref 
+ String 
+ Yes 
+ Client reference 
+ searchInRef 
+ int 
+ Yes 
+ Specifies where to search: 0 means [Ref1 or Ref2], 1 means [Ref1], 2 means [Ref2] 
+ shipmentsOnly 
+ boolean 
+ No 
+ If true - search in shipments only, otherwise in shipment and parcels. Default is true 
+ includeReturns 
+ boolean 
+ No 
+ If true - search in return shipments also. Default is false 
+ fromDateTime 
+ Date
+ (String in format "yyyy-MM-dd'T'HH:mm:ssZ") 
+ No 
+ Pick-up date - from. Up to 6 months before 
+ toDateTime 
+ Date
+ (String in format "yyyy-MM-dd'T'HH:mm:ssZ") 
+ No 
+ Pick-up date - to 
+ 2.1.9.2. Find Parcels By Reference Response (FindParcelsByRefResponse)
+ FindParcelsByRefResponse 
+ Name 
+ Type 
+ Data 
+ barcodes 
+ String[] 
+ List of barcodes found 
+ error 
+ Error 
+ Response error 
+ 2.1.10.1. Handover To Courier Request (HandoverToCourierRequest)
+ Register handover to courier barcode operations
+ Web service URL: BASE_URL/shipment/handover
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ HandoverToCourierRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ parcels 
+ ParcelHandover [] 
+ Yes 
+ Parcel barcodes with datetime to register handover to courier operations 
+ Should refer accessible shipment parcels 
+ 2.1.10.2. Handover To Courier Response (HandoverToCourierResponse)
+ Response is empty on success. Otherwise, an error is included.
+ HandoverToCourierResponse 
+ Name 
+ Type 
+ Data 
+ error 
+ Error 
+ Response error 
+ 2.1.11.1. Handover To Midway Carrier Request (HandoverToMidwayCarrierRequest)
+ Register handover to midway carrier barcode operations
+ Web service URL: BASE_URL/shipment/handover-to-midway-carrier
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ HandoverToMidwayCarrierRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ parcels 
+ MidwayCarrierParcelHandover [] 
+ Yes 
+ Parcel barcodes with datetime, country and site name to register handover to midway carrier operations 
+ Should refer accessible shipment parcels 
+ 2.1.11.2. Handover To Midway Carrier Response (HandoverToMidwayCarrierResponse)
+ Response is empty on success. Otherwise, an error is included.
+ HandoverToMidwayCarrierResponse 
+ Name 
+ Type 
+ Data 
+ error 
+ Error 
+ Response error 
+ 2.1.12.1. Barcode Information Request (BarcodeInformationRequest)
+ Get parcel information by parcel barcode
+ Web service URL: BASE_URL/shipment/barcode-information
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ BarcodeInformationRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ parcel 
+ ShipmentParcelRef 
+ Yes 
+ Parcel to get info for 
+ Validated for allowed access. 
+ 2.1.12.2. Barcode Information Response (BarcodeInformationResponse)
+ Barcode information response
+ BarcodeInformationResponse 
+ Name 
+ Type 
+ Data 
+ labelInfo 
+ LabelInfo 
+ Label info 
+ primaryShipment 
+ PrimaryShipment 
+ Primary shipment. 
+ primaryParcelId 
+ String 
+ Primary parcel id. 
+ returnShipmentId 
+ String 
+ Return shipment id. 
+ returnParcelId 
+ String 
+ Return parcel id. 
+ redirectShipmentId 
+ String 
+ Redirect shipment id. 
+ redirectParcelId 
+ String 
+ Redirect parcel id. 
+ initialShipmentId 
+ String 
+ Initial shipment id. 
+ initialParcelId 
+ String 
+ Initial parcel id. 
+ error 
+ Error 
+ Response error 
+ 2.2 Print Service
+ Web service URL: BASE_URL/print Used to create labels (waybills, stickers and etc.)
+ PDF Examples: 
+ Waybill (A4) 
+ Waybill (A4) with "cash on delivery" 
+ Parcel sticker (A6) 
+ Parcel sticker (A6) with "cash on delivery" 
+ Parcel sticker (A6) with additional barcode 
+ Routing label specification 
+ For customers that need to produce the labels themselves instead of printing our standard ones here is an example how to build the routing barcode and the routing section in the label
+ 2.2.1.1. Print Request (PrintRequest)
+ Web service URL: BASE_URL/print
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ PrintRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ format 
+ enum ["pdf", "zpl"] 
+ No (default is pdf) 
+ Output format 
+ paperSize 
+ enum ["A4", "A6", "A4_4xA6"] 
+ Yes 
+ Print paper size 
+ Validated for allowed format. For example zpl is allowed with A6 only. 
+ parcels 
+ ParcelToPrint [] 
+ Yes 
+ Parcels to print 
+ Validated for allowed access. 
+ printerName 
+ String 
+ No 
+ Printer name to be used for direct printing. 
+ dpi 
+ enum ["dpi203", "dpi300"] 
+ No (default is dpi203) 
+ Dpi used for rendering. Makes sense for zpl format, otherwise ignored 
+ additionalWaybillSenderCopy 
+ enum ["NONE", "ON_SAME_PAGE", "ON_SINGLE_PAGE"] 
+ No (default is NONE) 
+ Defines whether and how to print additional waybill copy for sender. 
+ A4 pdf printing is required if print mode is different than NONE. 
+ View request examples 
+ 2.2.1.2. Print Response (PrintResponse)
+ In case the response is a PDF document, the result content type is application/pdf.
+ Content-type: application/pdf
+ And content contains pdf bytes.
+ In case it is a zpl, the content type is text/plain.
+ Content-type: text/plain
+ And content contains zpl text string.
+ In case of an error, the content type is application/json.
+ Content-type: application/json
+ And content is a JSON with Error structure.
+ 2.2.2.1. Extended Print Request
+ Web service URL: BASE_URL/print/extended
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ The same PrintRequest structure is send to /extended path to get JSON response with an extended routing information described in next section.
+ 2.2.2.2. Extended Print Response (ExtendedPrintResponse)
+ ExtendedPrintResponse 
+ Name 
+ Type 
+ Data 
+ data 
+ byte[]
+ (BASE64 encoded string) 
+ Response data - base64 encoded binary data (pdf) 
+ printLabelsInfo 
+ LabelInfo [] 
+ Print labels info 
+ error 
+ Error 
+ Response error 
+ 2.2.3.1. Label Info Request (LabelInfoRequest)
+ Web service URL :   BASE_URL /print/labelInfo 
+ Method : POST 
+ Content-type : application/json;   charset =utf-8 
+ LabelInfoRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ parcels 
+ ShipmentParcelRef [] 
+ Yes 
+ Parcels to get label info for 
+ Validated for allowed access. 
+ 2.2.3.2. Label Info Response (LabelInfoResponse)
+ LabelInfoResponse 
+ Name 
+ Type 
+ Data 
+ printLabelsInfo 
+ LabelInfo [] 
+ Print labels info 
+ error 
+ Error 
+ Response error 
+ 2.2.4.1. Print Voucher Request (PrintVoucherRequest)
+ Web service URL: BASE_URL/print/voucher
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ PrintVoucherRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ shipmentIds 
+ String[] 
+ Yes 
+ Shipment ids 
+ Validated for allowed access. All shipments must have voucher request 
+ printerName 
+ String 
+ No 
+ Printer name to be used for direct printing. Includes javascript in pdf to print document directly to the provided printer on document opening. 
+ format 
+ enum ["pdf", "zpl"] 
+ No (default is pdf) 
+ Output format 
+ dpi 
+ enum ["dpi203", "dpi300"] 
+ No (default is dpi203) 
+ Dpi used for rendering. Makes sense for zpl format, otherwise ignored 
+ 2.2.4.2. Print Voucher Response (PrintVoucherResponse)
+ The result content type is application/pdf.
+ Content-type: application/pdf
+ And content contains pdf bytes.
+ In case of an error, the content type is application/json.
+ Content-type: application/json
+ And content is a JSON with Error structure.
+ 2.3. Track And Trace Service
+ Web service URL: BASE_URL/track
+ 2.3.1.1. Track Request (TrackRequest)
+ Web service URL: BASE_URL/track
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ TrackRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ parcels 
+ TrackShipmentParcelRef [] 
+ Yes 
+ Parcels to track 
+ Allowed are up to 10 parcels 
+ lastOperationOnly 
+ Boolean 
+ No 
+ Flag to return last operation only’ 
+ View request examples 
+ 2.3.1.2. Track Response (TrackResponse)
+ TrackResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ parcels 
+ TrackedParcel [] 
+ Yes 
+ Parcel track information 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.3.2.1. Bulk Tracking Data Files Request (BulkTrackingDataFilesRequest)
+ Bulk tracking data files are json files with file id assigned and contain data in format: TrackedParcel []
+ A greater file id corresponds to a later file publishing.
+ This method is used to provide links for downloading published data files with tracking information.
+ This method requires bulk tracking service enrolment, for which you may contact your key account manager. ;
+ Web service URL: BASE_URL/track/bulk
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ BulkTrackingDataFilesRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ lastProcessedFileId 
+ Long 
+ Yes 
+ The greatest data file id processed in client system. To get all published data files during last 10 days use 0 as lastProcessedFileId 
+ The last processed file id must refer to a file published during last 10 days. Otherwise, error is returned. 
+ 2.3.2.2. Bulk Tracking Data Files Response (BulkTrackingDataFilesResponse)
+ BulkTrackingDataFilesResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ files 
+ BulkTrackingDataFile [] 
+ Yes 
+ Bulk tracking data files ordered by file id in ascending order. The greatest file id returned in this response is expected to be passed in next request for incremental processing 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.4. Pickup
+ Web service URL: BASE_URL/pickup
+ 2.4.1.1. Pickup Request (PickupRequest)
+ Web service URL: BASE_URL/pickup
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ PickupRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ pickupDateTime 
+ Date
+ (String in format "yyyy-MM-dd'T'HH:mm:ssZ") 
+ No
+ Pickup datetime. If not provided, it is assumed now. Seconds and milliseconds are ignored. 
+ autoAdjustPickupDate 
+ Boolean 
+ No (default value is false) 
+ To find first available date for pickup starting from pickupDate according to pickup schedule for services 
+ pickupScope 
+ enum ["EXPLICIT_SHIPMENT_ID_LIST",
+ "ALL_CREATED_BY_LOGGED_USER",
+ "ALL_CREATED_BY_SAME_CLIENT"]
+ "ALL_CREATED_BY_SAME_CONTRACT_USERS"]
+ No Default is EXPLICIT_SHIPMENT_ID_LIST 
+ Scope of shipments to order. 
+ ALL_CREATED_BY_SAME_CONTRACT_USERS can be used in case a logged user have the access rights to access shipments created by other users in the same contract. 
+ explicitShipmentIdList 
+ String[] 
+ No
+ Required when pickup scope is EXPLICIT_SHIPMENT_ID_LIST 
+ visitEndTime 
+ String (format HH:ss) 
+ Yes Example 9:30, or 11:35 
+ The last possible time when the address could be visited on the pickup date. 
+ contactName 
+ String 
+ No 
+ Contact name. 
+ phoneNumber 
+ ShipmentPhoneNumber 
+ No 
+ Customer’s phone number. 
+ 2.4.1.2. Pickup Response (PickupResponse)
+ PickupResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ orders 
+ PickupOrder [] 
+ Yes 
+ Pickup orders created 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.4.2.1. Pickup Terms Request (PickupTermsRequest)
+ Web service URL: BASE_URL/pickup/terms
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ PickupTermsRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ serviceId 
+ int 
+ Yes 
+ Service Id 
+ startingDate 
+ Date (String in format "yyyy-MM-dd") 
+ No 
+ The first date when the shipment will be ready for pickup. If not provided, it is assumed today. 
+ Should not be a date before today 
+ sender 
+ CalculationSender 
+ No (If not specifed, logged user is used) 
+ Client and location for pickup. 
+ senderHasPayment 
+ Boolean 
+ No 
+ Flag to indicate, whether sender should pay at least one of courier service, declared value or packings.If this parameter is missing assumed value is - false. 
+ 2.4.2.2. Pickup Terms Response (PickupTermsResponse)
+ PickupTermsResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ cutoffs 
+ DateTime[]
+ (format yyyy-MM-dd'T'HH:mm:ssZ) 
+ Yes 
+ Pickup cutoffs for next days. Pickup is not allowed for missing days in the result list 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.5. Location Service
+ Web service URL: BASE_URL/location
+ 2.5.1. Country
+ This section specifies methods to query system for allowed countries
+ Web service URL: BASE_URL/location/country
+ 2.5.1.1.1. Get Country Request (GetCountryRequest)
+ Web service URL: BASE_URL/location/country/ {id} 
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Get country by id. Country id is provided as parameter in URL path
+ GetCountryRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ 2.5.1.1.2. Get Country Response (GetCountryResponse)
+ GetCountryResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ country 
+ Country 
+ No 
+ Found country or null if not found 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.5.1.2.1. Find Country Request (FindCountryRequest)
+ Web service URL: BASE_URL/location/country
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Find country using search criteria
+ FindCountryRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ name 
+ String 
+ No 
+ Country search term. Filters the results by country name prefix or part of country name 
+ isoAlpha2 
+ String 
+ No 
+ Country iso alpha 2. Filters result by exact match if presents. ISO alpha 2 value uniquely identifies country and other criterias are not needed if this one presents 
+ isoAlpha3 
+ String 
+ No 
+ Country iso alpha 3. Filters result by exact match if presents. ISO alpha 3 value uniquely identifies country and other criterias are not needed if this one presents 
+ View request examples 
+ 2.5.1.2.2. Find Country Response (FindCountryResponse)
+ The countries in return are these that match search criteria in request and ordered by:
+ Exact match is on top, followed by
+ Country name prefix matches, followed by
+ Country name contains matches (search term is in the name but not a prefix)
+ The result is limited to 10 records.
+ FindCountryResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ countries 
+ Country [] 
+ No 
+ Array of countries 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.5.1.3.1. Get All Countries Request (GetAllCountriesRequest)
+ Web service URL: BASE_URL/location/country/csv
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Get all countries as csv file
+ GetAllCountriesRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ 2.5.1.3.2. Get All Countries Response (GetAllCountriesResponse)
+ See Country data structure for additional information.
+ Response is CSV (comma separated) file int UTF8 encoding. The format is:
+ id - ISO country id
+ name - Country name in local language
+ nameEn - Country name in English
+ isoAlpha2 - ISO alpha 2 code
+ isoAlpha3 - ISO alpha 3 code
+ postCodeFormats - all allowed postcode patterns are separated with comma and the whole value is escaped with quotation marks
+ requireState - flag whether country requires state
+ addressType - address type (1 or 2 - see ShipmentAddress ) for this country
+ currencyCode - current active currency code used for COD
+ defaultOfficeId - default office id
+ streetTypes - comma separated list of all street types escaped with quotation marks in local language. This value is applicable for addressType 1 only
+ streetTypesEn - comma separated list of all street types escaped with quotation marks in English. This value is applicable for addressType 1 only
+ complexTypes - comma separated list of all complex types escaped with quotation marks in local language. This value is applicable for addressType 1 only
+ complexTypesEn - comma separated list of all complex types escaped with quotation marks in English. This value is applicable for addressType 1 only
+ siteNomen - site nomenclature (0, 1 ,2)
+ 2.5.2. State
+ This section specifies methods to query system for allowed states
+ Web service URL: BASE_URL/location/state
+ 2.5.2.1.1. Get State Request (GetStateRequest)
+ Web service URL: BASE_URL/location/state/ {id} 
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Get state by id. State id is provided as parameter in URL path
+ GetStateRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ 2.5.2.1.2. Get State Response (GetStateResponse)
+ GetStateResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ state 
+ State 
+ No 
+ State found or null if not found 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.5.2.2.1. Find State Request (FindStateRequest)
+ Web service URL: BASE_URL/location/state
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Find state using search criteria
+ FindStateRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ countryId 
+ integer 
+ Yes 
+ Country id 
+ name 
+ String 
+ No 
+ Search term for state name. Filters the results by state name prefix or part of state name. 
+ View request examples 
+ 2.5.2.2.2. Find State Response (FindStateResponse)
+ The states in return are these that match search criteria in request and ordered by:
+ Exact match is on top, followed by
+ State name prefix matches, followed by
+ State name contains matches (search term is in the name but not a prefix)
+ The result is limited to 10 records.
+ FindStateResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ states 
+ State [] 
+ No 
+ Array of states 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.5.2.3.1. Get All States Request (GetAllStatesRequest)
+ Web service URL: BASE_URL/location/state/csv/ {countryId} 
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Get all states for a country in csv file. Country id is specified as path parameter
+ GetAllStatesRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ 2.5.2.3.2. Get All States Response (GetAllStatesResponse)
+ See State data structure for additional information.
+ Response is CSV (comma separated) file int UTF8 encoding. The format is:
+ id - state id
+ name - state name in local language
+ nameEn - state name in English
+ isoAlpha - ISO alpha code
+ countryId - country id (ISO code)
+ 2.5.3. Site
+ This section specifies methods to query system for allowed sites
+ Web service URL: BASE_URL/location/site
+ 2.5.3.1.1. Get Site Request (GetSiteRequest)
+ Web service URL: BASE_URL/location/site/ {id} 
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Get site by id. Site id is provided as parameter in URL path
+ GetSiteRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ 2.5.3.1.2. Get Site Response (GetSiteResponse)
+ GetSiteResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ site 
+ Site 
+ No 
+ Found site or null if not found 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.5.3.4. Find Site Request (FindSiteRequest)
+ Web service URL: BASE_URL/location/site
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Find site using search criteria
+ FindSiteRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ countryId 
+ integer 
+ Yes 
+ Country id 
+ name 
+ String 
+ No 
+ Search term for site name. Filters the results by site name prefix or part of site name. 
+ postCode 
+ String 
+ No 
+ Filter results by postcode - valid postcode for site 
+ type 
+ String 
+ No 
+ Filter results by site type (exact match) 
+ municipality 
+ String 
+ No 
+ Filter by municipality (prefix match) 
+ region 
+ String 
+ No 
+ Filter by region (prefix match) 
+ View request examples 
+ 2.5.3.5. Find Site Response (FindSiteResponse)
+ The sites in return are these that match search criteria in request and ordered by:
+ Exact match is on top, followed by
+ Site name prefix matches, followed by
+ Site name contains matches (search term is in the name but not a prefix)
+ The result is limited to 10 records.
+ FindSiteResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ sites 
+ Site [] 
+ No 
+ Array of sites 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.5.3.3.1. Get All Sites Request (GetAllSitesRequest)
+ Web service URL: BASE_URL/location/site/csv/ {countryId} 
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Get all sites for a country in csv file. Country id is specified as path parameter
+ GetAllSitesRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ 2.5.3.3.2. Get All Sites Response (GetAllSitesResponse)
+ See Site data structure for additional information.
+ Response is CSV (comma separated) file int UTF8 encoding. The format is:
+ id - site id
+ countryId - country id (ISO code)
+ mainSiteId - reference to main site if this site is a "satellite" one
+ type - site type in local language
+ typeEn - site type in English
+ name - site name in local language
+ nameEn - site name in English
+ municipality - municipality in local language
+ municipalityEn - municipality in English
+ region - region in local language
+ regionEn - region in English
+ postCode - default post code for this site (if any)
+ addressNomenclature - code for address nomenclature (streets, complexes, blocks, poi) support. Values are: 0 - no address nomenclature, 1 - partial address nomenclature, 2 - full address nomenclature
+ x - X (longitude) coordinate of site center
+ y - Y (latitude) coordinate of site center
+ servingDays - serving days for this site. Format: 7 serial digits (0 or 1) where each digit corresponds to a day in week (the first digit corresponds to Monday, the second to Tuesday and so on). Value of '0' (zero) means that the site is not served by Speedy on this day while '1' (one) means that it is served. (Example: the text "0100100" means that the site is served on Tuesday and Friday only.)
+ servingOfficeId - Site's serving office
+ servingHubOfficeId - The hub office ID to which serving office is connected
+ 2.5.4. Street
+ This section specifies methods to query system for allowed streets
+ Web service URL: BASE_URL/location/street
+ 2.5.4.1.1. Get Street Request (GetStreetRequest)
+ Web service URL: BASE_URL/location/street/ {id} 
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Get street by id. Street id is provided as parameter in URL path
+ GetStreetRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ 2.5.4.1.2. Get Street Response (GetStreetResponse)
+ GetStreetResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ street 
+ Street 
+ No 
+ Found street or null if not found 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.5.4.4. Find Street Request (FindStreetRequest)
+ Web service URL: BASE_URL/location/street
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Find street using search criteria
+ FindStreetRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ siteId 
+ integer 
+ Yes 
+ Site id 
+ name 
+ String 
+ No 
+ Search term for street name. Filters the results by street name prefix or part of street name. 
+ type 
+ String 
+ No 
+ Filter results by street type (exact match) 
+ View request examples 
+ 2.5.4.5. Find Street Response (FindStreetResponse)
+ The streets in return are these that match search criteria in request and ordered by:
+ Exact match is on top, followed by
+ Street name prefix matches, followed by
+ Street name contains matches (search term is in the name but not a prefix)
+ The result is limited to 10 records.
+ FindStreetResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ streets 
+ Street [] 
+ No 
+ Array of streets 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.5.4.7. Get All Streets Request (GetAllStreetsRequest)
+ Web service URL: BASE_URL/location/street/csv/ {countryId} 
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Get all streets for a country in csv file. Country id is specified as path parameter.
+ This method requires a license (additional licensing contract) and permissions (access rights).
+ To obtain such license please contact your key account manager.
+ GetAllStreetsRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ 2.5.4.8. Get All Streets Response (GetAllStreetsResponse)
+ See Street data structure for additional information.
+ Response is CSV (comma separated) file int UTF8 encoding. The format is:
+ id - street id
+ siteId - site id
+ type - street type in local language
+ typeEn - street type in English
+ name - street name in local language
+ nameEn - street name in English
+ actualId - actual street id (in case this street is renamed)
+ 2.5.5. Complex
+ This section specifies methods to query system for allowed complexes
+ Web service URL: BASE_URL/location/complex
+ 2.5.5.1.1. Get Complex Request (GetComplexRequest)
+ Web service URL: BASE_URL/location/complex/ {id} 
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Get complex by id. Complex id is provided as parameter in URL path
+ GetComplexRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ 2.5.5.1.2. Get Complex Response (GetComplexResponse)
+ GetComplexResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ complex 
+ Complex 
+ No 
+ Complex found or null if not found 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.5.5.2.1. Find Complex Request (FindComplexRequest)
+ Web service URL: BASE_URL/location/complex
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Find complex using search criteria
+ FindComplexRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ siteId 
+ integer 
+ Yes 
+ Site id 
+ name 
+ String 
+ No 
+ Search term for complex name. Filters the results by complex name prefix or part of complex name. 
+ type 
+ String 
+ No 
+ Filter results by complex type (exact match) 
+ View request examples 
+ 2.5.5.2.2. Find Complex Response (FindComplexResponse)
+ The complexes in return are these that match search criteria in request and ordered by:
+ Exact match is on top, followed by
+ Complex name prefix matches, followed by
+ Complex name contains matches (search term is in the name but not a prefix)
+ The result is limited to 10 records.
+ FindComplexResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ complexes 
+ Complex [] 
+ No 
+ Array of complexes 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.5.5.3.1. Get All Complexes Request (GetAllComplexesRequest)
+ Web service URL: BASE_URL/location/complex/csv/ {countryId} 
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Get all complexes for a country in csv file. Country id is specified as path parameter.
+ This method requires a license (additional licensing contract) and permissions (access rights).
+ To obtain such license please contact your key account manager.
+ GetAllComplexesRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ 2.5.5.3.2. Get All Complexes Response (GetAllComplexesResponse)
+ See Complex data structure for additional information.
+ Response is CSV (comma separated) file int UTF8 encoding. The format is:
+ id - street id
+ siteId - site id
+ type - street type in local language
+ typeEn - street type in English
+ name - street name in local language
+ nameEn - street name in English
+ actualId - actual street id (in case this street is renamed)
+ 2.5.6. Block
+ This section specifies methods to query system for allowed blocks
+ Web service URL: BASE_URL/location/block
+ 2.5.6.1.1. Find Block Request (FindBlockRequest)
+ Web service URL: BASE_URL/location/block
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Find block using search criteria
+ FindBlockRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ siteId 
+ integer 
+ Yes 
+ Site id 
+ name 
+ String 
+ No 
+ Search term for block name. Filters the results by block name prefix or part of block name. 
+ 2.5.6.1.2. Find Block Response (FindBlockResponse)
+ The blocks in return are these that match search criteria in request and ordered by:
+ Exact match is on top, followed by
+ Block name prefix matches, followed by
+ Block name contains matches (search term is in the name but not a prefix)
+ The result is limited to 10 records.
+ FindBlockResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ blocks 
+ Block [] 
+ No 
+ Array of blocks 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.5.6.2.1. Get All Blocks Request (GetAllBlocksRequest)
+ Web service URL: BASE_URL/location/block/csv/ {countryId} 
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Get all blocks for a country in csv file. Country id is specified as path parameter.
+ This method requires a license (additional licensing contract) and permissions (access rights).
+ To obtain such license please contact your key account manager.
+ GetAllBlockRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ 2.5.6.2.2. Get All Blocks Response (GetAllBlocksResponse)
+ See Block data structure for additional information.
+ Response is CSV (comma separated) file int UTF8 encoding. The format is:
+ siteId - site id
+ name - block name in local language
+ nameEn - block name in English
+ 2.5.7. POI (Point of Interest)
+ This section specifies methods to query system for allowed points of interest
+ Web service URL: BASE_URL/location/poi
+ 2.5.7.1.1. Get POI Request (GetPOIRequest)
+ Web service URL: BASE_URL/location/poi/ {id} 
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Get POI by id. POI id is provided as parameter in URL path
+ GetPOIRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ 2.5.7.1.2. Get POI Response (GetPOIResponse)
+ GetPOIResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ poi 
+ PointOfInterest 
+ No 
+ POI found or null if not found 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.5.7.2.1. Find POI Request (FindPOIRequest)
+ Web service URL: BASE_URL/location/poi
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Find POI using search criteria
+ FindPOIRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ siteId 
+ integer 
+ Yes 
+ Site id 
+ name 
+ String 
+ No 
+ Search term for POI name. Filters the results by POI name prefix or part of POI name. 
+ View request examples 
+ 2.5.7.2.2. Find POI Response (FindPOIResponse)
+ The points of interest in return are these that match search criteria in request and ordered by:
+ Exact match is on top, followed by
+ POI name prefix matches, followed by
+ POI name contains matches (search term is in the name but not a prefix)
+ The result is limited to 10 records.
+ FindPOIResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ pois 
+ PointOfInterest [] 
+ No 
+ Array of points of interest 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.5.7.3.1. Get All Points of Interest Request (GetAllPOIRequest)
+ Web service URL: BASE_URL/location/poi/csv/ {countryId} 
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Get all Points of Interest for a country in csv file. Country id is specified as path parameter.
+ This method requires a license (additional licensing contract) and permissions (access rights).
+ To obtain such license please contact your key account manager.
+ GetAllPOIRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ 2.5.7.3.2. Get All Points of Interest Response (GetAllPOIResponse)
+ See PointOfInterest data structure for additional information.
+ Response is CSV (comma separated) file int UTF8 encoding. The format is:
+ id - POI id
+ siteId - site id
+ name - POI name in local language
+ nameEn - POI name in English
+ address - POI address in local language
+ addressEn - POI address in English
+ x - X coordinate
+ y - Y coordinate
+ type - POI type in local language
+ typeEn - POI type in English
+ 2.5.8. Postcodes
+ This section specifies methods to query system for allowed country postcodes
+ Web service URL: BASE_URL/location/postcode
+ 2.5.8.1.1. Get All Postcodes Request (GetAllPostcodesRequest)
+ Web service URL: BASE_URL/location/postcode/csv/ {countryId} 
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Get all postcodes for a country in csv file. Country id is specified as path parameter.
+ GetAllPostcodesRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ 2.5.8.1.2. Get All Postcodes Response (GetAllPostcodesResponse)
+ Response is CSV (comma separated) file int UTF8 encoding. The format is:
+ postcode - Postcode
+ siteId - site id
+ 2.5.9. Office
+ This section specifies methods to query system for available offices
+ Web service URL: BASE_URL/location/office
+ 2.5.9.1.1. Get Office Request (GetOfficeRequest)
+ Web service URL: BASE_URL/location/office/ {id} 
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Get office by id. Office id is provided as parameter in URL path
+ GetOfficeRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ 2.5.9.1.2. Get Office Response (GetOfficeResponse)
+ GetOfficeResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ office 
+ Office 
+ No 
+ Office found or null if not found 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.5.9.2.1. Find Office Request (FindOfficeRequest)
+ Web service URL: BASE_URL/location/office
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Find office using search criteria
+ FindOfficeRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ countryId 
+ Integer 
+ No 
+ Country id ISO. Limits the search scope in the set of offices for specified country. System default country is used if country id is omitted. If -1 is specified - offices in all countires are searched 
+ siteId 
+ Long 
+ No 
+ Site id. Limits the search scope in the set of offices for specified site. If omitted - all country offices are searched 
+ siteName 
+ String 
+ No 
+ Filters the results by office site name prefix or part of it. 
+ name 
+ String 
+ No 
+ Search term for office name. Filters the results by office name prefix or part of site name. 
+ limit 
+ Long 
+ No 
+ The number of records to return in response. All records are returned if this parameter is ommited 
+ officeType 
+ enum ["OFFICE", "APT"] 
+ No 
+ Filter offices by type. 
+ officeFeatures 
+ enum ["CARD_PAYMENT", "CASH_PAYMENT", "DROP_OFF", "PICK_UP", "CARGO_TYPE_PARCEL", "CARGO_TYPE_PALLET", "CARGO_TYPE_TYRE"][] 
+ No 
+ Supported office features 
+ View request examples 
+ 2.5.9.2.2. Find Office Response (FindOfficeResponse)
+ The offices in return are these that match search criteria in request and ordered by:
+ Exact match is on top, followed by
+ Office name prefix matches, followed by
+ Office name contains matches (search term is in the name but not a prefix)
+ FindOfficeResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ offices 
+ Office [] 
+ No 
+ Array of offices 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.5.9.3.1. Find Nearest Offices Request (FindNearestOfficesRequest)
+ Web service URL: BASE_URL/location/office/nearest-offices
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Find nearest offices using search criteria
+ FindNearestOfficesRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ address 
+ ShipmentAddress 
+ Yes 
+ Address to which the nearest offices are searched 
+ Only country id is mandatory 
+ distance 
+ Integer 
+ No 
+ Maximum office distance ( in meters ) from provided address 
+ limit 
+ Integer 
+ No 
+ The number of records to return in response. 
+ officeType 
+ enum ["OFFICE", "APT"] 
+ No 
+ Filter offices by type. 
+ officeFeatures 
+ enum ["CARD_PAYMENT", "CASH_PAYMENT", "DROP_OFF", "PICK_UP", "CARGO_TYPE_PARCEL", "CARGO_TYPE_PALLET", "CARGO_TYPE_TYRE"][] 
+ No 
+ Supported office features 
+ 2.5.9.3.2. Find Nearest Offices Response (FindNearestOfficesResponse)
+ The offices in return are these that match search criteria in request and ordered by distance
+ FindNearestOfficesResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ offices 
+ OfficeResult [] 
+ No 
+ Array of offices 
+ x 
+ Double 
+ No 
+ Provided address X coord 
+ y 
+ Double 
+ No 
+ Provided address Y coord 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.6. Calculation Service
+ Web service URL: BASE_URL/calculate
+ 2.6.1. Calculation Request (CalculationRequest)
+ Web service URL: BASE_URL/calculate
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ CalculationRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ sender 
+ CalculationSender 
+ No
+ Defines the pickup place. If not specified, the logged user location is considered as a sender location. 
+ recipient 
+ CalculationRecipient 
+ Yes 
+ Defines the recipient delivery place. 
+ service 
+ CalculationService 
+ Yes 
+ Defines service agreemen 
+ content 
+ CalculationContent 
+ Yes 
+ Defines content - parcels, weight and etc 
+ payment 
+ ShipmentPayment 
+ Yes 
+ Defines who-pays-what in shipment 
+ View request examples 
+ 2.6.2. Calculation Response (CalculationResponse)
+ CalculationResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ calculations 
+ CalculationResult[] [] 
+ Yes 
+ Calculations for all service ids in request 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.7. Client Service
+ Web service URL: BASE_URL/client
+ 2.7.1.1. Get Client Request (GetClientRequest)
+ Web service URL: BASE_URL/client/ {id} 
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Get client by id. Client id is provided as parameter in URL path
+ GetClientRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ 2.7.1.2. Get Client Response (GetClientResponse)
+ GetClientResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ client 
+ Client 
+ No 
+ Client data 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.7.2.1. Get Contract Clients Request (GetContractClientsRequest)
+ Web service URL: BASE_URL/client/contract
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Get clients with same contract as logged user's one, if any
+ GetContractClientsRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ View request examples 
+ 2.7.2.2. Get Contract Clients Response (GetContractClientsResponse)
+ GetContractClientsResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ clients 
+ Client [] 
+ No 
+ Clients with same contract as logged users's one, if any 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.7.3.1. Create Contact Request (CreateContactRequest)
+ Web service URL: BASE_URL/client/contact
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Create contact associating externalId as unique reference
+ CreateContactRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ externalContactId 
+ String 
+ Yes 
+ External contact id (caller client Id unique reference) 
+ Max 36 characters. Unique for caller 
+ secretKey 
+ String 
+ No 
+ External contact secret key 
+ Max 36 characters 
+ phone1 
+ ShipmentPhoneNumber 
+ Yes 
+ Contact phone number (for example: +40799123456, 0040799123456, +359999123456 - international format numbers or 0799123456, 0999123456 - local numbers). 
+ Max size is 20 chars. Phone numbers must contain digits only. The "+" sign is also permitted as a leading symbol. Only spaces are allowed as separators. Only phone numbers starting with "0" (zero) or "+" sign are allowed. 
+ phone2 
+ ShipmentPhoneNumber 
+ No 
+ Contact phone number 2. 
+ Validate for valid phone number, if presents. 
+ clientName 
+ String 
+ Yes 
+ Contact customer name. 
+ Validate for valid name (minimum 3 symbols, maximum 60). 
+ objectName 
+ String 
+ Forbidden for private persons. Not mandatory for companies 
+ Contact customer object name. 
+ Validate for valid name (maximum 60 symbols). 
+ contactName 
+ String 
+ Forbidden for private persons. Required for companies 
+ Contact name of contact 
+ Maximum 60 
+ email 
+ String 
+ No 
+ Contact email. 
+ Maximum  255 
+ privatePerson 
+ Boolean 
+ Yes 
+ Private person flag. 
+ address 
+ ShipmentAddress 
+ Yes 
+ Contact address. 
+ Validated for valid values. 
+ 2.7.3.2. Create Contact Response (CreateContactResponse)
+ CreateContactResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ clientId 
+ Long 
+ No 
+ Client Id associated for created contact in the system 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.7.4.1. Get Contact By External Id Request (GetContactByExternalIdRequest)
+ Web service URL: BASE_URL/client/contact/external/ {id} 
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Get contact by external id. External client id is provided as parameter in URL path
+ GetContactByExternalIdRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ secretKey 
+ String 
+ No 
+ Secret key 
+ Max 36 characters 
+ 2.7.4.2. Get Contact By External Id Response (GetContactByExternalIdResponse)
+ GetContactByExternalIdResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ client 
+ Client 
+ No 
+ Client data 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.7.5.1. Get Own Client Id Request (GetOwnClientIdRequest)
+ Web service URL: BASE_URL/client
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Get own client id
+ GetOwnClientIdRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ 2.7.5.2. Get Own Client Id Response (GetOwnClientIdResponse)
+ GetOwnClientIdResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ clientId 
+ Long 
+ Yes 
+ Own client id 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.7.6.1. Contract Info Request (ContractInfoRequest)
+ Web service URL: BASE_URL/client/contract/info
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Get information about logged user contract
+ ContractInfoRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ 2.7.6.2. Contract Info Response (ContractInfoResponse)
+ ContractInfoResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ id 
+ Long 
+ Yes 
+ Contract id 
+ specialDeliveryRequirements 
+ SpecialDeliveryRequirements 
+ No 
+ Special delivery requirements 
+ cod 
+ CODAdditionalServiceContractInfo 
+ No 
+ COD contract info 
+ administrativeFeeAllowed
+ boolean
+ Yes
+ Administrative fee allowed
+ error 
+ Error 
+ No 
+ Response error 
+ 2.8. Validation Service
+ Web service URL: BASE_URL/validation
+ 2.8.1.1. Validate Address Request (ValidateAddressRequest)
+ Web service URL: BASE_URL/validation/address
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ This method validates shipment address
+ ValidateAddressRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ address 
+ ShipmentAddress 
+ No 
+ Shipment address to validate 
+ 2.8.1.2. Validate Address Response (ValidationResponse)
+ ValidationResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ valid 
+ Boolean 
+ No 
+ Validation result flag 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.8.2.1. Validate Post Code Request (ValidatePostCodeRequest)
+ Web service URL: BASE_URL/validation/postcode
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ This method validates post code
+ ValidatePostCodeRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ countryId 
+ Integer 
+ Yes - if siteId is not specified 
+ Country id 
+ siteId 
+ Long 
+ Yes - if countryId is not specified 
+ Site id 
+ postCode 
+ String 
+ Yes 
+ Postcode to validate 
+ 2.8.2.2. Validate Post Code Response (ValidationResponse)
+ Same as 2.8.2 ValidationResponse 
+ 2.8.3.1. Validate Phone Request (ValidatePhoneRequest)
+ Web service URL: BASE_URL/validation/phone
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ This method validates phone number
+ ValidatePhoneRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ number 
+ String 
+ Yes 
+ Phone number 
+ ext 
+ String 
+ No 
+ Phone number extension 
+ 2.8.3.2. Validate Phone Response (ValidationResponse)
+ Same as 2.8.2 ValidationResponse 
+ 2.8.4.1. Validate Shipment Request (ValidateShipmentRequest)
+ Web service URL: BASE_URL/validation/shipment
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ This method applies validation on shipment request
+ Input parameters:
+ ValidateShipmentRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ CreateShipmentRequest fields are here 
+ 2.8.4.2. Validate Shipment Response (ValidateShipmentResponse)
+ Same as 2.8.2. ValidationResponse 
+ 2.9. Services Service
+ Web service URL: BASE_URL/services
+ 2.9.1.1. Services Request (ServicesRequest)
+ Web service URL: BASE_URL/services
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Get available services for date
+ ServicesRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ date 
+ Date (yyyy-MM-dd) 
+ No 
+ Date. Current date is assumed if not provided 
+ 2.9.1.2. Services Response (ServicesResponse)
+ ServicesResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ services 
+ CourierService [] 
+ Yes 
+ Available courier services 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.9.2.1. Destination Services Request (DestinationServicesRequest)
+ Web service URL: BASE_URL/services/destination
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Get available services for date and destination
+ DestinationServicesRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ date 
+ Date (yyyy-MM-dd) 
+ No 
+ Date. Current date is assumed if not provided 
+ sender 
+ CalculationSender 
+ No 
+ Defines the pickup place. If not specified, the logged user client location is considered as a sender location. 
+ recipient 
+ CalculationRecipient 
+ Yes 
+ Defines the recipient delivery place. 
+ View request examples 
+ 2.9.2.2. Destination Services Response (DestinationServicesResponse)
+ DestinationServicesResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ services 
+ ExtendedCourierService [] 
+ Yes 
+ Available courier services for destination 
+ error 
+ Error 
+ No 
+ Response error 
+ 2.10. Payments Service
+ Web service URL: BASE_URL/payments
+ 2.10.1.1. Payout Request (PayoutRequest)
+ Web service URL: BASE_URL/payments
+ Method: POST
+ Content-type: application/json; charset =utf-8
+ Get shipment payout details for a period
+ PayoutRequest 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ userName 
+ String 
+ Yes 
+ User name 
+ password 
+ String 
+ Yes 
+ Password 
+ language 
+ String 
+ No 
+ Language ("EN", "RO"). Default is the default system language (RO). 
+ clientSystemId 
+ Long 
+ No 
+ Client system id 
+ Validated against system register for external customers. 
+ fromDate 
+ DateTime (yyyy-MM-dd'T'HH:mm:ssZ) 
+ Yes 
+ Start of period date time. 
+ toDate 
+ DateTime (yyyy-MM-dd'T'HH:mm:ssZ) 
+ Yes 
+ End of period date time. 
+ includeDetails 
+ boolean 
+ No (default value is false) 
+ Include payout details flag 
+ 2.10.1.2. Payout Response (PayoutResponse)
+ PayoutResponse 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ payouts 
+ Payout [] 
+ Yes 
+ Shipment payouts for a period 
+ error 
+ Error 
+ No 
+ Response error 
+ 3. Data Structures
+ 3.1. Shipment Service (ShipmentService)
+ Shipment service defines service level agreement for the shipment - when shipment should be picked up, service code to be used, sub-services, etc.
+ ShipmentService 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ pickupDate 
+ Date Example:  "2017-11-21" 
+ No (default value is today) 
+ The date for shipment pickup. 
+ Could be today or a future date. 
+ autoAdjustPickupDate 
+ Boolean 
+ No (default value is false) 
+ To find first available date for pickup starting from pickupDate according to pickup schedule for services 
+ serviceId 
+ int 
+ Yes 
+ Service to be used for the shipment. 
+ Service id (code) should be valid for the destination. 
+ additionalServices 
+ ShipmentAdditionalServices 
+ No 
+ Defines sub-services (like COD, Declared value, etc.) associated with the shipment. 
+ Sub-services may be allowed or forbidden for selected service and/or destination. 
+ deferredDays 
+ Integer 
+ No (default value is 0) 
+ This parameter allows users to specify by how many (business) days they would like to postpone the shipment delivery from the standard term. 
+ Allowed values are 0, 1 and 2. 
+ saturdayDelivery 
+ Boolean 
+ No 
+ This parameter may adjust delivery date to the first business day, if the standard calculated delivery day is a half-working day. If not specified, system will determine this flag based on configured delivery customer working schedule. 
+ 3.1.1. Shipment Additional Services (ShipmentAdditionalServices)
+ Allowance of additional services usage in the shipments is controlled and determined by the courier service configuration. All shipment additional services could be either:
+ forbidden for usage with selected courier service
+ allowed for usage with selected courier service
+ required for usage with selected courier service
+ Some of the additional services may require additional prerequisites (like valid contracts and annexes or serving offices in pickup or delivery site) to be available for usage.
+ ShipmentSubServices 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ cod 
+ ShipmentCODAdditionalService 
+ No 
+ Defines shipment COD sub-service. 
+ Seller could be required to have a valid contract and annex for COD for the destination. 
+ obpd 
+ ShipmentOBPD 
+ No 
+ Defines shipment options before payment details. 
+ declaredValue 
+ ShipmentDeclaredValueAdditionalService 
+ No 
+ Defines shipment declared value (extended liability) sub-service. 
+ fixedTimeDelivery 
+ Integer 
+ No 
+ This option fixes the time of delivery on the delivery date. 1130 - means 11:30, 920 - means 09:20 
+ This option is checked against the configured allowed time frame for the service. 
+ returns 
+ ShipmentReturnAdditionalServices 
+ No 
+ Defines a return sub-services. 
+ Return shipments are verified for a return destination. 
+ specialDeliveryId 
+ Integer 
+ No 
+ Specifies special delivery identifier for the shipments. Identifiers are determined in a special delivery annex. 
+ Requires an annex for special delivery. 
+ deliveryToFloor 
+ Integer 
+ No 
+ Specifies the floor number in the building where to deliver the shipment. 
+ This sub-service requires an annex. 
+ 3.1.1.1. COD Additional Service (ShipmentCODAdditionalService)
+ ShipmentCODAdditionalService 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ amount 
+ double 
+ Yes 
+ Defines shipment COD base amount. 
+ Validated against the maximum allowed amounts for the destination. 
+ currencyCode 
+ String 
+ No (default is the currency code for destination country) 
+ Defines shipment COD currency code. 
+ Validated against the allowed currency code for destination country. 
+ processingType 
+ enum ["CASH", "POSTAL_MONEY_TRANSFER"] 
+ No (default is "CASH") 
+ Defines COD processing type. 
+ Appropriate contract and annexes may be required. 
+ payoutToThirdParty 
+ Boolean 
+ No 
+ If this flag is set, the COD is paid to third party (not to the sender). 
+ Requires a third party to be the payer of the courier service. 
+ payoutToLoggedClient 
+ Boolean 
+ No 
+ If this flag is set, the COD is paid to the logged client. 
+ includeShippingPrice 
+ Boolean 
+ No 
+ Flag indicating whether the shipping price should be included in the COD. 
+ cardPaymentForbidden 
+ Boolean 
+ No 
+ Flag indicating that COD/PMT card payment is forbidden. 
+ fiscalReceiptItems 
+ ShipmentCODFiscalReceiptItem [] 
+ This feature depends on country regulations and must be enabled for client contract. The value in amount field is ignored if fiscal receipt items are provided. 
+ List of items to issue fiscal receipt on behalf of client If shipment has fiscal receipt items, the COD amount is the total amount with VAT of all fiscal receipt items. 
+ 3.1.1.1.1. Shipment COD Fiscal Receipt Item (ShipmentCODFiscalReceiptItem)
+ COD fiscal receipt item is used to form COD fiscal receipt to be issued on behalf of client
+ ShipmentCODFiscalReceiptItem 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ description 
+ String 
+ Yes 
+ Fiscal receipt item description 
+ Max 50 characters 
+ vatGroup 
+ String 
+ Yes 
+ VAT group 
+ Must match one of available VAT groups (for example "А" - 0% VAT, "Б" - 20% VAT, "Г" - 9% VAT). 
+ amount 
+ double 
+ Yes 
+ Item amount before VAT. 
+ Must be positive value 
+ amountWithVat 
+ double 
+ Yes 
+ Item amount with VAT included 
+ Must not be lower that amount before VAT 
+ 3.1.1.2. Declared Value (Extended Liability) Additional Service(ShipmentDeclaredValueAdditionalService)
+ ShipmentDeclaredValueAdditionalService 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ amount 
+ double 
+ Yes 
+ Defines shipment Declared Value base amount. Declared value amount is always in local system currency. 
+ Validated against the maximum allowed amounts. 
+ fragile 
+ Boolean 
+ No 
+ Defines fragile flag for shipment content. 
+ Fragile shipments require a declared value sub service. 
+ ignoreIfNotApplicable 
+ Boolean 
+ No (Used in calculation service only, ignored in create shipment service) 
+ Flag to ignore declared value additional service in case it is not applicable for shipment on calculation 
+ E-shops usually configure declared value (extended liability) by default for their shipments, However there are some certain internal rules when this option is not available. The flag is used in calculation service to provide price to end clients without repeating the calculation request with removed additional service 
+ 3.1.1.3. Shipment Return Additional services (ShipmentReturnAdditionalServices)
+ Defines series of return sub-services, which require a reverse shipment to be generated at primary shipment delivery. All the reverse shipments are validated for allowance and for destination.
+ ShipmentReturnAdditionalServices 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ rod 
+ ShipmentRODAdditionalService 
+ No 
+ Defines Return Of Documents (ROD) sub-service. 
+ The reverse shipment is validated for service and destination. 
+ returnReceipt 
+ ShipmentReturnReceiptAdditionalService 
+ No 
+ Defines Return Receipt sub-service. Cannot be specified if electronicReturnReceipt is provided 
+ The reverse shipment is validated for service and destination. 
+ electronicReturnReceipt 
+ ShipmentElectronicReturnReceiptAdditionalService 
+ No 
+ Defines electronic Return Receipt sub-service (return receipt by email). Cannot be specified if returnReceipt is provided. 
+ Electronic return receipt requires email. 
+ swap 
+ ShipmentSWAPAdditionalService 
+ No 
+ Defines SWAP sub-service. 
+ The reverse shipment is validated for service and destination. 
+ rop 
+ ShipmentROPAdditionalService 
+ No 
+ Defines Return Of Pallets (ROP) sub-service. 
+ The reverse shipment is validated for service and destination. 
+ returnVoucher 
+ ShipmentReturnVoucherAdditionalService 
+ No 
+ Defines Return Voucher associated with the shipment. 
+ The reverse shipment is validated for service and destination. 
+ sendBackClientId 
+ Long 
+ No 
+ Client id to specify send back address in case of a shipment return. Used in shipment returns after Check/Test or in case recipient is not found. If not specified the shipment is returned to the primary shipment sender. 
+ Should be a customer address (object) in the same contract as the sender of the shipment. 
+ 3.1.1.3.1. Return of Documents (ROD) Additional service (ShipmentRODAdditionalService)
+ Return of Documents (ROD) additional service requires documents to be returned upon the delivery of the primary shipment.
+ ShipmentRODAdditionalService 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ enabled 
+ boolean 
+ Yes 
+ Enabled flag 
+ comment 
+ String 
+ No 
+ Return documents comment. 
+ Max size 512 
+ returnToClientId 
+ Long 
+ No 
+ Defines the recipient for the ROD shipment. If not specified and returnToOfficeId is not specified also, the reverse shipment is returned to the primary shipment sender. 
+ Cannot be specified together with returnToOfficeId. The same value should be set for ROD and Return Receipt, if the sub-service presents. Cannot be specified if SWAP presents 
+ returnToOfficeId 
+ Integer 
+ No 
+ Defines delivery pickup depot for the ROD shipment. If not specified and returnToClientId is not specified also, the reverse shipment is returned to the primary shipment sender. 
+ Cannot be specified together with returnToClientId. The same value should be set for ROD, Return Receipt and SWAP, if the sub-service presents. 
+ thirdPartyPayer 
+ Boolean 
+ No 
+ Defines a third party payer for the ROD shipment. Otherwise the payer is the primary shipment sender. 
+ Requires a third party payer of the primary shipment. The same value should be set for ROD, Return Receipt, ROP and SWAP, if the sub-service presents. 
+ 3.1.1.3.2. Return Receipt Additional Service (ShipmentReturnReceiptAdditionalService)
+ Return Receipt additional service requires receipt to be returned upon the delivery of the primary shipment.
+ See also Electronic Return Receipt 
+ ShipmentReturnReceiptAdditionalService 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ enabled 
+ boolean 
+ Yes 
+ Enabled flag 
+ returnToClientId 
+ Long 
+ No 
+ Defines the recipient for the Return Receipt shipment. If not specified and returnToOfficeId is not specified also, the reverse shipment is returned to the primary shipment sender. 
+ Cannot be specified together with returnToOfficeId. The same values should be set for ROD and Return Receipt, if the sub service presents. Cannot be specified if SWAP presents 
+ returnToOfficeId 
+ Integer 
+ No 
+ Defines delivery pickup depot for the Return Receipt shipment. If not specified and returnToClientId is not specified also, the reverse shipment is returned to the primary shipment sender. 
+ Cannot be specified together with returnToClientId. The same values should be set for ROD, Return Receipt and SWAP, if the sub service presents. 
+ thirdPartyPayer 
+ Boolean 
+ No 
+ Defines a third party payer for the Return Receipt. Otherwise the payer is the primary shipment sender. 
+ Requires a third party payer of the primary shipment. The same values should be set for ROD, Return Receipt / Electronic Return Receipt, ROP and SWAP, if the sub service presents. 
+ 3.1.1.3.3. SWAP Additional Service (ShipmentSWAPAdditionalService)
+ SWAP additional service requires shipment with predefined parameters to be returned upon the delivery of the primary shipment.
+ ShipmentSWAPAdditionalService 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ serviceId 
+ int 
+ Yes 
+ Service to be used in return. 
+ Validated for allowance and destination. 
+ parcelsCount 
+ int 
+ Yes 
+ Number of parcels to return. 
+ Validated against maximum allowed parcels. 
+ declaredValue 
+ Double 
+ No 
+ Declared value (extended liability) for the reverse shipment. 
+ Validated for allowance and maximum amount. 
+ fragile 
+ Boolean 
+ No 
+ Fragile content flag for the reverse shipment. 
+ Fragile shipments require declared value. 
+ returnToOfficeId 
+ Integer 
+ No 
+ Defines delivery pickup depot for the SWAP  shipment. If not specified, the reverse shipment is returned to the primary shipment sender. 
+ The same values should be set for ROD, Return Receipt and SWAP, if the sub-service presents. 
+ thirdPartyPayer 
+ Boolean 
+ No 
+ Defines a third party payer for the SWAP shipment. Otherwise the payer is the primary shipment recipient. 
+ Requires a third party payer of the primary shipment. The same value should be set for ROD, Return Receipt, ROP and SWAP, if the sub-service presents. 
+ 3.1.1.3.4. Return of Pallets (ROP) Additional Service (ShipmentROPAdditionalService)
+ Return Of Pallets additional service requires shipment with predefined parameters to be returned upon the delivery of the primary shipment.
+ ShipmentROPAdditionalService 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ pallets 
+ ShipmentROPAdditionalServiceLine [] 
+ Yes 
+ Defines pallets to return grouped by service id. 
+ Total number of returned pallets should not exceed the parcel count of the primary shipment. 
+ thirdPartyPayer 
+ Boolean 
+ No 
+ Defines a third party payer for the returned pallets. Otherwise the payer is the primary shipment sender. 
+ Requires a third party payer of the primary shipment. The same values should be set for ROD, Return Receipt / Electronic Return Receipt, ROP and SWAP, if the sub service presents. 
+ 3.1.1.3.4.1. ROP Additional Service Lines (ShipmentROPAdditionalServiceLine)
+ Return Of Pallet (ROP) sub service lines define for each return of pallet service how many parcels (pallets) should be returned.
+ ShipmentROPAdditionalServiceLine 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ serviceId 
+ int 
+ Yes 
+ ROP service to be used. 
+ Validated against destination. 
+ parcelsCount 
+ int 
+ Yes 
+ Number of parcels to return. 
+ 3.1.1.3.5. Return Voucher Additional Service (ShipmentReturnVoucherAdditionalService)
+ Return Voucher sub service provides an option to the recipient to initiate a return within predefined voucher validity period, using the voucher preferences.
+ ShipmentReturnVoucherSubService 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ serviceId 
+ int 
+ Yes 
+ Service id of the return shipment. 
+ payer 
+ enum [ "SENDER", "RECIPIENT", "THIRD_PARTY" ] 
+ Yes 
+ Defines a return voucher payer. 
+ Allowed payers are validated against the service configuration and destination. 
+ validityPeriod 
+ Integer 
+ Required if caller client has no annex for return voucher. 
+ Return voucher validity period in days. The annex return voucher period is used by default in case caller client has such in his contract and value is omitted 
+ Verified to not exceed the configured internal maximum in the system 
+ 3.1.1.3.6. Electronic Return Receipt Additional Service (ShipmentElectronicReturnReceiptAdditionalService)
+ Electronic Return Receipt additional service requires receipt to be returned as an email attachment upon the delivery of the shipment
+ ShipmentElectronicReturnReceiptAdditionalService 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ recipientEmails 
+ String[] 
+ Yes 
+ List of electronic return receipt recipient emails 
+ thirdPartyPayer 
+ Boolean 
+ No 
+ Defines a third party payer for the Electronic Return Receipt. Otherwise the payer is the primary shipment sender. 
+ Requires a third party payer of the primary shipment. The same values should be set for ROD, Return Receipt / Electronic Return Receipt, ROP and SWAP, if the sub service presents. 
+ 3.1.1.4. Options before payment details Additional Service (ShipmentOBPD)
+ Options before payment are needed to define what options recipient has on delivery before the payment of the COD. User can open parcels or open and test the content of the parcels. Recipient may accept parcels and pay the COD or refuse to pay and return the parcels. The return shipment details are specified in the options also.
+ ShipmentOBPD 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ option 
+ enum["OPEN", "TEST"] 
+ Yes 
+ Defines the option to be used. Open parcels on payment or open and test parcels before payment. 
+ returnShipmentServiceId 
+ Integer 
+ Yes 
+ Defines service id to be used on return. 
+ returnShipmentPayer 
+ enum ["SENDER", "RECIPIENT", "THIRD_PARTY"] 
+ Yes 
+ Defines who pays the return shipment. 
+ 3.2. Shipment Content (ShipmentContent)
+ Shipment content is used to describe what is to be delivered with the shipment.
+ ShipmentContent 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ parcelsCount 
+ Integer 
+ Required when parcels list is empty. 
+ Total shipment parcels count. Ignored, if parcels list is not empty. The parcels count is the number of parcels in the lits in that case. 
+ Validated against the minimum and maximum allowed for the service. 
+ totalWeight 
+ Double 
+ Required when parcels list is empty. 
+ Total weight declared for the shipment. Ignored, if parcels list is not empty. The total weight is the sum of all parcels declaredWeight in that case. 
+ Validated against the minimum and maximum allowed for the service. 
+ contents 
+ String 
+ Yes 
+ Shipment content’s description. 
+ 100 
+ package 
+ String 
+ Yes 
+ Shipment package. 
+ 50 
+ documents 
+ Boolean 
+ No 
+ Documents flag of the shipment. 
+ palletized 
+ Boolean 
+ No 
+ Palletized flag of the shipment. 
+ parcels 
+ ShipmentParcel [] 
+ Required for pallet and postal services. 
+ Parcels. If omitted a single default (first) parcel will be created for non-pallet and non-postal services. 
+ Validated against the service configuration and pickup and delivery capacity of the depots and couriers. 
+ pendingParcels 
+ Boolean 
+ No 
+ If this flag is true, the shipment is created in pending parcels state.
+ Shipments in pending parcels state allows adding parcels with addParcel method.
+ Pending parcels state is closed with finalizePendingShipment method. 
+ exciseGoods 
+ Boolean 
+ No 
+ Flag shipment contains excise goods. 
+ lq 
+ Boolean 
+ No 
+ Flag shipment contains dangerous goods in limited quantities. 
+ goodsValue 
+ Double 
+ No Required for pallet services (for Romanian shipments) 
+ Defines shipment goods value amount. 
+ Validated against maximum allowed amount. 
+ goodsValueCurrencyCode 
+ String 
+ No Required, if goodsValue is provided. 
+ Defines shipment goods value currency code. 
+ Requires a valid currency code. 
+ uitCode 
+ String 
+ No Required for Romanian shipments in cases defined by Romanian regulations. 
+ Shipment UIT code. 
+ Requires a valid UIT code. 
+ printAdditionalBarcode 
+ ParcelToPrintAdditionalBarcode 
+ No 
+ DEPRECATED!
+(use the one at the parcel level ) 
+ 3.2.1. Shipment Parcel (ShipmentParcel)
+ Shipment parcel data structure.
+ ShipmentParcel 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ id 
+ String 
+ No 
+ Parcel identifier - barcode (if it is known). 
+ seqNo 
+ Integer 
+ Required in createShipment method. Ignored in addParcel (auto-generated in this case) 
+ Parcel sequence number in the shipment. 
+ Should be unique for the shipment. 
+ packageUniqueNumber 
+ Long 
+ No 
+ Package number associated with parcel. 
+ size 
+ ShipmentParcelSize 
+ Required for pallet and postal services. 
+ Parcel size (width, height, depth) in cm. 
+ Validated against the capacity of the couriers and depots. Used to calculate the volume weight, if applicable. 
+ weight 
+ double 
+ Yes 
+ Parcel weight in kg. 
+ Validated against the capacity of the couriers and depots and service configuration. 
+ ref1 
+ String 
+ No 
+ Reference number or text. 
+ 20 
+ ref2 
+ String 
+ No 
+ Reference number or text. 
+ 20 
+ pickupExternalCarrierParcelNumber 
+ ExternalCarrierParcelNumber 
+ No 
+ External carrier parcel id for pickup 
+ deliveryExternalCarrierParcelNumber 
+ ExternalCarrierParcelNumber 
+ No 
+ External carrier parcel id for delivery 
+ goods 
+ GoodsItem[] 
+ No 
+ For parcels due to customs control. For more information, contact your company representative. 
+ printAdditionalBarcode 
+ ParcelToPrintAdditionalBarcode 
+ No 
+ A custom barcode can be added on A6 labels. This instruction overrides the one provded in the "printAdditionalBarcode" property in the ShipmentContent structure. 
+ The declared weight of a parcel (used for price calculation) is the maximum of the weight and the volume weight (calculated from size). Volume weight in some cases is not calculated (for example for pallets).
+ View request examples 
+ 3.2.1.1. Shipment Parcel Size (ShipmentParcelSize)
+ Shipment parcel size structure defines parcel size in the shipment.
+ ShipmentParcelSize 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ width 
+ int 
+ Yes 
+ Parcel width in cm. 
+ depth 
+ int 
+ Yes 
+ Parcel depth in cm. 
+ height 
+ int 
+ Yes 
+ Parcel height in cm. 
+ 3.2.1.2. External carrier parcel number (ExternalCarrierParcelNumber)
+ Parcel number from external carrier linked to local shipment parcel
+ ExternalCarrierParcelNumber 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ externalCarrier 
+ enum ["ACS"] 
+ Yes 
+ External carrier reference name 
+ parcelNumber 
+ String 
+ Yes 
+ External carrier parcel number 
+ 3.2.1.3. Goods Item (GoodsItem)
+ Shipment parcel goods structure defines parcel goods content in the shipment.
+ ShipmentParcelGoods 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ description 
+ String 
+ Yes 
+ Goods description. 
+ 50 
+ hsCode 
+ String 
+ Yes 
+ Harmoneous System (HS) Code. 
+ 50 
+ quantity 
+ int 
+ Yes 
+ Quantity of goods. 
+ valuePerItem 
+ double 
+ Yes 
+ Price per item in goods currency. 
+ weightPerItem 
+ double 
+ Yes 
+ Weight per item. 
+ originCountryCode 
+ String 
+ Yes 
+ 2 characters country code of goods origin. 
+ 2 
+ 3.3. Shipment Payment (ShipmentPayment)
+ Shipment payment structure defines who-pays-what in the shipment.
+ ShipmentPayment 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ courierServicePayer 
+ enum [ "SENDER", "RECIPIENT", "THIRD_PARTY" ] 
+ Yes 
+ Courier service payer. 
+ Validated against the service, destination, contracts and annexes. 
+ declaredValuePayer 
+ enum [ "SENDER", "RECIPIENT", "THIRD_PARTY" ] 
+ No 
+ Declared value (extended liability) payer. If not provided, the courier service payer is assumed. 
+ Validated against the service, destination, contracts and annexes. 
+ packagePayer 
+ enum [ "SENDER", "RECIPIENT", "THIRD_PARTY" ] 
+ No 
+ Package payer. If not provided, the courier service payer is assumed. 
+ Validated against the service, destination, contracts and annexes. 
+ thirdPartyClientId 
+ Long 
+ No 
+ Defines shipment third party - used as a payer of any of shipment payable components. 
+ Third party customer should be a registered customer with valid contract and annex for delayed payment at pickup date. The third party customer should be a customer (object) in the same contract as the logged user. 
+ discountCardId 
+ ShipmentDiscountCardId 
+ No 
+ Discount card to be used for discount calculation. 
+ Validated against a referred contract. 
+ senderBankAccount 
+ BankAccount 
+ No 
+ Sender COD payout account information. 
+ Valid IBAN should be present if bank account is provided. 
+ administrativeFee 
+ Boolean 
+ No 
+ Flag to apply administrative fee on price calculations 
+ Usage of administrative fee is enabled and configured in client contract. Ignored if not applicable for user 
+ 3.3.1. Shipment Discount Card (ShipmentDiscountCardId)
+ Discount cards provide promotional discounts.
+ ShipmentDiscountCardId 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ contractId 
+ long 
+ Yes 
+ Fixed discount card contract id. 
+ Validated against the accessible contract. 
+ cardId 
+ long 
+ Yes 
+ Fixed discount card id. 
+ Validated against the fixed discount card register. 
+ 3.3.2. Bank Account (BankAccount)
+ Bank account information.
+ BankAccount 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ iban 
+ String 
+ Yes 
+ IBAN. 
+ Validated according to IBAN standards. 
+ accountHolder 
+ String 
+ Yes 
+ Bank account holder. 
+ 3.4. Shipment Sender And Recipient
+ 3.4.1. Shipment Sender (ShipmentSender)
+ Shipment sender is not mandatory. If not specified, for the sender is considered the logged user.
+ ShipmentSender 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ clientId 
+ Long 
+ No 
+ Client id to refer a sender. 
+ Validate for existence. 
+ phone1 
+ ShipmentPhoneNumber 
+ Yes 
+ Sender phone number (for example: +40799123456, 0040799123456, +359999123456 - international format numbers or 0799123456, 0999123456 - local numbers). 
+ Max size is 20 chars. Phone numbers must contain digits only. The "+" sign is also permitted as a leading symbol. Only spaces are allowed as separators. Only phone numbers starting with "0" (zero) or "+" sign are allowed. 
+ phone2 
+ ShipmentPhoneNumber 
+ No 
+ Sender phone number 2. 
+ Validate for valid phone number, if presents. 
+ phone3 
+ ShipmentPhoneNumber 
+ No 
+ Sender phone number 3. 
+ Validate for valid phone number, if presents. 
+ clientName 
+ String 
+ If clientId is provided, it is forbidden. Otherwise, it is mandatory. 
+ Sender customer name. 
+ Validate for valid name (minimum 3 symbols, maximum 60). 
+ contactName 
+ String 
+ No. Forbidden for private persons. Required for companies. 
+ Sender contact name. 
+ Maximum 60 
+ email 
+ String 
+ No 
+ Sender email. 
+ Maximum 255 
+ privatePerson 
+ Boolean 
+ If clientId is provided, it is forbidden. Otherwise, it is mandatory. 
+ Sender  private person flag. 
+ address 
+ ShipmentAddress 
+ If clientId is provided or dropoff office is provided, it is forbidden. Otherwise, it is mandatory. 
+ Sender address. 
+ Validated for valid values. 
+ dropoffOfficeId 
+ Integer 
+ Required, if the sender is an internal Speedy customer. If the address is provided, it is forbidden. 
+ Drop off office id. 
+ Should refer to a valid accessible office. 
+ dropoffGeoPUDOId 
+ String 
+ No. Must be empty if dropoffOfficeId is provided 
+ DPD drop off office PUDO id 
+ Should refer to a valid accessible DPD office. 
+ 3.4.2. Shipment Recipient (ShipmentRecipient)
+ ShipmentRecipient 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ clientId 
+ Long 
+ No 
+ Client id to refer recipient. 
+ Validate for existence. 
+ phone1 
+ ShipmentPhoneNumber 
+ Required, if shipment is with the same day delivery or delivery date is a half-working day or delivery country is abroad. 
+ Recipient phone number (for example: +40799123456, 0040799123456, +359999123456 - international format numbers or 0799123456, 0999123456 - local numbers). 
+ Max size is 20 chars. Phone numbers must contain digits only. The "+" sign is also permitted as a leading symbol. Only spaces are allowed as separators. Only phone numbers starting with "0" (zero) or "+" sign are allowed. 
+ phone2 
+ ShipmentPhoneNumber 
+ No 
+ Recipient phone number 2. 
+ Validate for valid phone number, if presents. 
+ phone3 
+ ShipmentPhoneNumber 
+ No 
+ Recipient phone number 3. 
+ Validate for valid phone number, if presents. 
+ clientName 
+ String 
+ If clientId is provided, it is forbidden. Otherwise, it is mandatory. 
+ Recipient customer name. 
+ Validate for valid name (minimum 3 symbols, maximum 60). 
+ objectName 
+ String 
+ If clientId is provided, it is forbidden. Otherwise, it is not mandatory. 
+ Recipient  customer object. 
+ Validate for valid name (maximum 60 symbols). 
+ contactName 
+ String 
+ No. Forbidden for private persons. Required for companies. 
+ Recipient  contact name. 
+ Maximum 60 
+ email 
+ String 
+ No 
+ Recipient email 
+ Maximum  255. Mandatory for international shipments 
+ privatePerson 
+ Boolean 
+ If clientId is provided, it is forbidden. Otherwise, it is mandatory. 
+ Recipient  private person flag. 
+ address 
+ ShipmentAddress 
+ If clientId is provided or pickup office is provided, it is forbidden. Otherwise, it is mandatory. 
+ Recipient address. 
+ Validated for valid values. 
+ pickupOfficeId 
+ Integer 
+ Required, if the recipient is an internal Speedy customer. If address is provided, it is forbidden. 
+ Pickup office id. 
+ Should refer to a valid accessible office. 
+ pickupGeoPUDOId 
+ String 
+ No. Must be empty if pickupOfficeId is provided 
+ DPD pickup office PUDO id 
+ Should refer to a valid accessible DPD office. 
+ autoSelectNearestOffice 
+ boolean 
+ No 
+ Not supported for every destination country 
+ Must be supported for destination country 
+ autoSelectNearestOfficePolicy 
+ AutoSelectNearestOfficePolicy 
+ No 
+ Defines policy for nearest office auto selection. By default the system tries to find nearest office and if office cannot be determined the shipment is delivered to client address 
+ Applicable if autoSelectNearestOffice is true 
+ 3.4.3. Shipment Address (ShipmentAddress)
+ This structure is used to provide addresses. Addresses are two types:
+ Address type 1 (local addresses - currently supported by Romania and Bulgaria)
+ Address type 2 (foreign addresses - all non-local countries)
+ Address type 1 supports the following requisites:
+ countryId
+ siteId
+ siteType
+ siteName
+ postCode
+ complexId
+ complexType
+ complexName
+ streetId
+ streetType
+ streetName
+ streetNo
+ blockNo
+ entranceNo
+ floorNo
+ apartmentNo
+ poiId
+ addressNote
+ x
+ y
+ Address type 2 supports the following requisites:
+ countryId
+ stateId
+ siteId
+ siteName
+ postCode
+ addressLine1
+ addressLine2
+ x
+ y
+ ShipmentAddress 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ countryId 
+ Integer 
+ No 
+ Country ISO code. If not provided, local country is assumed. Used for all address types. 
+ Validate for valid country code. 
+ stateId 
+ String 
+ Required, if country supports states. 
+ Country state. Used for addresses of type 2 (foreign address). 
+ Validate for valid country state. 
+ siteId 
+ Long 
+ Required, if country has full site nomenclature and pair (siteType, siteName) is not provided. 
+ Site id. Used for all address types. 
+ Validate for valid site and value is required. 
+ siteType 
+ String 
+ Forbidden, if siteId is provided. Otherwise, is not mandatory. 
+ Site type can be used in conjunction with countryId and siteName to find unique site. Used for addresses of type 1 (local address). 
+ Max 20 
+ siteName 
+ String 
+ Forbidden, if siteId is provided. Otherwise, is not mandatory. 
+ Site type can be used in conjunction with countryId and siteName to find unique site. Used for all address types. 
+ Max 50 
+ postCode 
+ String 
+ No 
+ Can be used in conjunction with countryId to find unique site. Used for all address types. 
+ Validated for valid postcode in site and country. Max 10 
+ streetId 
+ Long 
+ No 
+ Street identifier. If not provided, but street type and street name are provided - the system will try to find unique match by them in site.
+ Used for addresses of type 1 (local address). 
+ Validate for valid street. 
+ streetType 
+ String 
+ No. Forbidden, if streetId is provided. 
+ Street type. Used for addresses of type 1 (local address). 
+ Max 15 
+ streetName 
+ String 
+ No. Forbidden, if streetId is provided. 
+ Street name. Used for addresses of type 1 (local address). 
+ Max 50 
+ streetNo 
+ String 
+ No 
+ Street number. Used for addresses of type 1 (local address). 
+ Max 10 
+ complexId 
+ Long 
+ No 
+ Complex identifier. If not provided, but complex type and complex name are provided - the system will try to find unique match by them in site.
+ Used for addresses of type 1 (local address). 
+ Validate for valid complex. 
+ complexType 
+ String 
+ No. Forbidden, if complexId is provided. 
+ Complex type. Used for addresses of type 1 (local address). 
+ Max 15 
+ complexName 
+ String 
+ No. Forbidden, if complexId is provided. 
+ Complex name. Used for addresses of type 1 (local address). 
+ Max 50 
+ blockNo 
+ String 
+ No 
+ Block No. Used for addresses of type 1 (local address). 
+ Max 32 
+ entranceNo 
+ String 
+ No 
+ Entrance. Used for addresses of type 1 (local address). 
+ Max 10 
+ floorNo 
+ String 
+ No 
+ Floor. Used for addresses of type 1 (local address). 
+ Max 10 
+ apartmentNo 
+ String 
+ No 
+ Apartment. Used for addresses of type 1 (local address). 
+ Max 10 
+ poiId 
+ Long 
+ No 
+ Point of interest identifier. Used for addresses of type 1 (local address). 
+ Validate for valid point of interest. 
+ addressNote 
+ String 
+ No 
+ Address note. Used for addresses of type 1 (local address). 
+ 200 
+ addressLine1 
+ String 
+ Required for address type 2. 
+ Address line 1. Used for addresses of type 2 (foreign address). 
+ Max 35 
+ addressLine2 
+ String 
+ No 
+ Address line 2. Used for addresses of type 2 (foreign address). 
+ Max 35 
+ x 
+ Double 
+ No 
+ GIS coordinates - X .Used for all address types. 
+ y 
+ Double 
+ No 
+ GIS coordinates - Y. Used for all address types. 
+ For address type 1, special validation rule is applied:
+ not empty street (ID or Type&Name) and (streetNo or blockNo) or
+ not empty complex (ID or Type&Name) and (streetNo or blockNo) or
+ not empty poiId or
+ all components of the address within the site stored in addressNote
+ View request examples 
+ 3.4.3.1. Address (Address)
+ This structure extends Shipment Address structure with additional fields for address represntation.
+ This structure is returned in responses.
+ Address 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ ShipmentAddress fields are here 
+ fullAddressString 
+ String 
+ Yes 
+ Full address in a single text field 
+ siteAddressString 
+ String 
+ Yes 
+ The address site description in a single text 
+ localAddressString 
+ String 
+ Yes 
+ The address within the site in a single text 
+ 3.4.4. Shipment Phone Number (ShipmentPhoneNumber)
+ This structure is used to provide phone numbers.
+ ShipmentPhoneNumber 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ number 
+ String 
+ Yes 
+ Phone number. 
+ Validate for valid phone number. 
+ extension 
+ String 
+ No 
+ Extension. 
+ Validate for valid extension, if presents. 
+ 3.4.5. Auto-select Nearest Office Policy (AutoSelectNearestOfficePolicy)
+ This structure is used to define policy for nearest office auto selection. By default the system tries to find nearest office and if office cannot be determined the shipment is delivered to client address
+ AutoSelectNearestOfficePolicy 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ unavailableNearestOfficeAction 
+ enum ["DELIVERY_TO_ADDRESS", "CANCEL_WITH_ERROR"] 
+ No Default is "DELIVERY_TO_ADDRESS" 
+ The action to take if nearest office is unavailable. Values can be:
+ "DELIVERY_TO_ADDRESS" - do not change recipient location and deliver to client address
+ "CANCEL_WITH_ERROR" - cancel shipment and return error in response
+ officeType 
+ enum ["OFFICE", "APT"] 
+ No 
+ Office type filter. Values can be:
+ "OFFICE" - select nearest office
+ "APT" - select nearest locker (APT)
+ No office filter selection is applied if value is not specified 
+ Not supported for every destination country 
+ 3.5. Shipment Parcels
+ Shipment parcel reference is returned in response of the create shipment request, it describes the generated parcel and references to it.
+ 3.5.1. Created Shipment Parcel (CreatedShipmentParcel)
+ CreatedShipmentParcel 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ seqNo 
+ int 
+ Yes 
+ Sequence number within the shipment. 
+ id 
+ String 
+ Yes 
+ Generated parcel id. 
+ externalCarrierId 
+ Integer 
+ No 
+ External carrier id in case this parcel is mapped to an external carrier system 
+ externalCarrierParcelNumber 
+ String 
+ No 
+ External carrier parcel number in case this parcel is mapped to an external carrier system 
+ 3.5.2 Shipment Parcel Reference (ShipmentParcelRef)
+ ShipmentParcelRef 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ Constraint 
+ id 
+ String 
+ No If externalCarrierParcelNumber is not provided, it is mandatory. 
+ Parcel id 
+ externalCarrierParcelNumber 
+ String 
+ No 
+ External carrier parcel number used to create parcels. 
+ fullBarcode 
+ String 
+ No 
+ No If id or externalCarrierParcelNumber is not provided, it is mandatory. 
+ 3.5.3. Parcel Handover (ParcelHandover)
+ This structure extends ShipmentParcelRef structure with additional fields.
+ ParcelHandover 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ Constraint 
+ dateTime 
+ DateTime in format(yyyy-MM-dd'T'HH:mm:ssZ) 
+ Yes 
+ Datetime for handover operation 
+ ShipmentParcelRef fields are here 
+ 3.5.4. Track Shipment Parcel Reference (TrackShipmentParcelRef)
+ TrackShipmentParcelRef 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ Constraint 
+ ref 
+ String 
+ No 
+ Reference to parcel or shipment.
+ The reference is searched in ref1 and ref2 fields in parcels
+ or in ref1 and ref2 fields in shipment. A parcel is included in tracking if reference is found in parcel references.
+ Otherwise, only first shipment parcel (this one with the same number as shipment id) is included in tracking
+ in case reference is found in shipment references. 
+ If externalCarrierParcelNumber or parcelId is provided, it is ignored.
+ Since the reference is not unique, the maximum barcodes to include for tracking is limited to 10 per reference in request. 
+ ShipmentParcelRef fields are here 
+ 3.5.5. Midway Carrier Parcel Handover (MidwayCarrierParcelHandover)
+ MidwayCarrierParcelHandover 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ Constraint 
+ id 
+ String 
+ Yes 
+ Parcel id 
+ countryId 
+ Long 
+ Yes 
+ Country ISO id 
+ dateTime 
+ DateTime in format(yyyy-MM-dd'T'HH:mm:ssZ) 
+ Yes 
+ Datetime for handover operation 
+ siteName 
+ String 
+ No 
+ Site name 
+ 3.6. Shipment Price (ShipmentPrice)
+ Shipment price structure is returned in response of the calculations or create shipment  requests.
+ ShipmentPrice 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ amount 
+ double 
+ Yes 
+ Total amount (before VAT) in customer’s currency. 
+ vat 
+ double 
+ Yes 
+ VAT amount in customer’s currency. 
+ total 
+ double 
+ Yes 
+ Total amount (amount + vat) in customer’s currency. 
+ currency 
+ String 
+ Yes 
+ Customer currency code. 
+ details 
+ Map<String, ShipmentPriceAmount > 
+ Yes 
+ Amounts that form totals in customer’s currency (including net, discounts, surcharges). Keys in the map are the titles of the items included in the receipt. 
+ amountLocal 
+ double 
+ Yes 
+ Total amount before VAT in local system currency. 
+ vatLocal 
+ double 
+ Yes 
+ VAT in local system currency. 
+ totalLocal 
+ double 
+ Yes 
+ Total amount in local system currency (amountLocal + vatLocal). 
+ currencyLocal 
+ String 
+ Yes 
+ Local system currency code. 
+ detailsLocal 
+ Map<String, ShipmentPriceAmount > 
+ Yes 
+ Amounts that form totals in local system currency (including net, discounts, surcharges). Keys in the map are the titles of the items included in the receipt. 
+ currencyExchangeRateUnit 
+ int 
+ Yes 
+ Currency exchange rate unit for customer currency (1 unit of local system currency is equal to exchangeRateUnit / exchangeRate). 
+ currencyExchangeRate 
+ double 
+ Yes 
+ Currency exchange rate used for customer currency conversion. 
+ returnAmounts 
+ ReturnAmounts 
+ No 
+ Shipment returns amounts due 
+ 3.6.1. Shipment Price Amount (ShipmentPriceAmount)
+ Shipment price amount is returned as a part of receipts in calculation responses.
+ ShipmentPriceAmount 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ amount 
+ double 
+ Yes 
+ Shipment price amount. Discounts are negative. Surcharges and net amount are positive. 
+ percent 
+ Double 
+ No 
+ Percent field is returned, if there is a percent associated with the amount. Fixed price amounts do not have a percent value. 20% is returned as 0.2. 
+ vatPercent 
+ double 
+ Yes 
+ VAT percent applicable to the amount. Amounts without VAT have 0.0 value in that field. Amounts with 20% VAT have 0.2 value in that field. 
+ 3.6.2. Return Amounts (ReturnAmounts)
+ Shipment price return amounts represents return services due amounts.
+ ReturnAmounts 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ moneyTransfer 
+ MoneyTransferPremium 
+ No 
+ Shipment money transfer premium. 
+ 3.6.2.1. Money Transfer Premium (MoneyTransferPremium)
+ Money transfer premium amount due.
+ MoneyTransferPremium 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ amount 
+ Double 
+ No 
+ Amount due in client currency 
+ amountLocal 
+ Double 
+ No 
+ Amount due in local currency 
+ payer 
+ senum ["SENDER", "RECIPIENT", "THIRD_PARTY"] 
+ No 
+ The payer of money transfer premium 
+ 3.7. Errors (Error)
+ Errors are returned in responses.
+ Error 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ context 
+ String 
+ No 
+ Message context, if associated. This refers to an item that is wrong and should be corrected. 
+ message 
+ String 
+ Yes 
+ Error message in language specified in the request. 
+ id 
+ String 
+ Yes 
+ System generated unique error id to be used as this error reference. 
+ code 
+ int 
+ Yes 
+ Error code. See Appendix 3 - Error Codes for more details. 
+ component 
+ String 
+ No 
+ The request component, if applicable, relevant to this error in JSONPath format with dot notation.
+ (For example $.sender.address.siteId refers to siteId property in sender address.) 
+ 3.8. Parcel to Print (ParcelToPrint)
+ ParcelToPrint 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ Constraints 
+ parcel 
+ ShipmentParcelRef 
+ Yes 
+ Parcel reference. 
+ additionalBarcode 
+ ParcelToPrintAdditionalBarcode 
+ No 
+ Additional barcode to be added in the label. 
+ Available for A6 paper size only. Otherwise, ignored. 
+ 3.8.1. Parcel to Print Additional Barcode (ParcelToPrintAdditionalBarcode)
+ Additional barcode information to print in the label is provided in this structure.
+ ParcelToPrintAdditionalBarcode 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ Constraints 
+ value 
+ String 
+ No 
+ Barcode value. 
+ For barcode formats other than 'CODE128' it must contain digits only. 
+ label 
+ String 
+ No 
+ It is printed just below the barcode image. 
+ For barcode formats other than 'CODE128' label must be equal to the value. 
+ format 
+ enum ["CODE128", "EAN13", "EAN8", "UPCA", "UPCE"] 
+ No (default is "CODE128") 
+ Additional barcode format. 
+ valueType 
+ enum ["PROVIDED", "PARCEL_ID"] 
+ No 
+ Values can be:
+ "PROVIDED" - The default value. Uses the values in the "value" and "label" properties.
+ "PARCEL_ID" - Prints the parceId.
+The "value" and "label" properties have to be empty. The "format" property is required with value "CODE128".
+ 3.8.2. Label Info (LabelInfo)
+ Print label information.
+ LabelInfo 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ Constraints 
+ parcelId 
+ String 
+ Yes 
+ Parcel id. 
+ hubId 
+ Integer 
+ No 
+ Delivery Hub id. 
+ officeId 
+ Integer 
+ No 
+ Delivery Office id. 
+ officeName 
+ String 
+ No 
+ Delivery Office name. 
+ deadlineDay 
+ Integer 
+ No 
+ Delivery deadline day of month. 
+ deadlineMonth 
+ Integer 
+ No 
+ Delivery deadline month . 
+ tourId 
+ Integer 
+ No 
+ Tour Id. 
+ fullBarcode 
+ String 
+ Yes 
+ Barcode containing the parcel number and important routing information. 
+ exportPriority 
+ Integer 
+ Yes 
+ Export priority 
+ 3.9. TrackedParcel (TrackedParcel)
+ Track parcel information.
+ TrackedParcel 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ Constraints 
+ parcelId 
+ String 
+ Yes 
+ Parcel id. 
+ externalCarrierParcelNumbers 
+ String[] 
+ No 
+ The list of all external carrier parcel numbers associated with the parcel. 
+ operations 
+ TrackedParcelOperation [] 
+ Yes 
+ The list of operations (scans). 
+ externalCarrierParcelNumbersDetails 
+ Map<String, ExternalCarrierParcelNumberDetails > 
+ No 
+ Map of external carrier parcel details. Keys in the map are external carrier parcel numbers. 
+ error 
+ Error 
+ No 
+ Error for this parcel. 
+ 3.9.1. Tracked Parcel Operation (TrackedParcelOperation)
+ TrackedParcelOperation 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ Constraints 
+ dateTime 
+ Date (datetime) 
+ Yes 
+ Operation date time. 
+ operationCode 
+ int 
+ Yes 
+ Operation code. See Appendix1 for reference. 
+ place 
+ String 
+ No 
+ Place of operation. 
+ description 
+ String 
+ Yes 
+ Operation description. 
+ comment 
+ String 
+ No 
+ Operation comment. 
+ exceptionCodes 
+ String[] 
+ No 
+ List of exception codes for this operation. See Appendix2 for references. 
+ returnShipmentId 
+ String 
+ No 
+ If operation leads to return - the return shipment id is in this field. 
+ redirectShipmentId 
+ String 
+ No 
+ If operation leads to redirect - the redirected shipment id is in this field. 
+ consignee 
+ String 
+ No 
+ If operation leads to delivery - the recipient name is in this field. 
+ podImageURL 
+ String 
+ No 
+ If operation leads to pod capture - the pod image URL is in this field. 
+ additionalInfo 
+ TrackedParcelOperationAdditionalInfo 
+ No 
+ Additional information for operation 
+ 3.9.1.1. Tracked Parcel Operation Additional Info(TrackedParcelOperationAdditionalInfo)
+ TrackedParcelOperationAdditionalInfo 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ Constraints 
+ officeURL 
+ String 
+ No 
+ Pickup office URL (applicable for operation 134) 
+ geoPUDOId 
+ String 
+ No 
+ Pickup office PUDO id in case pickup office is a DPD office (applicable for operation 134) 
+ predict 
+ TrackedParcelOperationAdditionalInfoPredict 
+ For operation with code 175 (Predict) 
+ Predict details 
+ 3.9.1.1.1. Tracked Parcel Predict Operation Additional Info(TrackedParcelOperationAdditionalInfoPredict)
+ TrackedParcelOperationAdditionalInfoPredict 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ Constraints 
+ predictedVisitDateTimeFrom 
+ Datetime (format: yyyy-MM-dd'T'HH:mm:ssZ) 
+ Yes 
+ Start of expected time window for delivery 
+ predictedVisitDateTimeTo 
+ Datetime (format: yyyy-MM-dd'T'HH:mm:ssZ) 
+ Yes 
+ End of expected time window for delivery 
+ includedDelayInMinutes 
+ Integer 
+ No 
+ Expected delivery time delay in minutes (if any). The expected time window for delivery is adjusted with this delay 
+ canceled 
+ boolean 
+ Yes 
+ The value is true in case the predict is cancelled 
+ 3.9.2. External Carrier Parcel Number Details(ExternalCarrierParcelNumberDetails)
+ ExternalCarrierParcelNumberDetails 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ Constraints 
+ externalCarrierId 
+ int 
+ Yes 
+ Id of the external carrier 
+ externalCarrierName 
+ String 
+ Yes 
+ Name of the external carrier 
+ trackAndTraceUrl 
+ String 
+ No 
+ Track and trace URL of the external carrier 
+ 3.10. Pickup order (PickupOrder)
+ Pickup order data.
+ PickupOrder 
+ Name 
+ Type 
+ Mandatory 
+ Data 
+ Constraints 
+ id 
+ long 
+ Yes 
+ Order id. 
+ shipmentIds 
+ String[] 
+ Yes 
+ The list of all shipments associated with the order. 
+ pickupPeriodFrom 
+ Datetime (format: yyyy-MM-dd'T'HH:mm:ssZ) 
+ No 
+ Estimated period start for courier pickup visit 
+ pickupPeriodTo 
+ Datetime (format: yyyy-MM-dd'T'HH:mm:ssZ) 
+ No 
+ Estimated period end for courier pickup visit 
+ 3.11. Country
+ Country data
+ Country 
+ Name 
+ Type 
+ Data 
+ id 
+ integer 
+ Country ISO 
+ name 
+ String 
+ Country name in requested language 
+ nameEn 
+ String 
+ Country name in English 
+ isoAlpha2 
+ String 
+ Country ISO alpha 2 code 
+ isoAlpha3 
+ String 
+ Country ISO alpha 3 code 
+ postCodeFormats 
+ String[] 
+ Allowed postcode format patterns.
+ If empty string presents in allowed patterns this means - postcode format is not restricted and post code validation is not applied on addresses in this country. For non-empty patterns, the following characters are placeholders for: 
+ N - digit
+ A - letter
+ ? - digit or letter
+ B - letter
+ O - digit
+ requireState 
+ String 
+ Require state flag 
+ addressType 
+ integer 
+ Address type for this country (1 or 2 - see ShipmentAddress ) 
+ currencyCode 
+ String 
+ Currency code used for COD in this country 
+ defaultOfficeId 
+ Integer 
+ Default office id 
+ streetTypes 
+ AddressNomenclatureType [] 
+ Valid street types for country (applicable if addressType is equal to 1) 
+ complexTypes 
+ AddressNomenclatureType [] 
+ Valid complex types for country (applicable if addressType is equal to 1) 
+ siteNomen 
+ integer 
+ Specifies site nomenclature (sites) for this country. Values can be:
+ 0 - No site nomenclature for this country.
+ 1 - Full site nomenclature for this country.
+ 2 - Partial site nomenclature for this country.
+ 3.11.1. Address Nomenclature Type (AddressNomenclatureType)
+ Used for address type 1 street types and complex types
+ AddressNomenclatureType 
+ Name 
+ Type 
+ Data 
+ name 
+ String 
+ Address nomenclature type name in requested language 
+ nameEn 
+ String 
+ Address nomenclature type name in English 
+ 3.12. State
+ State data
+ State 
+ Name 
+ Type 
+ Data 
+ id 
+ String 
+ State id 
+ name 
+ String 
+ State name in requested language 
+ nameEn 
+ String 
+ State name in English 
+ stateAlpha 
+ String 
+ State ISO alpha code 
+ countryId 
+ integer 
+ State country id 
+ 3.13. Site
+ Site data
+ Site 
+ Name 
+ Type 
+ Data 
+ id 
+ long 
+ Site id 
+ countryId 
+ integer 
+ Site country id 
+ mainSiteId 
+ Long 
+ Here we have reference to main site if this site is a "satellite" one.
+ A satellite site is considered equal (to their main site) in context of "same city" service allowance 
+ type 
+ String 
+ Site type in requested language 
+ typeEn 
+ String 
+ Site type in English 
+ name 
+ String 
+ Site name in requested language 
+ nameEn 
+ String 
+ Site name in English 
+ municipality 
+ String 
+ Municipality name in requested language 
+ municipalityEn 
+ String 
+ Municipality name in English 
+ region 
+ String 
+ Region name in requested language 
+ regionEn 
+ String 
+ Region name in English 
+ postCode 
+ String 
+ Default post code for this site (if any) 
+ addressNomenclature 
+ integer 
+ Code for address nomenclature (streets, complexes, blocks, poi) support.
+ 0 - no address nomenclature 
+ 1 - full address nomenclature
+ 2 - partial address nomenclature
+ x 
+ Double 
+ Site center GPS X (longitude) coordinate 
+ y 
+ Double 
+ Site center GPS Y (latitude) coordinate 
+ servingDays 
+ String 
+ Serving days for this site.
+ Format: 7 serial digits (0 or 1) where each digit corresponds to a day in week (the first digit corresponds to Monday, the second to Tuesday and so on).
+ Value of '0' (zero) means that the site is not served on this day while '1' (one) means that it is served.
+ (Example: the text "0100100" means that the site is served on Tuesday and Friday only) 
+ servingOfficeId 
+ Integer 
+ Site's serving office 
+ servingHubOfficeId 
+ Integer 
+ The hub office ID to which serving office is connected 
+ 3.14. Street
+ Street data
+ Street 
+ Name 
+ Type 
+ Data 
+ id 
+ long 
+ Street id 
+ siteId 
+ long 
+ Street site id 
+ type 
+ String 
+ Street type in requested language 
+ typeEn 
+ String 
+ Street type in English 
+ name 
+ String 
+ Street name in requested language 
+ nameEn 
+ String 
+ Street name in English 
+ actualId 
+ Long 
+ Actual street id (if this street is old and renamed) 
+ actualType 
+ String 
+ Actual street type in requested language (if this street is old and renamed) 
+ actualTypeEn 
+ String 
+ Actual street type in English (if this street is old and renamed) 
+ actualName 
+ String 
+ Actual street name in local language 
+ actualNameEn 
+ String 
+ Actual street name in English 
+ 3.15. Complex
+ Complex data
+ Complex 
+ Name 
+ Type 
+ Data 
+ id 
+ long 
+ Complex id 
+ siteId 
+ long 
+ Complex site id 
+ type 
+ String 
+ Complex type in requested language 
+ typeEn 
+ String 
+ Complex type in English 
+ name 
+ String 
+ Complex name in requested language 
+ nameEn 
+ String 
+ Complex name in English 
+ actualId 
+ Long 
+ Actual complex id (if this complex is old and renamed) 
+ actualType 
+ String 
+ Actual complex type in requested language (if this complex is old and renamed) 
+ actualTypeEn 
+ String 
+ Actual complex type in English (if this complex is old and renamed) 
+ actualName 
+ String 
+ Actual complex name in requested language (if this complex is old and renamed) 
+ actualNameEn 
+ String 
+ Actual complex name in English (if this complex is old and renamed) 
+ 3.16. Block
+ Block data
+ Block 
+ Name 
+ Type 
+ Data 
+ siteId 
+ long 
+ Block site id 
+ name 
+ String 
+ Block name in requested language 
+ nameEn 
+ String 
+ Block name in English 
+ 3.17. Point of interest (PointOfInterest)
+ Point of interest data
+ PointOfInterest 
+ Name 
+ Type 
+ Data 
+ id 
+ long 
+ POI id 
+ siteId 
+ long 
+ POI site id 
+ name 
+ String 
+ POI name in requested language 
+ nameEn 
+ String 
+ POI name in English 
+ type 
+ String 
+ POI type in requested language 
+ typeEn 
+ String 
+ POI type in English 
+ address 
+ String 
+ POI address in requested language 
+ addressEn 
+ String 
+ POI address in English 
+ x 
+ Double 
+ POI GPS X (longitude) coordinate 
+ y 
+ Double 
+ POI GPS Y (latitude) coordinate 
+ 3.18. Office (Office)
+ Office data
+ Office 
+ Name 
+ Type 
+ Data 
+ id 
+ Integer 
+ Office id 
+ name 
+ String 
+ Office name in requested language 
+ nameEn 
+ String 
+ Office name in English 
+ siteId 
+ long 
+ Office site id 
+ address 
+ Address 
+ Office address in requested language 
+ workingTimeFrom 
+ String ("HH:mm") 
+ Office work time start for days with standard (FULL) working schedule 
+ workingTimeTo 
+ String ("HH:mm") 
+ Office work time end for days with standard (FULL) working schedule 
+ workingTimeHalfFrom 
+ String ("HH:mm") 
+ Office work time start for days with saturday (HALF) working schedule 
+ workingTimeHalfTo 
+ String ("HH:mm") 
+ Office work time end for days with saturday (HALF) working schedule 
+ workingTimeDayOffFrom 
+ String ("HH:mm") 
+ Office work time start for non-working days (DAY OFF) 
+ workingTimeDayOffTo 
+ String ("HH:mm") 
+ Office work time end for non-working days (DAY OFF) 
+ sameDayDepartureCutoff 
+ String ("HH:mm") 
+ Office same day departure cutoff for days with standard (FULL) working schedule (departure of parcels delivered to office after the cutoff time is next working day) 
+ sameDayDepartureCutoffHalf 
+ String ("HH:mm") 
+ Office same day departure cutoff for days with saturday (HALF) working schedule (departure of parcels delivered to office after the cutoff time is next working day) 
+ sameDayDepartureCutoffDayOff 
+ String ("HH:mm") 
+ Office same day departure cutoff for non-working days (DAY OFF) working schedule (departure of parcels delivered to office after the cutoff time is next working day) 
+ maxParcelDimensions 
+ ShipmentParcelSize 
+ Max parcels dimensions for this office 
+ maxParcelWeight 
+ double 
+ Max parcel weight 
+ type 
+ enum ["OFFICE", "APT"] 
+ Office type 
+ nearbyOfficeId 
+ Integer 
+ Nearby office id 
+ workingTimeSchedule 
+ OfficeWorkingTimeSchedule [] 
+ Office work time schedule for next days 
+ palletOffice 
+ boolean 
+ Pallet office flag 
+ cardPaymentAllowed 
+ boolean 
+ Flag, indicating this office allows card payments 
+ cashPaymentAllowed 
+ boolean 
+ Flag, indicating this office allows cash payments 
+ validFrom 
+ Date (yyyy-MM-dd) 
+ Valid from date 
+ validTo 
+ Date (yyyy-MM-dd) 
+ Valid to date 
+ cargoTypesAllowed 
+ enum[]
+ (array with values from enum: 
+ ["PARCEL", "PALLET", "TYRE"])
+ (Same as enum in field cargoType in CourierService ) 
+ Allowed cargo types 
+ pickUpAllowed 
+ boolean 
+ Flag, indicating whether parcels can be picked up from office 
+ dropOffAllowed 
+ boolean 
+ Flag, indicating whether parcels can be dropped-off in office 
+ routingInformation 
+ RoutingInformation 
+ 3.18.1. Office Working Time Schedule (OfficeWorkingTimeSchedule)
+ OfficeWorkingTimeSchedule 
+ Name 
+ Type 
+ Data 
+ date 
+ Date (format: "yyyy-MM-dd") 
+ Date this schedule is applicable for 
+ workingTimeFrom 
+ String ("HH:mm") 
+ Office working time start for this date 
+ workingTimeTo 
+ String ("HH:mm") 
+ Office working time end for this date 
+ sameDayDepartureCutoff 
+ String ("HH:mm") 
+ Office same day departure cutoff for this day (departure of parcels delivered to office after the cutoff time is next working day) 
+ standardSchedule 
+ boolean 
+ If true - it is from standard schedule, otherwise office working time is overridden for this specific day 
+ 3.19. Calculation Service
+ Calculation service defines service level agreement for the shipment - when shipment should be picked up, service code to be used, sub-services, etc
+ Calculation Service 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ pickupDate 
+ Date
+(Example: 2017-11-12) 
+ No (default value is today) 
+ The date for shipment pickup. 
+ Could be today or a future date 
+ autoAdjustPickupDate 
+ Boolean 
+ No (default value is false) 
+ To find first available date for pickup starting from pickupDate according to pickup schedule for services 
+ serviceIds 
+ integer[] 
+ Yes 
+ Services for which calculation is requested 
+ Each service id (code) should be valid for the destination. 
+ additionalServices 
+ ShipmentAdditionalServices 
+ No 
+ Defines sub-services (like COD, Declared value, etc.) associated with the shipment. 
+ Sub-services may be allowed or forbidden for selected service and/or destination. 
+ deferredDays 
+ Integer 
+ No (default value is 0) 
+ This parameter allows users to specify by how many (business) days they would like to postpone the shipment delivery from the standard term. 
+ Allowed values are 0, 1 and 2 
+ saturdayDelivery 
+ Boolean 
+ No 
+ This parameter may adjust delivery date to the first business day, if the standard calculated delivery day is a half-working day. If not specified, system will determine this flag based on configured delivery customer working schedule 
+ 3.20. Calculation Sender
+ Calculation sender is not mandatory. If not specified logged user is the sender.
+ Calculation Sender 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ clientId 
+ Long 
+ No 
+ Client id to refer serving client 
+ Validate for existence. 
+ privatePerson 
+ Boolean 
+ If clientId is provided, it is forbidden. Otherwise, it is mandatory. 
+ Private person flag. 
+ addressLocation 
+ AddressLocation 
+ Required if office id and clientId are missing. Otherwise it is forbidden 
+ Address location, implies pickup at client address 
+ dropoffOfficeId 
+ Integer 
+ Required if address location and clientId are missing. If address location presents it is forbidden 
+ Drop-off office id 
+ Validated for valid office. 
+ dropoffGeoPUDOId 
+ String 
+ No. Must be empty if dropoffOfficeId is provided 
+ DPD drop off office PUDO id 
+ Should refer to a valid accessible DPD office. 
+ 3.21. Calculation Recipient
+ Calculation Recipient 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ clientId 
+ Long 
+ No 
+ Client id to refer serving client 
+ Validate for existence. 
+ privatePerson 
+ Boolean 
+ If clientId is provided, it is forbidden. Otherwise, it is mandatory. 
+ Private person flag. 
+ addressLocation 
+ AddressLocation 
+ Required if office id and clientId are missing. Otherwise it is forbidden 
+ Address location, implies delivery at client address 
+ pickupOfficeId 
+ Integer 
+ Required if address location and clientId are missing. If address location presents it is forbidden 
+ Pickup office id 
+ Validated for valid office. 
+ pickupGeoPUDOId 
+ String 
+ No. Must be empty if pickupOfficeId is provided 
+ DPD pickup office PUDO id 
+ Should refer to a valid accessible DPD office. 
+ 3.22. Calculation Address Location
+ Calculation Address Location 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ countryId 
+ Integer 
+ No 
+ Country ISO code. If not provided, local country is assumed. Used for all address types. 
+ Validated for valid country code. 
+ stateId 
+ String 
+ Required, if country supports states 
+ Country state. Used for addresses of type 2 (foreign address). 
+ Validated for valid country state. 
+ siteId 
+ Long 
+ Required, if country has full site nomenclature and pair (siteType, siteName) is not provided. 
+ Site id. Used for all address types. 
+ Validated for valid site 
+ siteType 
+ String 
+ Forbidden, if siteId is provided. Otherwise, is not mandatory 
+ Site type can be used in conjunction with countryId and siteName to find unique site. Used for addresses of type 1 (local address). 
+ Max 20 characters 
+ siteName 
+ String 
+ Forbidden, if siteId is provided. Otherwise, is not mandatory 
+ Site type can be used in conjunction with countryId and siteName to find unique site. Used for all address types. 
+ Max 50 characters 
+ postCode 
+ String 
+ Required if country requires postcode for addresses 
+ Can be used in conjunction with countryId to find unique site. Used for all address types. 
+ Validated for valid postcode in site and country. Max 10 characters 
+ 3.23. Calculation Content
+ Calculation content is used to describe what is to be delivered with the shipment for calculation purposes.
+ Calculation Content 
+ Name 
+ Type 
+ Required 
+ Data 
+ Constraints 
+ parcelsCount 
+ Integer 
+ Required when parcels list is empty 
+ Total shipment parcels count. Ignored, if parcels list is not empty. 
+ Validated against the minimum and maximum allowed for the service. 
+ totalWeight 
+ Double 
+ Required when parcels list is empty 
+ Total weight declared for the shipment. Ignored, if parcels list is not empty. The total weight is the sum of all parcels declaredWeight in that case. 
+ Validated against the minimum and maximum allowed for the service. 
+ documents 
+ Boolean 
+ No 
+ Documents flag of the shipment 
+ palletized 
+ Boolean 
+ No 
+ Palletized flag of the shipment. 
+ parcels 
+ ShipmentParcel [] 
+ Required for pallet and postal services. 
+ List of parcels 
+ Validated against the service configuration and pickup and delivery capacity of the depots and couriers. 
+ 3.24. Calculation Result
+ Calculation Result 
+ Name 
+ Type 
+ Data 
+ serviceId 
+ integer 
+ Service id 
+ additionalServices 
+ ShipmentAdditionalServices 
+ Additional services included in calculation 
+ price 
+ ShipmentPrice 
+ Returned, if customer has access to view the amounts of the shipment. 
+ pickupDate 
+ Date 
+ Pickup date. 
+ deliveryDeadline 
+ DateTime 
+ Deadline for delivery. Returned, if available 
+ error 
+ Error 
+ Response error. 
+ 3.25. Client
+ Client 
+ Name 
+ Type 
+ Data 
+ clientId 
+ Long 
+ Client id 
+ clientName 
+ String 
+ Client name 
+ objectName 
+ String 
+ Object name 
+ contactName 
+ String 
+ Contact name 
+ address 
+ Address 
+ Client address 
+ email 
+ String 
+ Client email 
+ privatePerson 
+ Boolean 
+ Private person flag. 
+ 3.26. Shipment
+ Shipment 
+ Name 
+ Type 
+ Data 
+ id 
+ String 
+ Shipment id 
+ sender 
+ Sender 
+ Shipment sender. 
+ recipient 
+ Recipient 
+ Shipment recipient. 
+ service 
+ ShipmentService 
+ Shipment service level agreement. 
+ content 
+ Content 
+ Shipment content. 
+ payment 
+ Payment 
+ Shipment payment. 
+ shipmentNote 
+ String 
+ Customer’s note associated with the shipment. 
+ ref1 
+ String 
+ Reference number or text. 
+ ref2 
+ String 
+ Reference number or text. 
+ price 
+ ShipmentPrice 
+ Shipment payment. 
+ delivery 
+ ShipmentDelivery 
+ Shipment delivery. 
+ primaryShipment 
+ PrimaryShipment 
+ Primary shipment. 
+ returnShipmentId 
+ String 
+ Return shipment id (in case this shipment is returned to sender) 
+ redirectShipmentId 
+ String 
+ Redirect shipment id (in case this shipment is redirected to new delivery location) 
+ pendingShipment 
+ Boolean 
+ If this flag is true, the shipment is created in pending shipment state.
+ Shipments in pending shipment state can have incomplete data that defines logistics (without complete addresses, only sites)
+ Pending shipment state is closed with updateShipment method that makes shipments complete. 
+ 3.26.1. Sender (Sender)
+ This structure extends Client structure with additional fields.
+ Sender 
+ Name 
+ Type 
+ Data 
+ Client fields are here 
+ dropoffOfficeId 
+ Integer 
+ Drop-off office id 
+ dropoffGeoPUDOId 
+ String 
+ DPD PUDO Id 
+ 3.26.2. Recipient (Recipient)
+ This structure extends Client structure with additional fields.
+ Recipient 
+ Name 
+ Type 
+ Data 
+ Client fields are here 
+ pickupOfficeId 
+ Integer 
+ Pickup office id 
+ pickupGeoPUDOId 
+ String 
+ DPD PUDO Id 
+ 3.26.3. Content (Content)
+ Content 
+ Name 
+ Type 
+ Data 
+ parcelsCount 
+ Integer 
+ Total shipment parcels count. 
+ declaredWeight 
+ Double 
+ Shipment declared weight 
+ measuredWeight 
+ Double 
+ Shipment measured weight 
+ calculationWeight 
+ Double 
+ Shipment calculation weight 
+ contents 
+ String 
+ Shipment content’s description. 
+ package 
+ String 
+ Shipment package. 
+ documents 
+ Boolean 
+ Documents flag of the shipment (shipment content is documents) 
+ palletized 
+ Boolean 
+ Palletized flag of the shipment. 
+ parcels 
+ Parcel [] 
+ Shipment parcels 
+ pendingParcels 
+ Boolean 
+ If this flag is true, the shipment is created in pending parcels state.
+ Shipments in pending parcels state allows adding parcels with addParcel method.
+ Pending parcels state is closed with finalizePendingShipment method. 
+ 3.26.3.1. Parcel (Parcel)
+ Shipment parcel details
+ Parcel 
+ Name 
+ Type 
+ Data 
+ id 
+ String 
+ Parcel id 
+ seqNo 
+ Integer 
+ Parcel sequence number within the shipment 
+ packageUniqueNumber 
+ Long 
+ Package number associated with parcel. 
+ declaredSize 
+ ShipmentParcelSize 
+ Parcel declared size 
+ measuredSize 
+ ShipmentParcelSize 
+ Parcel measured size 
+ calculationSize 
+ ShipmentParcelSize 
+ Parcel calculation size 
+ declaredWeight 
+ Double 
+ Parcel declared weight 
+ measuredWeight 
+ Double 
+ Parcel measured weight 
+ calculationWeight 
+ Double 
+ Parcel calculation weight 
+ externalCarrierParcelNumbers 
+ String[] 
+ External carrier parcel numbers associated with this parcel 
+ baseType 
+ String 
+ Base type name 
+ size 
+ String 
+ Size name 
+ 3.26.4. Payment (Payment)
+ Payment 
+ Name 
+ Type 
+ Data 
+ courierServicePayer 
+ enum ["SENDER", "RECIPIENT", "THIRD_PARTY"] 
+ Courier service payer. 
+ declaredValuePayer 
+ enum ["SENDER", "RECIPIENT", "THIRD_PARTY"] 
+ Declared value payer 
+ packagePayer 
+ enum ["SENDER", "RECIPIENT", "THIRD_PARTY"] 
+ Package payer 
+ thirdPartyClientId 
+ Long 
+ Third party payer client id in case one of the payers is THIRD_PARTY 
+ discountCardId 
+ ShipmentDiscountCardId 
+ Discount card used in calculation. 
+ codPayment 
+ CODPayment 
+ COD Payment details 
+ 3.26.4.1. CODPayment (CODPayment)
+ COD payment details
+ CODPayment 
+ Name 
+ Type 
+ Data 
+ date 
+ Datetime (format yyyy-MM-dd'T'HH:mm:ssZ) 
+ Pay out date 
+ totalPayedOutAmount 
+ double 
+ Total paid out COD amount 
+ 3.26.5. Shipment Delivery (ShipmentDelivery)
+ ShipmentDelivery 
+ Name 
+ Type 
+ Data 
+ deadline 
+ Datetime (format: yyyy-MM-dd'T'HH:mm:ssZ) 
+ Deadline for this shipment 
+ deliveryDateTime 
+ Datetime (format: yyyy-MM-dd'T'HH:mm:ssZ) 
+ Datetime of actual delivery (if shipment is delivered) 
+ consignee 
+ String 
+ Shipment consignee (if shipment is delivered) 
+ deliveryNote 
+ String 
+ Shipment delivery note (if shipment is delivered) 
+ 3.26.6. PrimaryShipment (PrimaryShipment)
+ PrimaryShipment 
+ Name 
+ Type 
+ Data 
+ id 
+ String 
+ Primary shipment id 
+ type 
+ enum ["RETURN_SHIPMENT", "STORAGE_PAYMENT", "REDIRECT", "SEND_BACK", "MONEY_TRANSFER", "TRANSPORT_DAMAGED", "RETURN_VOUCHER"] 
+ Primary shipment type - how this secondary shipment is related to primary one
+ RETURN_SHIPMENT - if this shipment is one of return of documents (rod) / returnReceipt / swap / return of pallets (rop) for a primary one
+ STORAGE_PAYMENT - if this shipment is for warehouse charges for a primary one
+ REDIRECT - if this shipment redirects primary one 
+ SEND_BACK - if this shipment returns primary one to sender
+ MONEY_TRANSFER - if this shipment is a money transfer for a primary one
+ TRANSPORT_DAMAGED - if this shipment is for damaged primary shipment transport
+ VOUCHER_RETURN - if this shipment is a voucher return for a primary one
+ 3.26.7. Secondary Shipment(SecondaryShipment)
+ SecondaryShipment 
+ Name 
+ Type 
+ Data 
+ id 
+ String 
+ Secondary shipment id 
+ type 
+ enum ["RETURN_SHIPMENT", "STORAGE_PAYMENT", "REDIRECT", "SEND_BACK", "MONEY_TRANSFER", "TRANSPORT_DAMAGED", "RETURN_VOUCHER"]
+ (Same as enum in field type in PrimaryShipment ) 
+ Primary shipment type - how this secondary shipment is realted to primary one
+ RETURN_SHIPMENT - if this shipment is one of return of documents (rod) / returnReceipt / swap / return of pallets (rop) for a primary one
+ STORAGE_PAYMENT - if this shipment is for warehouse charges for a primary one
+ REDIRECT - if this shipment redirects primary one 
+ SEND_BACK - if this shipment returns primary one to sender
+ MONEY_TRANSFER - if this shipment is a money transfer for a primary one
+ TRANSPORT_DAMAGED - if this shipment is for damaged primary shipment transport
+ VOUCHER_RETURN - if this shipment is a voucher return for a primary one
+ parcels 
+ ShipmentParcelNumber [] 
+ Shipment parcels 
+ pickupDate 
+ Date (yyyy-MM-dd) 
+ Secondary shipment pickup date 
+ serviceId 
+ int 
+ Secondary shipment service id 
+ hasScans 
+ boolean 
+ Flag that shows whether the secondary shipment is scanned 
+ 3.26.8. Shipment Parcel Number(ShipmentParcelNumber)
+ ShipmentParcelNumber 
+ Name 
+ Type 
+ Data 
+ id 
+ String 
+ Parcel id 
+ seqNo 
+ int 
+ Parcel sequence number in the shipment. 
+ 3.27. Courier Service
+ CourierService 
+ Name 
+ Type 
+ Data 
+ id 
+ int 
+ Courier service id 
+ name 
+ String 
+ Courier service name in local language 
+ nameEn 
+ String 
+ Courier service name in English 
+ additionalServices 
+ AdditionalCourierServices 
+ Additional services options 
+ cargoType 
+ enum ["PARCEL", "PALLET", "TYRE"] 
+ Cargo type 
+ requireParcelWeight 
+ boolean 
+ Require weight for each parcel on create shipment 
+ requireParcelSize 
+ boolean 
+ Require size for each parcel on create shipment 
+ 3.27.1. Additional Courier Services
+ AdditionalCourierServices 
+ Name 
+ Type 
+ Data 
+ cod 
+ AdditionalCourierService 
+ COD configuration 
+ obpd 
+ AdditionalCourierService 
+ Options Before Payment or Delivery configuration 
+ declaredValue 
+ AdditionalCourierService 
+ Declared value configuration 
+ fixedTimeDelivery 
+ AdditionalCourierService 
+ Fixed time configuration 
+ specialDelivery 
+ AdditionalCourierService 
+ Special delivery configuration 
+ deliveryToFloor 
+ AdditionalCourierService 
+ Delivery to floor configuration 
+ rod 
+ AdditionalCourierService 
+ Return of documents configuration 
+ returnReceipt 
+ AdditionalCourierService 
+ Return receipt configuration 
+ swap 
+ AdditionalCourierService 
+ SWAP configuration 
+ rop 
+ AdditionalCourierService 
+ Return of pallets configuration 
+ returnVoucher 
+ AdditionalCourierService 
+ Return voucher configuration 
+ 3.27.1.1. Additional Courier Service
+ AdditionalCourierService 
+ Name 
+ Type 
+ Data 
+ allowance 
+ enum
+ ["FORBIDDEN", "ALLOWED", "REQUIRED"] 
+ Allowance value Forbidden - this additional service is not allowed for courier service
+ Allowed - this additional service is allowed for usage for courier service. It could be either used or skipped on create shipment
+ Required - this additional service is mandatory to be used with courier service on create shipment
+ 3.28. Extended Courier Service
+ ExtendedCourierService 
+ Name 
+ Type 
+ Data 
+ CourierService fields are here 
+ deadline 
+ Date (yyyy-MM-dd'T'HH:mm:ssZ) 
+ Deadline for delivery 
+ 3.29. Bulk Tracking Data File
+ BulkTrackingDataFile 
+ Name 
+ Type 
+ Data 
+ id 
+ long 
+ File id 
+ url 
+ String 
+ File url 
+ 3.30. Payout
+ Payout 
+ Name 
+ Type 
+ Data 
+ date 
+ Date (yyyy-MM-dd) 
+ Payout date 
+ docId 
+ Long 
+ Payout document id 
+ docType 
+ enum ["CASH", "POSTAL_MONEY_TRANSFER"] 
+ Payout document type 
+ paymentType 
+ enum ["CASH", "BANK"] 
+ Payout payment type 
+ payee 
+ String 
+ Payee 
+ currency 
+ String 
+ Payout currency 
+ amount 
+ double 
+ Payout amount 
+ details 
+ PayoutDetails [] 
+ List of payout details 
+ 3.30.1. Payout Details
+ PayoutDetails 
+ Name 
+ Type 
+ Data 
+ lineNo 
+ int 
+ Payout line number 
+ shipmentId 
+ String 
+ Payout shipment id 
+ pickupDate 
+ Date (yyyy-MM-dd) 
+ Date of shipment pickup 
+ primaryShipmentPickupDate 
+ Date (yyyy-MM-dd) 
+ Date of primary shipment pickup in case this shipment is a secondary one 
+ deliveryDate 
+ Date (yyyy-MM-dd) 
+ Shipment delivery date 
+ sender 
+ String 
+ Shipment sender 
+ recipient 
+ String 
+ Shipment recipient 
+ note 
+ String 
+ Shipment note 
+ ref1 
+ String 
+ Shipment ref1 (reference) 
+ ref2 
+ String 
+ Shipment ref2 (reference) 
+ currency 
+ String 
+ Payout currency 
+ order 
+ Long 
+ Order id 
+ amount 
+ Double 
+ Payout amount 
+ 3.31. SpecialDeliveryRequirements
+ SpecialDeliveryRequirements 
+ Name 
+ Type 
+ Data 
+ requiredForAllShipments 
+ boolean 
+ Indicates whether special delivery requirements are mandatory for each shipment 
+ requirements 
+ Requirement [] 
+ List of requirements 
+ 3.31.1. Requirement
+ Requirement 
+ Name 
+ Type 
+ Data 
+ id 
+ int 
+ Special delivery requirement id 
+ text 
+ String 
+ Requirement text 
+ 3.32. OfficeResult
+ This structure extends Office structure with additional fields.
+ OfficeResult 
+ Name 
+ Type 
+ Data 
+ distance 
+ Integer 
+ Distance from searched location 
+ Office fields are here 
+ 3.33. CODAdditionalServiceContractInfo
+ CODAdditionalServiceContractInfo 
+ Name 
+ Type 
+ Data 
+ moneyTransferAllowed 
+ boolean 
+ COD as money transfer allowed flag 
+ codFiscalReceiptAllowed boolean Issuing COD fiscal receipt on behalf of client allowed flag 
+ hasCODAnnex boolean Logged client has COD annex flag 
+ internationalCODAnnexes 
+ CODInternationalAnnexContractInfo [] 
+ List of international COD annex contract info 
+ 3.33.1. CODInternationalAnnexContractInfo
+ CODInternationalAnnexContractInfo 
+ Name 
+ Type 
+ Data 
+ countryId 
+ int 
+ International annex country id 
+ countryName 
+ String 
+ International annex country name 
+ 3.34. RoutingInformation
+ RoutingInformation 
+ Name 
+ Type 
+ Data 
+ tour 
+ Tour 
+ officeId 
+ Integer 
+ Destination office id 
+ hubId 
+ Integer 
+ Destination hub id 
+ priority 
+ Integer 
+ Priority 
+ 3.34.1. Tour
+ Tour 
+ Name 
+ Type 
+ Data 
+ number 
+ Integer 
+ Tour number 
+ officeId 
+ Integer 
+ Tour office id 
+ ramp 
+ String 
+ Tour ramp 
+ cell 
+ String 
+ Tour cell 
+ 4. Appendixes
+ 4.1. Appendix 1 - Track And Trace Operation Codes
+ Track And Trace Operation Codes 
+ Id 
+ Description 
+ 1 
+ Arrival Scan 
+ 2 
+ Departure Scan 
+ 11 
+ Received in Office 
+ 12 
+ Out for Delivery 
+ -14 
+ Delivered 
+ 21 
+ Processed in Office 
+ 38 
+ Returned to Office 
+ 39 
+ Courier Pick-up 
+ 44 
+ Unsuccessful Delivery 
+ 69 
+ Deferred delivery 
+ 111 
+ Return to Sender 
+ 112 
+ Processed to the Insurance dept. 
+ 114 
+ Processed for Destruction 
+ 115 
+ Redirected 
+ 116 
+ Forwarded 
+ 120 
+ Refusal to send 
+ 121 
+ Stopped by Sender 
+ 123 
+ Refused by recipient 
+ 124 
+ Delivered Back to Sender 
+ 125 
+ Destroyed 
+ 127 
+ Theft/Burglary 
+ 128 
+ Canceled 
+ 129 
+ Administrative Closure 
+ 134 
+ Prepared for Self-collecting Consignee 
+ 136 
+ Clarify shipment delivery 
+ 144 
+ Handover for contents check/test 
+ 148 
+ Shipment data received 
+ 152 
+ Routed to another DPD Location 
+ 164 
+ Unsuccessful shipment pickup 
+ 169 
+ Delivery capacity reached (tour/office) 
+ 175 
+ Predict 
+ 176 
+ Export to foreign provider 
+ 181 
+ Unexpected delay 
+ 190 
+ Postponed delivery due to inaccurate/incomplete address 
+ 195 
+ Refuse contents check/test 
+ 217 
+ Handover to midway carrier 
+ 1134 
+ Notification sent for parcel in office/locker 
+ 4.2. Appendix 2 - Exception Codes for Track and Trace Operations
+ Exception codes are associated to track and trace operation codes where relevant.
+ Exception Codes for Track and Trace Operations 
+ Id 
+ Description 
+ Operation code 
+ Unsuccessful Delivery
+[44] 
+ Return to Sender
+[111] 
+ Clarify shipment delivery
+[136] 
+ Routed to another Speedy Location
+[152] 
+ Unsuccessful shipment pickup
+[164] 
+ Unexpected delay
+[181] 
+ 11 
+ Wrong address 
+ ✓ 
+ ✓ 
+ ✓ 
+ ✓ 
+ 12 
+ Refused by recipient - damaged 
+ ✓ 
+ ✓ 
+ ✓ 
+ 14 
+ Refused by recipient - not ordered 
+ ✓ 
+ ✓ 
+ ✓ 
+ 15 
+ Refused by recipient 
+ ✓ 
+ ✓ 
+ ✓ 
+ 16 
+ Refused by recipient - contents checked, found to be damaged 
+ ✓ 
+ ✓ 
+ ✓ 
+ 19 
+ Recipient not present - informed first time 
+ ✓ 
+ 20 
+ Self-collecting recipient 
+ ✓ 
+ ✓ 
+ ✓ 
+ 25 
+ Closed (e.g. department store) 
+ ✓ 
+ 29 
+ Shipment incomplete 
+ ✓ 
+ ✓ 
+ ✓ 
+ 37 
+ Recipient not present - third time 
+ ✓ 
+ ✓ 
+ 42 
+ Recipient not present, informed 2nd time 
+ ✓ 
+ ✓ 
+ 46 
+ Amount not paid 
+ ✓ 
+ ✓ 
+ ✓ 
+ 49 
+ Customer's return 
+ ✓ 
+ ✓ 
+ ✓ 
+ 66 
+ ID check failed 
+ ✓ 
+ ✓ 
+ ✓ 
+ 67 
+ Signature refused 
+ ✓ 
+ ✓ 
+ ✓ 
+ 80 
+ Appointment scheduled 
+ ✓ 
+ ✓ 
+ ✓ 
+ 84 
+ Delivery note / order reference missing 
+ ✓ 
+ ✓ 
+ ✓ 
+ 1002 
+ Incomplete address 
+ ✓ 
+ ✓ 
+ 1004 
+ In office - not claimed 
+ ✓ 
+ 1005 
+ Redirected 
+ ✓ 
+ 1007 
+ New date scheduled 
+ ✓ 
+ ✓ 
+ ✓ 
+ 1018 
+ Sender drop-off in office 
+ ✓ 
+ 1019 
+ Sender not present 
+ ✓ 
+ 1020 
+ Consignee not reachable - routed to office 
+ ✓ 
+ ✓ 
+ 1021 
+ Routed to office due to overload 
+ ✓ 
+ ✓ 
+ 1022 
+ Routed to office due to exceeded slot size 
+ ✓ 
+ 1030 
+ Wrong phone number 
+ ✓ 
+ 9014 
+ Closed national roads 
+ ✓ 
+ 9015 
+ Delay at border crossing 
+ ✓ 
+ 9016 
+ Severe weather conditions 
+ ✓ 
+ 9017 
+ Traffic accident 
+ ✓ 
+ 4.2. Appendix 2 - Track And Trace Operation Exception Codes
+ Exception codes are associated to track and trace operation codes where relevant.
+ Track And Trace Operation Exception Codes 
+ Id 
+ Description 
+ 11 
+ Wrong address 
+ 12 
+ Refused by recipient - damaged 
+ 14 
+ Refused by recipient - not ordered 
+ 15 
+ Refused by recipient 
+ 16 
+ Refused by recipient - contents checked, found to be damaged 
+ 17 
+ Return (pick-up) after wrong delivery 
+ 19 
+ Recipient not present - informed first time 
+ 20 
+ Self-collecting recipient 
+ 22 
+ Broken in sub-contractor's custody 
+ 25 
+ Closed (e.g. department store) 
+ 27 
+ Lack of space 
+ 29 
+ Shipment incomplete 
+ 32 
+ Lack of time 
+ 35 
+ Recipient not present, informed, on holiday 
+ 37 
+ Recipient not present - third time 
+ 41 
+ Force majeure 
+ 42 
+ Recipient not present, informed 2nd time 
+ 46 
+ Amount not paid 
+ 49 
+ Customer's return 
+ 61 
+ Delay due to unknown reason 
+ 66 
+ ID check failed 
+ 67 
+ Signature refused 
+ 80 
+ Appointment scheduled 
+ 81 
+ Regional holiday 
+ 84 
+ Delivery note / order reference missing 
+ 1002 
+ Incomplete address 
+ 1003 
+ Does not answer the phone 
+ 1004 
+ In office - not claimed 
+ 1005 
+ Redirected 
+ 1006 
+ Refused after content’s check/test 
+ 1007 
+ New date scheduled 
+ 1008 
+ Without delivery attempt 
+ 1018 
+ Sender drop-off in office 
+ 1019 
+ Sender not present 
+ 1020 
+ Consignee not reachable - routed to office 
+ 9014 
+ Closed national roads 
+ 9015 
+ Delay at border crossing 
+ 9016 
+ Severe weather conditions 
+ 9017 
+ Traffic accident 
+ 9020 
+ Not in warehouse 
+-->
+ 4.3. Appendix 3 - Error Codes
+ Error codes returned in Error structure.
+ Error Codes 
+ Id 
+ Name 
+ Description 
+ 1 
+ General Error 
+ Returned when there is an error in request processing and it doesn't match any of recongizable errors described in this table 
+ 100 
+ Invalid client data 
+ Returned when there is invalid client data provided in request. Relevant for Shipment, Calculation and Client service methods 
+ 120 
+ Invalid address 
+ Returned when there is an error in address provided in request. Relevant for Shipment, Calculation and Client service methods 
+ 160 
+ Invalid drop-off office 
+ Returned when the selected sender drop-off office in request is not valid. Relevant for Shipment and Calculation service methods 
+ 180 
+ Invalid pickup office 
+ Returned when the selected recipient pickup office in request is not valid. Relevant for Shipment and Calculation service methods 
+ 300 
+ Invalid third party 
+ Returned when the selected third party payer in request is invalid. Relevant for Shipment and Calculation service methods 
+ 400 
+ Invalid courier service 
+ Returned when the courier service in request is invalid. Relevant for Shipment and Calculation service methods 
+ 410 
+ Invalid COD additional service 
+ Returned when COD additional service data in request is invalid. Relevant for Shipment and Calculation service methods 
+ 415 
+ Invalid Declared Value additional service 
+ Returned when Declared Value additional service data in request is invalid. Relevant for Shipment and Calculation service methods 
+ 420 
+ Invalid OBPD additional service 
+ Returned when Options Before Payment and Delivery additional service data in request is invalid. Relevant for Shipment and Calculation service methods 
+ 425 
+ Invalid Delivery To Floor additional service 
+ Returned when Delivery To Floor additional service data in request is invalid. Relevant for Shipment and Calculation service methods 
+ 430 
+ Invalid Special Deliery additional service 
+ Returned when Special Deliery additional service data in request is invalid. Relevant for Shipment and Calculation service methods 
+ 435 
+ Invalid ROD additional service 
+ Returned when Return of Documents additional service data in request is invalid. Relevant for Shipment and Calculation service methods 
+ 440 
+ Invalid Return Receipt additional service 
+ Returned when Return Receipt additional service data in request is invalid. Relevant for Shipment and Calculation service methods 
+ 445 
+ Invalid SWAP additional service 
+ Returned when SWAP additional service data in request is invalid. Relevant for Shipment and Calculation service methods 
+ 450 
+ Invalid ROP additional service 
+ Returned when Return of Pallets additional service data in request is invalid. Relevant for Shipment and Calculation service methods 
+ 455 
+ Invalid Return Voucher additional service 
+ Returned when Return Voucher additional service data in request is invalid. Relevant for Shipment and Calculation service methods 
+ 460 
+ Invalid Fixed Time Delivery additional service 
+ Returned when Fixed Time Delivery additional service data in request is invalid. Relevant for Shipment and Calculation service methods 
+ 500 
+ Invalid pickup date 
+ Returned when pickup date is not valid. Relevant for Shipment and Calculation service methods 
+ 510 
+ Invalid deferred days 
+ Returned when deferred days provided in request is not valid. Relevant for Shipment and Calculation service methods 
+ 515 
+ Invalid discount card 
+ Returned when discount card provided in request is not valid. Relevant for Shipment service methods 
+ 520 
+ Invalid saturday delivery flag 
+ Returned when saturday delivery flag provided in request is not valid. Relevant for Shipment and Calculation service methods 
+ 600 
+ Invalid shipment contents 
+ Returned when shipment contents provided in request is not valid. Relevant for Shipment service methods 
+ 605 
+ Invalid shipment package 
+ Returned when shipment package provided in request is not valid. Relevant for Shipment service methods 
+ 610 
+ Invalid documents flag 
+ Returned when documents flag provided in request is not valid. Relevant for Shipment and Calculation service methods 
+ 615 
+ Invalid palletized flag 
+ Returned when palletized flag provided in request is not valid. Relevant for Shipment and Calculation service methods 
+ 620 
+ Invalid weight 
+ Returned when total weight or parcel weight in request is not valid. Relevant for Shipment and Calculation service methods 
+ 630 
+ Invalid parcels 
+ Returned when there is an error in parcels data provided in request. Relevant for Shipment and Calculation service methods 
+ 700 
+ Invalid courier service payment 
+ Returned when there is an error in courier service payment data provided in request. Relevant for Shipment and Calculation service methods 
+ 710 
+ Invalid packings payment 
+ Returned when there is an error in packings payment data provided in request. Relevant for Shipment and Calculation service methods 
+ 800 
+ Invalid ref1 
+ Returned when shipment reference 1 provided in request. Relevant for Shipment service methods 
+ 805 
+ Invalid ref2 
+ Returned when shipment reference 2 provided in request. Relevant for Shipment service methods 
+ 810 
+ Invalid shipment note 
+ Returned when shipment note provided in request. Relevant for Shipment service methods 
+ 

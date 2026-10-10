@@ -1,0 +1,23 @@
+[[extensions]]
+name = "Parcel refused or returned"
+uid = "4470d48d-2ff3-85c6-a659-3ba2143868f12f0cc726"
+type = "flow_trigger"
+handle = "picklo-parcel-refused"
+description = "The parcel was refused by the customer or returned to the store."
+
+  [settings]
+
+  [[settings.fields]]
+  type = "order_reference"
+
+  [[settings.fields]]
+  type = "single_line_text_field"
+  key = "AWB number"
+
+  [[settings.fields]]
+  type = "single_line_text_field"
+  key = "Courier"
+
+  [[settings.fields]]
+  type = "number_decimal"
+  key = "Cash on delivery amount"
