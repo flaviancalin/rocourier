@@ -34,3 +34,8 @@ Status codes: 1 received data · 2 arrived · 3 prepared for departure · 4 depa
 ## Cancel / returns
 - `cancelPacket(packetId)` — only before physical consignment.
 - Returns: `createPacketClaimWithPassword({ number, email, phone, value, currency, eshop, consignCountry, sendEmailToCustomer })` → `PacketDetail` with `password`; the customer drops the parcel at any Packeta point / Z-BOX with that password. Return destination = billing address in the client section.
+
+## Live check (2026-10-10)
+- Z-BOX, Packeta point, home delivery via 4161 (RO Home Delivery) and via 762 (FAN HD): createPacket, label PDF, tracking, cancelPacket all work.
+- COD is refused until the Packeta account has a RON bank account (or currency conversion) — fault on field `cod`.
+- `createPacketClaimWithPassword` requires `eshop` (sender label from client.packeta.com → Senders).
