@@ -48,6 +48,7 @@ export async function fetchTrackingEvents(order, s) {
 // Courier event text (RO/EN) → Picklo status. Order matters: "livrat înapoi la expeditor"
 // is a return and "nelivrat" is a failure, so those are checked before "livrat".
 const TEXT_RULES = [
+  ["cancelled", /expedierea a fost anulata|comanda anulata|order canceled|order cancelled|cancelled the delivery|awb anulat|awb sters/],
   ["returned", /retur|returned|refuz|refused|inapoi la expeditor|back to sender/],
   ["failed", /nelivrat|ne-livrat|esuat|eșuat|failed|unsuccessful|adresa (gresita|incompleta)|destinatar absent|not delivered/],
   ["delivered", /livrat|delivered|predat destinatar|ridicat de destinatar|ridicat din (easybox|locker|fanbox)/],

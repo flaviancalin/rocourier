@@ -69,3 +69,11 @@ test("fan: tariff with COD sends returnPayment; FANbox COD without card payment 
       settings: { senderName: "S", senderCity: "Craiova", senderAddress: "Str. X 1", senderPhone: "0744555666", senderCounty: "Dolj" } }), /nu are activată încasarea cu cardul/);
   } finally { m.restore(); }
 });
+
+test("tracking: a cancelled Sameday shipment maps to cancelled", async () => {
+  const { statusFromEvents } = await import("../app/services/tracking.server.js");
+  assert.equal(statusFromEvents([
+    { description: "Expedierea a fost înregistrată. · AWB issued", date: "2026-10-10T17:13:56Z" },
+    { description: "Expedierea a fost anulată. · Order canceled · The sender has cancelled the delivery", date: "2026-10-10T17:13:58Z" },
+  ], "sameday"), "cancelled");
+});
