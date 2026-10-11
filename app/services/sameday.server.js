@@ -4,6 +4,7 @@
 // SANDBOX: https://sameday-api.demo.zitec.com
 // Contact: software@sameday.ro to request API credentials
 // Token TTL: 12h (or permanent with remember_me=1)
+import { samedaySchedule } from "../utils/pickup-schedule.js";
 
 const SAMEDAY_PROD = "https://api.sameday.ro";
 const SAMEDAY_SANDBOX = "https://sameday-api.demo.zitec.com";
@@ -180,6 +181,9 @@ export async function samedayGetLockers({ username, password, sandbox = false })
         zip: l.postalCode || null,
         lat: l.lat ? parseFloat(l.lat) : null,
         lng: l.lng ? parseFloat(l.lng) : null,
+        schedule: samedaySchedule(l.schedule),
+        // supportedPayment: 0 = none, 1 = card at the locker
+        cardAtPickup: l.supportedPayment == null ? null : Number(l.supportedPayment) > 0,
       }));
   } catch (oohErr) {
     // OOH endpoint not available on sandbox or older API contracts — fall back

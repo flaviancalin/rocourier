@@ -10,6 +10,7 @@ import { cargusGetPickupPoints } from "../services/cargus.server.js";
 import { glsGetPickupPoints    } from "../services/gls.server.js";
 import { packetaGetPickupPoints, packetaCredentials } from "../services/packeta.server.js";
 import { dpdGetPickupPoints } from "../services/dpd.server.js";
+import { isAlwaysOpen } from "../utils/pickup-schedule.js";
 
 const CACHE_TTL_HOURS = 24;
 
@@ -122,8 +123,13 @@ export async function getPickupPoints({
 // This is orders of magnitude faster than N individual upserts.
 async function bulkReplace(courier, rows) {
   if (rows.length === 0) return;
-  await prisma.pickupPoint.deleteMany({ where: { courier } });
-  await prisma.pickupPoint.createMany({ data: rows, skipDuplicates: true });
+  // Prisma wants Json fields left out (not null) when there is no value
+  const data = rows.map(({ schedule, ...r }) => (Array.isArray(schedule) ? { ...r, schedule } : r));
+  // One transaction: if the insert fails, the courier keeps its old points instead of none
+  await prisma.$transaction(async (tx) => {
+    await tx.pickupPoint.deleteMany({ where: { courier } });
+    await tx.pickupPoint.createMany({ data, skipDuplicates: true });
+  }, { maxWait: 10000, timeout: 180000 });
 }
 
 export async function refreshPickupPointsCache({ couriers = ["fan", "sameday", "cargus", "gls", "packeta", "dpd"] } = {}) {
@@ -272,5 +278,8 @@ export function formatForWidget(points) {
       county: p.county,
       lat: p.lat,
       lng: p.lng,
+      // "24/7", or 7 entries Mon..Sun ("HH:MM-HH:MM" / null = closed); absent when unknown
+      ...(Array.isArray(p.schedule) ? { hours: isAlwaysOpen(p.schedule) ? "24/7" : p.schedule } : {}),
+      ...(typeof p.cardAtPickup === "boolean" ? { card: p.cardAtPickup } : {}),
     }));
 }

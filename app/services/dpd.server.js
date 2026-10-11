@@ -7,6 +7,7 @@
 // Lockers: DPD offices have type "OFFICE" or "APT" (APT = DPDbox locker). Both are
 // self-collection points; the recipient is set with `pickupOfficeId` instead of an address.
 import { normalizeName, normalizeRoPhone, normalizeRoCounty, parseRoStreet } from "../utils/address.js";
+import { dpdSchedule } from "../utils/pickup-schedule.js";
 
 const DPD_BASE = (process.env.DPD_API_BASE || "https://api.dpd.ro/v1").replace(/\/$/, "");
 export const DPD_COUNTRY_RO = 642;
@@ -111,6 +112,8 @@ export function officeToPickupPoint(o) {
     lng: typeof a.x === "number" ? a.x : null,
     type: o.type === "APT" ? "dpdbox" : "dpd_office",
     country: "ro",
+    schedule: dpdSchedule(o),
+    cardAtPickup: typeof o.cardPaymentAllowed === "boolean" ? o.cardPaymentAllowed : null,
   };
 }
 

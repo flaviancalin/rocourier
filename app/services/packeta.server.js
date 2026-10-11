@@ -5,6 +5,7 @@
 // Points and Z-BOXes are delivered by Packeta (Packeta label). Home delivery goes through a
 // carrier chosen by `addressId` (RO: 4161 "best carrier") and prints the carrier's label.
 import { normalizeRoPhone, parseRoStreet } from "../utils/address.js";
+import { packetaSchedule } from "../utils/pickup-schedule.js";
 
 const REST_URL = "https://www.zasilkovna.cz/api/rest";
 const FEED_BASE = "https://pickup-point.api.packeta.com/v5";
@@ -107,6 +108,8 @@ export function pointToRow(b, type) {
     zip: b.zip || null,
     lat: Number.parseFloat(b.latitude) || null,
     lng: Number.parseFloat(b.longitude) || null,
+    schedule: packetaSchedule(b.openingHours),
+    cardAtPickup: b.creditCardPayment == null ? null : String(b.creditCardPayment) === "yes",
   };
 }
 

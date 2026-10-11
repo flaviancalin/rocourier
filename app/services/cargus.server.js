@@ -5,6 +5,7 @@
 // Auth: POST /LoginUser → Bearer token (valid 24h)
 // Headers: Ocp-Apim-Subscription-Key (from Azure portal — subscribe to StandardUrgentOnlineAPI)
 // Contact: urgentcargus.developer.azure-api.net for API access
+import { cargusSchedule } from "../utils/pickup-schedule.js";
 
 const CARGUS_BASE = "https://urgentcargus.azure-api.net/api";
 
@@ -126,6 +127,8 @@ export async function cargusGetPickupPoints({ subscriptionKey, username, passwor
     zip: p.PostalCode || p.CodPostal || null,
     lat: parseFloat(p.Latitude) || null,
     lng: parseFloat(p.Longitude) || null,
+    schedule: cargusSchedule(p),
+    cardAtPickup: p.AcceptedPaymentType ? !!p.AcceptedPaymentType.Card : null,
   }));
 }
 

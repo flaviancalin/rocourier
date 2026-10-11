@@ -397,6 +397,8 @@ model PickupPoint {
   lat        Float?
   lng        Float?
   type       String?  // "fanbox" | "easybox" | "pudo" | "packeta_point" | "zbox"
+  schedule     Json?    // 7 entries Mon..Sun: "HH:MM-HH:MM" or null (closed); null = unknown
+  cardAtPickup Boolean? // card payment possible at the point; null = unknown
   isActive   Boolean  @default(true)
   updatedAt  DateTime @updatedAt
 

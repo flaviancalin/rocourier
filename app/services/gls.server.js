@@ -7,6 +7,7 @@
 // Contact: GLS Romania (gls-romania.ro) to obtain credentials and ClientNumber
 
 import { createHash } from "crypto";
+import { glsSchedule } from "../utils/pickup-schedule.js";
 
 const GLS_PROD    = "https://api.mygls.ro/ParcelService.svc/json";
 const GLS_SANDBOX = "https://api.test.mygls.ro/ParcelService.svc/json";
@@ -403,6 +404,8 @@ export async function glsGetPickupPoints() {
       zip: s.contact?.postalCode || null,
       lat: Array.isArray(s.location) ? (parseFloat(s.location[0]) || null) : null,
       lng: Array.isArray(s.location) ? (parseFloat(s.location[1]) || null) : null,
+      schedule: glsSchedule(s.hours),
+      cardAtPickup: null, // the GLS feed does not say
     }))
     // Drop points with missing or out-of-Europe coordinates (bad data in GLS's own DB).
     // Bounds cover all GLS markets incl. Canary Islands (lat ~28, lng ~-16) and Cyprus (lat ~35, lng ~34).

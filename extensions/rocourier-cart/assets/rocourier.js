@@ -42,6 +42,7 @@
       eta_cutoff:        "Comandă în {time} și coletul pleacă azi",
       months:            "ian.,feb.,mar.,apr.,mai,iun.,iul.,aug.,sept.,oct.,nov.,dec.",
       days:              "duminică,luni,marți,miercuri,joi,vineri,sâmbătă",
+      f_sat: "Deschis sâmbătă", f_sun: "Deschis duminică", f_card: "Plată cu cardul", open_247: "Non-stop", closed: "închis", wd_short: "L,Ma,Mi,J,V,S,D", card_ok: "Card la ridicare",
     },
     en: {
       free:              "Free",
@@ -70,6 +71,7 @@
       eta_cutoff:        "Order within {time} and it ships today",
       months:            "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec",
       days:              "Sunday,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday",
+      f_sat: "Open Saturday", f_sun: "Open Sunday", f_card: "Card payment", open_247: "Open 24/7", closed: "closed", wd_short: "Mo,Tu,We,Th,Fr,Sa,Su", card_ok: "Card on pickup",
     },
     de: {
       free:              "Kostenlos",
@@ -98,6 +100,7 @@
       eta_cutoff:        "Bestelle in {time} und es geht heute raus",
       months:            "Jan.,Feb.,März,Apr.,Mai,Juni,Juli,Aug.,Sept.,Okt.,Nov.,Dez.",
       days:              "Sonntag,Montag,Dienstag,Mittwoch,Donnerstag,Freitag,Samstag",
+      f_sat: "Samstags offen", f_sun: "Sonntags offen", f_card: "Kartenzahlung", open_247: "Rund um die Uhr", closed: "geschlossen", wd_short: "Mo,Di,Mi,Do,Fr,Sa,So", card_ok: "Kartenzahlung bei Abholung",
     },
     hu: {
       free:              "Ingyenes",
@@ -126,6 +129,7 @@
       eta_cutoff:        "Rendelj {time} belül, és ma feladjuk",
       months:            "jan.,febr.,márc.,ápr.,máj.,jún.,júl.,aug.,szept.,okt.,nov.,dec.",
       days:              "vasárnap,hétfő,kedd,szerda,csütörtök,péntek,szombat",
+      f_sat: "Szombaton nyitva", f_sun: "Vasárnap nyitva", f_card: "Kártyás fizetés", open_247: "Éjjel-nappal", closed: "zárva", wd_short: "H,K,Sze,Cs,P,Szo,V", card_ok: "Kártya átvételkor",
     },
     cs: {
       free:              "Zdarma",
@@ -154,6 +158,7 @@
       eta_cutoff:        "Objednejte do {time} a odešleme dnes",
       months:            "led.,ún.,bře.,dub.,kvě.,čvn.,čvc.,srp.,zář.,říj.,lis.,pro.",
       days:              "neděle,pondělí,úterý,středa,čtvrtek,pátek,sobota",
+      f_sat: "Otevřeno v sobotu", f_sun: "Otevřeno v neděli", f_card: "Platba kartou", open_247: "Nonstop", closed: "zavřeno", wd_short: "Po,Út,St,Čt,Pá,So,Ne", card_ok: "Karta při vyzvednutí",
     },
   };
 
@@ -205,6 +210,7 @@
         if (widgetLanguage && widgetLanguage !== "auto" && STRINGS[widgetLanguage] && widgetLanguage !== lang) {
           lang = widgetLanguage;
           translateUI();
+          if (pointsLoaded) { renderExtraFilters(); applyFilters(); }
         }
         if (freeShipping) FREE = { threshold: Number(freeShipping.threshold) || 0, scope: freeShipping.scope || "all" };
         if (eta) ETA = eta;
@@ -414,6 +420,7 @@
     let filtered         = [];
     let selectedPoint    = null;   // chosen pickup point object
     let currentFilter    = "all";
+    const extraFilters   = { sat: false, sun: false, card: false }; // weekend opening / card at pickup
     let mapInst          = null;
     let clusterGroup     = null;
     let mapReady         = false;
@@ -762,6 +769,7 @@
           document.querySelector(".rc-filter-btn[data-courier='all']")?.classList.add("rc-filter-active");
         }
 
+        renderExtraFilters();
         applyFilters();
         if (mapInst) { mapInst.invalidateSize(); renderMarkers(filtered); }
       } catch (err) {
@@ -798,12 +806,70 @@
     }
 
     // ── Filters ────────────────────────────────────────────────────────────────
+    // ── Opening hours & card filters ───────────────────────────────────────────
+    // p.hours: "24/7" or 7 entries Mon..Sun ("HH:MM-HH:MM" / null = closed); absent = unknown
+    function openOnDay(p, i) {
+      if (p.hours === "24/7") return true;
+      return Array.isArray(p.hours) && !!p.hours[i];
+    }
+    function shortTime(t) { return String(t).replace(/:00\b/g, "").replace("-", "–"); }
+    function hoursSummary(p) {
+      if (p.hours === "24/7") return t("open_247");
+      if (!Array.isArray(p.hours)) return "";
+      const names = t("wd_short").split(",");
+      const parts = [];
+      for (let i = 0; i < 7;) {
+        let j = i;
+        while (j + 1 < 7 && p.hours[j + 1] === p.hours[i]) j++;
+        const label = i === j ? names[i] : `${names[i]}–${names[j]}`;
+        parts.push(`${label} ${p.hours[i] ? shortTime(p.hours[i]) : t("closed")}`);
+        i = j + 1;
+      }
+      return parts.join(" · ");
+    }
+    function pointMeta(p) {
+      const h = hoursSummary(p);
+      const bits = [];
+      if (h) bits.push(`<span class="rc-item-hours">${esc(h)}</span>`);
+      if (p.card === true) bits.push(`<span class="rc-item-card">${esc(t("card_ok"))}</span>`);
+      return bits.length ? `<span class="rc-item-meta">${bits.join("")}</span>` : "";
+    }
+    // Chips appear only when the loaded points carry the data behind them
+    function renderExtraFilters() {
+      if (!filtersPanel) return;
+      let box = document.getElementById("rc-extra-filters");
+      const hasHours = allPoints.some((p) => p.hours);
+      const hasCard = allPoints.some((p) => p.card === true);
+      if (!hasHours && !hasCard) { if (box) box.remove(); return; }
+      if (!box) {
+        box = document.createElement("div");
+        box.id = "rc-extra-filters";
+        box.className = "rc-extra-filters";
+        filtersPanel.appendChild(box);
+      }
+      const chips = [];
+      if (hasHours) chips.push(["sat", t("f_sat")], ["sun", t("f_sun")]);
+      if (hasCard) chips.push(["card", t("f_card")]);
+      box.innerHTML = chips.map(([k, label]) =>
+        `<button type="button" class="rc-chip${extraFilters[k] ? " rc-chip-on" : ""}" data-extra="${k}" aria-pressed="${extraFilters[k]}">${esc(label)}</button>`).join("");
+      box.querySelectorAll(".rc-chip").forEach((b) => b.addEventListener("click", () => {
+        const k = b.dataset.extra;
+        extraFilters[k] = !extraFilters[k];
+        b.classList.toggle("rc-chip-on", extraFilters[k]);
+        b.setAttribute("aria-pressed", String(extraFilters[k]));
+        applyFilters();
+      }));
+    }
+
     function applyFilters() {
       const raw   = (searchInput?.value || "").toLowerCase().trim();
       // Split into words (≥2 chars), every word must match at least one field
       const words = raw ? raw.split(/\s+/).filter((w) => w.length >= 2) : [];
       filtered = allPoints.filter((p) => {
         if (currentFilter !== "all" && p.courier !== currentFilter) return false;
+        if (extraFilters.sat && !openOnDay(p, 5)) return false;
+        if (extraFilters.sun && !openOnDay(p, 6)) return false;
+        if (extraFilters.card && p.card !== true) return false;
         if (!words.length) return true;
         const haystack = [p.name, p.address, p.city, p.county]
           .map((s) => (s || "").toLowerCase()).join(" ");
@@ -886,6 +952,7 @@
           </div>
           <strong class="rc-item-name">${esc(p.name)}</strong>
           <span class="rc-item-addr">${esc(p.address)}</span>
+          ${pointMeta(p)}
           <button type="button" class="rc-item-btn ${isSel ? "rc-item-btn-sel" : ""}" style="${isSel ? "" : `background:${cfg.color}`}">
             ${isSel ? t("selected") : t("choose")}
           </button>
@@ -1077,7 +1144,8 @@
             `<div style="min-width:170px;font-family:inherit">
               ${logoHtml}
               <div style="font-weight:600;margin-bottom:3px">${esc(p.name)}</div>
-              <div style="font-size:12px;color:#666;margin-bottom:9px">${esc(p.address)}</div>
+              <div style="font-size:12px;color:#666;margin-bottom:6px">${esc(p.address)}</div>
+              ${hoursSummary(p) ? `<div style="font-size:12px;color:#444;margin-bottom:9px">${esc(hoursSummary(p))}${p.card === true ? ` · ${esc(t("card_ok"))}` : ""}</div>` : ""}
               <button onclick="window.__rcPick('${p.id}')" style="width:100%;padding:7px 0;background:${cfg.markerColor};color:${p.courier === "gls" ? "#003591" : "#fff"};border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">
                 ${isSel ? t("selected") : t("select_map")}
               </button>

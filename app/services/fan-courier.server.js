@@ -4,6 +4,7 @@
 // Contact for contract: sales.bucuresti@fancourier.ro
 // Contact for API access: selfawb@fancourier.ro
 // Sandbox (public test): clientId=7032158, user=clienttest, pass=testing
+import { fanSchedule } from "../utils/pickup-schedule.js";
 
 const FAN_BASE = process.env.FAN_API_BASE || "https://api.fancourier.ro";
 
@@ -149,6 +150,8 @@ export async function fanGetPickupPoints({ clientId, username, password }) {
       zip:        zip || null,
       lat:        parseFloat(p.latitude)  || null,
       lng:        parseFloat(p.longitude) || null,
+      schedule:   fanSchedule(p.schedule),
+      cardAtPickup: Array.isArray(p.paymentMethods) ? p.paymentMethods.includes("card") : null,
     };
   });
 }
