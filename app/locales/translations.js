@@ -89,6 +89,7 @@ export const T = {
     nav_pickup_points: "Puncte de ridicare",
     nav_settings: "Setări",
     nav_widget: "Widget sertar",
+    nav_whatsapp: "Confirmare WhatsApp",
 
     // ── Statuses ─────────────────────────────────────────────────────────────
     status_pending:          "În așteptare",
@@ -671,6 +672,7 @@ export const T = {
     nav_pickup_points: "Pickup Points",
     nav_settings: "Settings",
     nav_widget: "Widget Drawer",
+    nav_whatsapp: "WhatsApp confirmation",
 
     status_pending:          "Pending",
     status_generated:        "AWB generated",
@@ -1226,6 +1228,7 @@ export const T = {
     nav_pickup_points: "Abholpunkte",
     nav_settings: "Einstellungen",
     nav_widget: "Schublade-Widget",
+    nav_whatsapp: "WhatsApp-Bestätigung",
 
     status_pending:          "Ausstehend",
     status_generated:        "AWB erstellt",
@@ -1781,6 +1784,7 @@ export const T = {
     nav_pickup_points: "Átvételi pontok",
     nav_settings: "Beállítások",
     nav_widget: "Fiók widget",
+    nav_whatsapp: "WhatsApp megerősítés",
 
     status_pending:          "Függőben",
     status_generated:        "AWB létrehozva",
@@ -2336,6 +2340,7 @@ export const T = {
     nav_pickup_points: "Výdejní místa",
     nav_settings: "Nastavení",
     nav_widget: "Widget zásuvky",
+    nav_whatsapp: "Potvrzení přes WhatsApp",
 
     status_pending:          "Čekající",
     status_generated:        "AWB vytvořen",

@@ -1,7 +1,7 @@
 // app/routes/app._index.jsx
 // Main Dashboard — stats overview + recent orders
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { boundary } from "@shopify/shopify-app-remix/server";
 import { json } from "@remix-run/node";
 import { useLoaderData, useNavigate } from "@remix-run/react";
@@ -20,6 +20,7 @@ import {
   InlineStack,
   Divider,
   EmptyState,
+  Banner,
 } from "@shopify/polaris";
 import { useTranslation } from "../context/i18n.jsx";
 
@@ -43,7 +44,7 @@ export async function loader({ request }) {
     getDashboardStats(session.shop),
   ]);
 
-  return json({ orders, total, totalPages, page, stats, setupRequired: false });
+  return json({ orders, total, totalPages, page, stats, setupRequired: false, whatsappOn: !!(settings.whatsappConfirm && settings.whatsappPhone), shop: session.shop });
 }
 
 // ─── Static courier config ───────────────────────────────────────────────────
@@ -112,7 +113,12 @@ function StatCard({ label, value, sub, accent }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const { orders, stats, setupRequired } = useLoaderData();
+  const { orders, stats, setupRequired, whatsappOn, shop } = useLoaderData();
+  // Announcement for the WhatsApp confirmation; each state can be dismissed once
+  const waKey = whatsappOn ? "picklo-wa-block-hint" : "picklo-wa-intro";
+  const [waHidden, setWaHidden] = useState(true);
+  useEffect(() => { try { setWaHidden(localStorage.getItem(waKey) === "1"); } catch (_) { setWaHidden(false); } }, [waKey]);
+  const hideWa = () => { setWaHidden(true); try { localStorage.setItem(waKey, "1"); } catch (_) {} };
   const navigate = useNavigate();
   const { t, lang } = useTranslation();
 
@@ -163,6 +169,22 @@ export default function Dashboard() {
       }]}
     >
       <Layout>
+
+        {!waHidden && (
+          <Layout.Section>
+            {whatsappOn ? (
+              <Banner tone="info" title="Ai adăugat blocul de confirmare pe pagina de mulțumire?" onDismiss={hideWa}
+                action={{ content: "Deschide editorul", url: `https://${shop}/admin/settings/checkout/editor?page=thank-you&context=apps`, target: "_top" }}>
+                <p>Confirmarea pe WhatsApp e pornită. Ca să apară clienților, adaugă o singură dată blocul „Confirmare WhatsApp” din editor (Adaugă bloc → Aplicații).</p>
+              </Banner>
+            ) : (
+              <Banner tone="info" title="Nou: clienții confirmă comanda pe WhatsApp, gratuit" onDismiss={hideWa}
+                action={{ content: "Configurează", onAction: () => navigate("/app/whatsapp") }}>
+                <p>După comandă, clientul apasă un buton pe pagina de mulțumire și îți trimite confirmarea pe WhatsApp Business. Mai puține colete refuzate, fără cost pe mesaj, pe orice plan Shopify.</p>
+              </Banner>
+            )}
+          </Layout.Section>
+        )}
 
         {/* ── Stats row ─────────────────────────────────────────────────── */}
         <Layout.Section>

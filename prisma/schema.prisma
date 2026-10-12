@@ -191,6 +191,16 @@ model ShopSettings {
 
   // ── Returns ──────────────────────────────────────────────────────────────
   returnsEnabled         Boolean @default(false)
+  // Order confirmation on WhatsApp: a button on the Thank you page opens the merchant's
+  // own WhatsApp Business chat with a prefilled message (no Meta API, no cost per message)
+  whatsappConfirm        Boolean @default(false)
+  whatsappPhone          String?  // international digits, e.g. 40761034629
+  whatsappName           String?  // shown on the block, e.g. "AMA Beauty"
+  whatsappTitle          String?
+  whatsappText           String?
+  whatsappButton         String?
+  whatsappMessage        String?  // prefilled chat text; {cod} {magazin} {total}
+  whatsappCodOnly        Boolean @default(true)
   returnsWindowDays      Int     @default(14)
   returnsCourier         String?                   // courier used for return AWBs
   returnsInstructions    String?
@@ -333,6 +343,8 @@ model Order {
   invoiceReverseNumber String? // storno document number
   invoiceIssuedAt   DateTime?
   financialStatus   String?   // Shopify financial status (paid, pending, refunded…)
+  confirmationNumber String?  // Shopify's order confirmation code, shown on the Thank you page
+  customerConfirmedAt DateTime? // customer confirmed the order (e.g. on WhatsApp)
   shopifyCancelledAt DateTime?
 
   // B2B (company on the order) — invoices go to the company

@@ -20,6 +20,7 @@ const ORDERS_QUERY = `
         phone
         createdAt
         displayFinancialStatus
+        confirmationNumber
         totalPriceSet { shopMoney { amount } } totalOutstandingSet { shopMoney { amount } }
         totalWeight
         customer { firstName lastName }
@@ -43,6 +44,7 @@ function toWebhookPayload(o) {
     total_price: o.totalPriceSet?.shopMoney?.amount,
     total_outstanding: o.totalOutstandingSet?.shopMoney?.amount,
     financial_status: o.displayFinancialStatus ? o.displayFinancialStatus.toLowerCase() : null,
+    confirmation_number: o.confirmationNumber || null,
     phone: o.phone,
     note_attributes: (o.customAttributes || []).map((a) => ({ name: a.key, value: a.value })),
     shipping_lines: line ? [line] : [],

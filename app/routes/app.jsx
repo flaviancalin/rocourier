@@ -36,6 +36,7 @@ function AppLayout() {
         <Link to="/app/orders">{t("nav_orders")}</Link>
         <Link to="/app/ship-today">{t("nav_ship_today")}</Link>
         <Link to="/app/returns">{t("nav_returns")}</Link>
+        <Link to="/app/whatsapp">{t("nav_whatsapp")}</Link>
         <Link to="/app/cod">{t("nav_cod")}</Link>
         <Link to="/app/reports">{t("nav_reports")}</Link>
         <Link to="/app/settings">{t("nav_settings")}</Link>

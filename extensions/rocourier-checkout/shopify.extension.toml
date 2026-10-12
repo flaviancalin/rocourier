@@ -13,3 +13,11 @@ target = "purchase.checkout.shipping-option-item.render-after"
 [[extensions.targeting]]
 module = "./src/ThankYou.jsx"
 target = "purchase.thank-you.customer-information.render-after"
+
+[[extensions.targeting]]
+module = "./src/WhatsAppConfirm.jsx"
+target = "purchase.thank-you.block.render"
+
+[[extensions.targeting.metafields]]
+namespace = "$app:picklo"
+key = "whatsapp_confirm"

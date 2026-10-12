@@ -74,6 +74,7 @@ export async function upsertOrderFromWebhook(shop, shopifyOrder) {
     weight: weightKg > 0 ? weightKg : undefined,
     awbStatus: "pending",
     financialStatus: shopifyOrder.financial_status || null,
+    confirmationNumber: shopifyOrder.confirmation_number || null,
     shopifyCreatedAt: new Date(shopifyOrder.created_at),
   };
 
@@ -87,6 +88,7 @@ export async function upsertOrderFromWebhook(shop, shopifyOrder) {
       pickupPointAddress: data.pickupPointAddress,
       codAmount: data.codAmount,
       financialStatus: data.financialStatus,
+      ...(data.confirmationNumber ? { confirmationNumber: data.confirmationNumber } : {}),
       customerCompany: data.customerCompany,
       customerVatCode: data.customerVatCode,
       ...(weightKg > 0 ? { weight: weightKg } : {}),

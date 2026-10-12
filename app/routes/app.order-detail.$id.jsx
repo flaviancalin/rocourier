@@ -31,7 +31,7 @@ export async function loader({ request, params }) {
   const [warnings, activity, returns] = await Promise.all([
     order.awbNumber ? [] : orderWarnings(session.shop, order, settings),
     listActivity(session.shop, { orderId: order.id, take: 30 }),
-    prisma.returnRequest.findMany({ where: { shop: session.shop, orderId: order.id }, orderBy: { createdAt: "desc" } }),
+    prisma.returnRequest.findMany({ where: { shop: session.shop, orderId: order.id }, orderBy: { createdAt: "desc" }, omit: { returnLabelRef: true } }),
   ]);
   // Routing rules suggest a courier for the AWB wizard
   const suggestedCourier = order.awbNumber ? null : courierFromRules({ ...settings, routingRules: settings?.routingRules }, order);
@@ -157,6 +157,8 @@ export default function OrderDetail() {
   const [generating, setGenerating]   = useState(false);
   const [tracking, setTracking]       = useState(false);
   const [deleting, setDeleting]       = useState(false);
+  const [confirmedAt, setConfirmedAt] = useState(order.customerConfirmedAt || null);
+  const [confirming, setConfirming]   = useState(false);
   const [trackEvents, setTrackEvents] = useState(order.events || []);
   const [wizardOpen, setWizardOpen]   = useState(false);
   const [wizardStep, setWizardStep]   = useState(1);
@@ -348,6 +350,25 @@ export default function OrderDetail() {
       setError(e.message);
     } finally {
       setGenerating(false);
+    }
+  }
+
+  // ── Customer confirmation (WhatsApp) ───────────────────────────────────────
+  async function toggleConfirmed() {
+    setConfirming(true);
+    try {
+      const res = await fetch("/api/order-confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id, confirmed: !confirmedAt }),
+      });
+      const data = await res.json();
+      if (data.success) setConfirmedAt(data.customerConfirmedAt);
+      else setError(data.error || "Nu am putut salva confirmarea");
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setConfirming(false);
     }
   }
 
@@ -873,6 +894,15 @@ export default function OrderDetail() {
                       : `🚚 ${t("home_delivery")}`
                   } />
                   <DetailRow label={t("cod_label")} value={order.codAmount > 0 ? `${order.codAmount.toFixed(2)} RON` : t("paid_online")} />
+                  <DetailRow label="Confirmare client" value={
+                    <InlineStack gap="200" blockAlign="center" wrap>
+                      {confirmedAt
+                        ? <Badge tone="success">{`Confirmată · ${new Date(confirmedAt).toLocaleDateString("ro-RO")}`}</Badge>
+                        : <Badge>Neconfirmată</Badge>}
+                      {order.confirmationNumber && <Text tone="subdued">{`Cod: ${order.confirmationNumber}`}</Text>}
+                      <Button size="slim" onClick={toggleConfirmed} loading={confirming}>{confirmedAt ? "Anulează confirmarea" : "Marchează confirmată"}</Button>
+                    </InlineStack>
+                  } />
                   <DetailRow label={t("weight_label")} value={`${order.weight || 1} kg`} />
                   {order.shippingCost != null && <DetailRow label="Cost transport (curier)" value={`${order.shippingCost.toFixed(2)} RON`} />}
                   {order.codCollectedAt && <DetailRow label="Ramburs încasat" value={`${(order.codCollectedAmount ?? 0).toFixed(2)} RON · ${new Date(order.codCollectedAt).toLocaleDateString("ro-RO")}`} />}
