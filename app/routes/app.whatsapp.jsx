@@ -151,7 +151,7 @@ export default function WhatsAppPage() {
                 <Divider />
                 <Text fontWeight="semibold">Ultimul pas: adaugă blocul pe pagina de mulțumire</Text>
                 <Button url={editorUrl} target="_top" variant="primary">Deschide pagina de mulțumire în editor</Button>
-                <Text tone="subdued" variant="bodySm">În editor: Adaugă bloc → Aplicații → „Confirmare WhatsApp”. Pune-l sus, sub mesajul de mulțumire, ca să se vadă imediat. Apoi apasă Salvează în editor.</Text>
+                <Text tone="subdued" variant="bodySm">În editor: Adaugă bloc → Aplicații → „Picklo Checkout” (blocul cu butonul de WhatsApp). Pune-l sus, sub mesajul de mulțumire, ca să se vadă imediat. Apoi apasă Salvează în editor.</Text>
               </BlockStack>
             </Card>
             <Card>

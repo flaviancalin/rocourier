@@ -175,7 +175,7 @@ export default function Dashboard() {
             {whatsappOn ? (
               <Banner tone="info" title="Ai adăugat blocul de confirmare pe pagina de mulțumire?" onDismiss={hideWa}
                 action={{ content: "Deschide editorul", url: `https://${shop}/admin/settings/checkout/editor?page=thank-you&context=apps`, target: "_top" }}>
-                <p>Confirmarea pe WhatsApp e pornită. Ca să apară clienților, adaugă o singură dată blocul „Confirmare WhatsApp” din editor (Adaugă bloc → Aplicații).</p>
+                <p>Confirmarea pe WhatsApp e pornită. Ca să apară clienților, adaugă o singură dată blocul din editor: Adaugă bloc → Aplicații → „Picklo Checkout”.</p>
               </Banner>
             ) : (
               <Banner tone="info" title="Nou: clienții confirmă comanda pe WhatsApp, gratuit" onDismiss={hideWa}
