@@ -321,8 +321,8 @@ export async function action({ request }) {
     let styleResult = null;
     const styleChanged = data.checkoutStyle && data.checkoutStyle !== settingsBefore?.checkoutStyle;
     try {
-      if (styleChanged && settingsBefore?.checkoutMode) {
-        // Checkout already set up: switch it to the new style right away
+      if (styleChanged) {
+        // The merchant picked what checkout should show: apply it right away
         styleResult = await setupCheckout(admin, session.shop);
         ratesSynced = true;
       } else {
@@ -608,7 +608,7 @@ export default function Settings() {
       autoAwbMarkShipped, autoAwbNotifyCustomer, autoInvoiceOnDelivered, onCancelDeleteAwb, onRefundReverseInvoice, onDeliveredMarkPaid, onReturnedCancelOrder, statusTags, copyCustomerPhone, autoAwbFilter, onCancelInvoice, onReturnedInvoice,
       fanHomeDeliveryFee, fanPickupFee, samedayHomeDeliveryFee, samedayPickupFee,
       cargusHomeDeliveryFee, cargusPickupFee, glsHomeDeliveryFee, glsPickupFee,
-      packetaHomeDeliveryFee, packetaPickupFee, lockerCount,
+      packetaHomeDeliveryFee, packetaPickupFee, lockerCount, checkoutStyle,
       smartbillEnabled, smartbillEmail, smartbillToken, smartbillCompanyCIF, smartbillSeries, smartbillTVA, smartbillCurrency,
       oblioEnabled, oblioEmail, oblioSecret, oblioCIF, oblioSeries, oblioTVA, oblioCurrency,
       invoiceProvider, autoSendInvoice, autoInvoiceOnFulfill,
