@@ -109,3 +109,11 @@ test("gls: the label byte array from PrintLabels is stored as real PDF base64", 
     assert.equal(r.parcelId, 9);
   } finally { m.restore(); }
 });
+
+test("gls: Unauthorized (-1) fails the connection test and explains what to check", async () => {
+  const { glsTestConnection } = await import("../app/services/gls.server.js");
+  const m = mockFetch(() => [200, { GetParcelStatusErrors: [{ ErrorCode: -1, ErrorDescription: "Unauthorized." }] }]);
+  try {
+    await assert.rejects(glsTestConnection({ username: "office@shop.ro", password: "x" }), /GLS a refuzat autentificarea/);
+  } finally { m.restore(); }
+});

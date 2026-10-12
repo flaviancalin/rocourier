@@ -43,6 +43,9 @@ const GLS_COUNTRIES = (process.env.GLS_COUNTRIES || process.env.GLS_SHIPIT_COUNT
       .split(",").map((c) => c.trim().toLowerCase()).filter(Boolean)
   : GLS_ALL_EU_COUNTRIES;
 
+// MyGLS answers -1 "Unauthorized" for a wrong user/password and for users without API rights
+export const GLS_UNAUTHORIZED = "GLS a refuzat autentificarea (Unauthorized). Verifică în Setări → GLS userul (emailul de MyGLS) și parola. Dacă sunt corecte, utilizatorul nu are drept de API: cere la GLS (suport@gls-romania.ro) activarea accesului API pentru el sau un utilizator API separat.";
+
 function getBase(sandbox = false) {
   return sandbox ? GLS_SANDBOX : GLS_PROD;
 }
@@ -99,7 +102,9 @@ async function glsRequest(base, method, body) {
     const first = errorList[0];
     const code = first.ErrorCode ?? first.Code ?? 0;
     if (code !== 0) {
-      throw new Error(`GLS API error ${code}: ${first.ErrorDescription || first.Description || JSON.stringify(first)}`);
+      const desc = first.ErrorDescription || first.Description || JSON.stringify(first);
+      if (code === -1 || /unauthori[sz]ed/i.test(desc)) throw new Error(GLS_UNAUTHORIZED);
+      throw new Error(`GLS API error ${code}: ${desc}`);
     }
   }
 
@@ -125,11 +130,11 @@ export async function glsTestConnection({ username, password, sandbox = false })
     });
   } catch (e) {
     // ErrorCode 1 = wrong credentials; anything else (e.g. parcel not found) means auth passed
-    if (e.message.includes("GLS API error 1:") ||
+    if (e.message === GLS_UNAUTHORIZED || e.message.includes("GLS API error 1:") ||
         e.message.toLowerCase().includes("password") ||
         e.message.toLowerCase().includes("credentials") ||
         e.message.includes("[401]") || e.message.includes("[403]")) {
-      throw new Error(`GLS credentials invalid: ${e.message}`);
+      throw new Error(e.message === GLS_UNAUTHORIZED ? e.message : `GLS credentials invalid: ${e.message}`);
     }
     // Non-auth error = credentials are fine
   }

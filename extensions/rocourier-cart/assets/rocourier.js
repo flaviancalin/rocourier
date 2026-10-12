@@ -215,7 +215,7 @@
         // Couriers enabled in the app win over the theme block checkboxes: the server only
         // serves points (and checkout only charges) for those, so the widget must match
         if (Array.isArray(couriers) && couriers.length) {
-          Object.keys(COURIERS).forEach((c) => { ENABLED[c] = couriers.includes(c); });
+          Object.keys(COURIERS).forEach((c) => { APP[c] = couriers.includes(c); });
           applyEnabledCouriers();
         }
         if (widgetLanguage && widgetLanguage !== "auto" && STRINGS[widgetLanguage] && widgetLanguage !== lang) {
@@ -231,7 +231,7 @@
           Object.keys(fees).forEach((c) => {
             if (FEES[c]) FEES[c] = { home: Number(fees[c].home) || 0, pickup: Number(fees[c].pickup) || 0 };
           });
-          const wasDefault = _method === "home_delivery" && (_courier === defaultCourier || !ENABLED[_courier]);
+          const wasDefault = _method === "home_delivery" && (_courier === defaultCourier || !homeOn(_courier));
           defaultCourier = cheapestHomeCourier();
           if (wasDefault) onHomeSelected();
           else if (_method === "home_delivery" && homeFeeEl) homeFeeEl.textContent = feeLabel(feeFor(_courier, "home"));
@@ -241,22 +241,37 @@
       .catch(() => {});
 
     // Which couriers are enabled (theme block first, then the app settings from widget-config)
-    const ENABLED = {};
+    // A courier shows up when it's set up in the app (APP) and the theme block allows it (MODE):
+    // "both" = home + lockers, "home" = home delivery only, "pickup" = lockers only, "off" = hidden
+    const APP = {};
+    const MODE = {};
     Object.keys(COURIERS).forEach((c) => {
-      ENABLED[c] = widget.dataset[c + "Enabled"] !== "false";
+      APP[c] = true; // until widget-config answers
+      const legacy = widget.dataset[c + "Enabled"];
+      MODE[c] = widget.dataset[c + "Mode"] || (legacy === "false" ? "off" : "both");
     });
+    const homeOn   = (c) => !!(c && APP[c] && (MODE[c] === "both" || MODE[c] === "home"));
+    const pickupOn = (c) => !!(c && APP[c] && (MODE[c] === "both" || MODE[c] === "pickup"));
 
     // Hide filter buttons and pickup labels of disabled couriers; runs again when the app settings arrive
     function applyEnabledCouriers() {
       document.querySelectorAll(".rc-filter-btn[data-courier]").forEach((btn) => {
         const c = btn.dataset.courier;
-        if (c && c !== "all") btn.style.display = ENABLED[c] ? "" : "none";
+        if (c && c !== "all") btn.style.display = pickupOn(c) ? "" : "none";
       });
       const sub = document.getElementById("rc-pickup-sub");
       if (sub) {
-        const names = Object.entries(COURIERS).filter(([c]) => ENABLED[c]).map(([, cfg]) => cfg.pickupLabel);
+        const names = Object.entries(COURIERS).filter(([c]) => pickupOn(c)).map(([, cfg]) => cfg.pickupLabel);
         sub.textContent = names.length ? names.join(", ") : t("pickup_sub_none");
       }
+      // Hide a delivery method no courier offers; if only one remains, it's the last row
+      const homeRow = document.getElementById("rc-home-row");
+      const pickupRow = document.getElementById("rc-pickup-row");
+      const anyHome = Object.keys(COURIERS).some(homeOn);
+      const anyPickup = Object.keys(COURIERS).some(pickupOn);
+      if (homeRow) homeRow.style.display = anyHome ? "" : "none";
+      if (pickupRow) pickupRow.style.display = anyPickup ? "" : "none";
+      if (homeRow) homeRow.classList.toggle("rc-row-last", anyHome && !anyPickup);
     }
     applyEnabledCouriers();
 
@@ -403,7 +418,7 @@
     const pickupSubEl = $("rc-pickup-sub");
     if (pickupSubEl) {
       const pickupNames = Object.entries(COURIERS)
-        .filter(([c]) => ENABLED[c])
+        .filter(([c]) => pickupOn(c))
         .map(([, cfg]) => cfg.pickupLabel);
       pickupSubEl.textContent = pickupNames.length
         ? pickupNames.join(", ")
@@ -453,7 +468,7 @@
     let _userMarker      = null;
 
     // Default courier for home delivery: the cheapest enabled one (App Store rule 1.1.10)
-    const cheapestHomeCourier = () => Object.keys(COURIERS).filter((c) => ENABLED[c]).reduce(
+    const cheapestHomeCourier = () => Object.keys(COURIERS).filter((c) => homeOn(c)).reduce(
       (best, c) => (best === null || FEES[c].home < FEES[best].home ? c : best), null);
     let defaultCourier = cheapestHomeCourier();
 
@@ -755,8 +770,13 @@
       if (listCount)   listCount.style.display    = "none";
 
       try {
-        const enabledWithPickup = Object.keys(COURIERS).filter((c) => ENABLED[c]);
-        const couriersParam = enabledWithPickup.join(",") || "all";
+        const enabledWithPickup = Object.keys(COURIERS).filter((c) => pickupOn(c));
+        // No courier offers lockers: nothing to load (never fall back to "all")
+        if (!enabledWithPickup.length) {
+          allPoints = []; pointsLoaded = true; applyFilters();
+          return;
+        }
+        const couriersParam = enabledWithPickup.join(",");
         // Send coordinates when available so the server applies a ~200km bounding box,
         // keeping the payload small for large countries (DE, PL) while still complete.
         // Without coords, all points for the country are returned.
@@ -780,7 +800,7 @@
         document.querySelectorAll(".rc-filter-btn[data-courier]").forEach((btn) => {
           const c = btn.dataset.courier;
           if (c && c !== "all") {
-            btn.style.display = (ENABLED[c] && couriersWithPoints.has(c)) ? "" : "none";
+            btn.style.display = (pickupOn(c) && couriersWithPoints.has(c)) ? "" : "none";
           }
         });
         // If the currently active filter courier has no points here, reset to "all"
@@ -1335,14 +1355,14 @@
       if (!method || !courier) return;
 
       if (method === "home_delivery") {
-        const c = courier || defaultCourier;
+        const c = homeOn(courier) ? courier : defaultCourier;
         if (c) {
           selectRow("home");
           if (homeFeeEl) homeFeeEl.textContent = feeLabel(feeFor(c, "home"));
           _method = "home_delivery"; _courier = c;
           _pid = _pname = _paddr = "";
         }
-      } else if (method === "pickup_point" && pid) {
+      } else if (method === "pickup_point" && pid && pickupOn(courier)) {
         selectRow("pickup");
         selectedPoint = { id: pid, externalId: pid, courier, name: pname, address: paddr };
         _method = "pickup_point"; _courier = courier;

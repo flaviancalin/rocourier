@@ -19,34 +19,22 @@
   data-currency="{{ cart.currency.iso_code | default: 'RON' }}"
   data-lang="{{ request.locale.iso_code | slice: 0, 2 | downcase }}"
   data-country="{{ localization.country.iso_code | downcase | default: 'ro' }}"
-  data-fan-enabled="{{ block.settings.fan_enabled }}"
-  data-fan-home-fee="{{ block.settings.fan_home_fee | default: 0 }}"
-  data-fan-pickup-fee="{{ block.settings.fan_pickup_fee | default: 0 }}"
+  data-fan-mode="{{ block.settings.fan_mode | default: 'both' }}"
   data-fan-logo="{{ 'logo-fan.svg' | asset_url }}"
   data-fan-pin="{{ 'pin-fan.png' | asset_url }}"
-  data-sameday-enabled="{{ block.settings.sameday_enabled }}"
-  data-sameday-home-fee="{{ block.settings.sameday_home_fee | default: 0 }}"
-  data-sameday-pickup-fee="{{ block.settings.sameday_pickup_fee | default: 0 }}"
+  data-sameday-mode="{{ block.settings.sameday_mode | default: 'both' }}"
   data-sameday-logo="{{ 'logo-sameday.svg' | asset_url }}"
   data-sameday-pin="{{ 'pin-sameday.png' | asset_url }}"
-  data-cargus-enabled="{{ block.settings.cargus_enabled }}"
-  data-cargus-home-fee="{{ block.settings.cargus_home_fee | default: 0 }}"
-  data-cargus-pickup-fee="{{ block.settings.cargus_pickup_fee | default: 0 }}"
+  data-cargus-mode="{{ block.settings.cargus_mode | default: 'both' }}"
   data-cargus-logo="{{ 'logo-cargus.svg' | asset_url }}"
   data-cargus-pin="{{ 'pin-cargus.png' | asset_url }}"
-  data-gls-enabled="{{ block.settings.gls_enabled }}"
-  data-gls-home-fee="{{ block.settings.gls_home_fee | default: 0 }}"
-  data-gls-pickup-fee="{{ block.settings.gls_pickup_fee | default: 0 }}"
+  data-gls-mode="{{ block.settings.gls_mode | default: 'both' }}"
   data-gls-logo="{{ 'logo-gls.svg' | asset_url }}"
   data-gls-pin="{{ 'pin-gls.png' | asset_url }}"
-  data-packeta-enabled="{{ block.settings.packeta_enabled }}"
-  data-packeta-home-fee="{{ block.settings.packeta_home_fee | default: 0 }}"
-  data-packeta-pickup-fee="{{ block.settings.packeta_pickup_fee | default: 0 }}"
+  data-packeta-mode="{{ block.settings.packeta_mode | default: 'both' }}"
   data-packeta-logo="{{ 'logo-packeta.svg' | asset_url }}"
   data-packeta-pin="{{ 'pin-packeta.png' | asset_url }}"
-  data-dpd-enabled="{{ block.settings.dpd_enabled }}"
-  data-dpd-home-fee="{{ block.settings.dpd_home_fee | default: 0 }}"
-  data-dpd-pickup-fee="{{ block.settings.dpd_pickup_fee | default: 0 }}"
+  data-dpd-mode="{{ block.settings.dpd_mode | default: 'both' }}"
   data-dpd-logo="{{ 'logo-dpd.svg' | asset_url }}"
   data-dpd-pin="{{ 'pin-dpd.png' | asset_url }}"
 >
@@ -155,32 +143,32 @@
       <!-- Courier filter chips -->
       <div class="rc-modal-filters" id="rc-type-filters">
         <button type="button" class="rc-filter-btn rc-filter-active" id="rc-filter-all" data-courier="all">Toate</button>
-        {%- if block.settings.fan_enabled -%}
+        {%- if block.settings.fan_mode != 'off' -%}
           <button type="button" class="rc-filter-btn" data-courier="fan">
             <img src="{{ 'logo-fan.svg' | asset_url }}" alt="FAN" class="rc-filter-logo" width="48" height="16">
           </button>
         {%- endif -%}
-        {%- if block.settings.sameday_enabled -%}
+        {%- if block.settings.sameday_mode != 'off' -%}
           <button type="button" class="rc-filter-btn" data-courier="sameday">
             <img src="{{ 'logo-sameday.svg' | asset_url }}" alt="Sameday" class="rc-filter-logo" width="48" height="16">
           </button>
         {%- endif -%}
-        {%- if block.settings.cargus_enabled -%}
+        {%- if block.settings.cargus_mode != 'off' -%}
           <button type="button" class="rc-filter-btn" data-courier="cargus">
             <img src="{{ 'logo-cargus.svg' | asset_url }}" alt="Cargus" class="rc-filter-logo" width="48" height="16">
           </button>
         {%- endif -%}
-        {%- if block.settings.gls_enabled -%}
+        {%- if block.settings.gls_mode != 'off' -%}
           <button type="button" class="rc-filter-btn" data-courier="gls">
             <img src="{{ 'logo-gls.svg' | asset_url }}" alt="GLS" class="rc-filter-logo" width="48" height="16">
           </button>
         {%- endif -%}
-        {%- if block.settings.packeta_enabled -%}
+        {%- if block.settings.packeta_mode != 'off' -%}
           <button type="button" class="rc-filter-btn" data-courier="packeta">
             <img src="{{ 'logo-packeta.svg' | asset_url }}" alt="Packeta" class="rc-filter-logo" width="48" height="16">
           </button>
         {%- endif -%}
-        {%- if block.settings.dpd_enabled -%}
+        {%- if block.settings.dpd_mode != 'off' -%}
           <button type="button" class="rc-filter-btn" data-courier="dpd">
             <img src="{{ 'logo-dpd.svg' | asset_url }}" alt="DPD" class="rc-filter-logo" width="48" height="16">
           </button>
@@ -255,29 +243,14 @@
     { "type": "checkbox", "id": "show_title",         "label": "Afișează titlul secțiunii", "default": true },
     { "type": "text",     "id": "title",              "label": "Titlu secțiune",       "default": "Metoda de livrare:" },
     { "type": "text",     "id": "search_placeholder", "label": "Placeholder căutare",  "default": "Oraș, cod poștal, adresă..." },
-    { "type": "header",   "content": "FAN Courier" },
-    { "type": "checkbox", "id": "fan_enabled",        "label": "Activează FAN Courier","default": true },
-    { "type": "number",   "id": "fan_home_fee",       "label": "Tarif livrare acasă (RON)", "default": 0 },
-    { "type": "number",   "id": "fan_pickup_fee",     "label": "Tarif FANbox (RON)",   "default": 0 },
-    { "type": "header",   "content": "Sameday" },
-    { "type": "checkbox", "id": "sameday_enabled",    "label": "Activează Sameday",    "default": false },
-    { "type": "number",   "id": "sameday_home_fee",   "label": "Tarif livrare acasă (RON)", "default": 0 },
-    { "type": "number",   "id": "sameday_pickup_fee", "label": "Tarif easybox (RON)",  "default": 0 },
-    { "type": "header",   "content": "Cargus" },
-    { "type": "checkbox", "id": "cargus_enabled",     "label": "Activează Cargus",     "default": false },
-    { "type": "number",   "id": "cargus_home_fee",    "label": "Tarif livrare acasă (RON)", "default": 0 },
-    { "type": "number",   "id": "cargus_pickup_fee",  "label": "Tarif Ship & Go (RON)","default": 0 },
-    { "type": "header",   "content": "GLS" },
-    { "type": "checkbox", "id": "gls_enabled",        "label": "Activează GLS",        "default": false },
-    { "type": "number",   "id": "gls_home_fee",       "label": "Tarif livrare acasă (RON)", "default": 0 },
-    { "type": "number",   "id": "gls_pickup_fee",     "label": "Tarif ParcelShop (RON)","default": 0 },
-    { "type": "header",   "content": "Packeta și DPD" },
-    { "type": "checkbox", "id": "packeta_enabled",    "label": "Activează Packeta",    "default": false },
-    { "type": "number",   "id": "packeta_home_fee",   "label": "Tarif livrare acasă (RON)", "default": 0 },
-    { "type": "number",   "id": "packeta_pickup_fee", "label": "Tarif Packeta Point (RON)", "default": 0 },
-    { "type": "checkbox", "id": "dpd_enabled",        "label": "Activează DPD",        "default": false },
-    { "type": "number",   "id": "dpd_home_fee",       "label": "Tarif livrare acasă (RON)", "default": 0 },
-    { "type": "number",   "id": "dpd_pickup_fee",     "label": "Tarif DPDbox (RON)",   "default": 0 }
+    { "type": "header",   "content": "Curieri în coș" },
+    { "type": "paragraph", "content": "Datele de cont și prețurile se setează în aplicația Picklo. Aici alegi doar unde apare fiecare curier configurat acolo." },
+    { "type": "select",   "id": "fan_mode", "label": "FAN Courier", "default": "both", "options": [{ "value": "both", "label": "Acasă și locker" }, { "value": "home", "label": "Doar livrare acasă" }, { "value": "pickup", "label": "Doar locker / punct" }, { "value": "off", "label": "Ascuns" }] },
+    { "type": "select",   "id": "sameday_mode", "label": "Sameday", "default": "both", "options": [{ "value": "both", "label": "Acasă și locker" }, { "value": "home", "label": "Doar livrare acasă" }, { "value": "pickup", "label": "Doar locker / punct" }, { "value": "off", "label": "Ascuns" }] },
+    { "type": "select",   "id": "cargus_mode", "label": "Cargus", "default": "both", "options": [{ "value": "both", "label": "Acasă și locker" }, { "value": "home", "label": "Doar livrare acasă" }, { "value": "pickup", "label": "Doar locker / punct" }, { "value": "off", "label": "Ascuns" }] },
+    { "type": "select",   "id": "gls_mode", "label": "GLS", "default": "both", "options": [{ "value": "both", "label": "Acasă și locker" }, { "value": "home", "label": "Doar livrare acasă" }, { "value": "pickup", "label": "Doar locker / punct" }, { "value": "off", "label": "Ascuns" }] },
+    { "type": "select",   "id": "packeta_mode", "label": "Packeta", "default": "both", "options": [{ "value": "both", "label": "Acasă și locker" }, { "value": "home", "label": "Doar livrare acasă" }, { "value": "pickup", "label": "Doar locker / punct" }, { "value": "off", "label": "Ascuns" }] },
+    { "type": "select",   "id": "dpd_mode", "label": "DPD", "default": "both", "options": [{ "value": "both", "label": "Acasă și locker" }, { "value": "home", "label": "Doar livrare acasă" }, { "value": "pickup", "label": "Doar locker / punct" }, { "value": "off", "label": "Ascuns" }] }
   ]
 }
 {% endschema %}
