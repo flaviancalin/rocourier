@@ -265,10 +265,26 @@ async function publishCheckoutStyle(admin, style) {
   if (err) throw new Error(`Shopify: ${err.message}`);
 }
 
+// Picklo's fixed rates, removed when the carrier service takes over (they'd show twice)
+async function removeManualRates(admin) {
+  const ownNames = new Set(COURIERS.flatMap((c) => Object.values(manualRateNames(c))));
+  const { zones } = await readZones(admin);
+  for (const zone of zones) {
+    const remove = zone.methods.filter((m) => ownNames.has(m.name) && m.rateProvider?.__typename === "DeliveryRateDefinition").map((m) => m.id);
+    await updateZone(admin, zone, { remove });
+  }
+}
+
+// Shopify lets custom apps (installed by link, not from the App Store) turn functions on
+// only on Shopify Plus stores
+const isFunctionsPlanError = (e) => /shopify plus/i.test(e?.message || "");
+
 // "Only the cart choice": fixed Picklo rates (one per courier and kind) that the delivery
 // function narrows to the option picked in the widget. The carrier service would list
 // several lockers instead, so it's taken out of the zones and removed.
 async function setupWidgetOnly(admin, settings, enabled) {
+  // Function first: without it the fixed rates can't be narrowed, so nothing else changes
+  await ensureDeliveryCustomization(admin);
   const { zones, currency } = await syncManualRates(admin, settings, enabled);
   const list = await gql(admin, `{ carrierServices(first: 50) { nodes { id callbackUrl } } }`);
   const ours = list.carrierServices.nodes.find((c) => c.callbackUrl === CARRIER_CALLBACK_URL);
@@ -280,7 +296,6 @@ async function setupWidgetOnly(admin, settings, enabled) {
     }
     await gql(admin, `mutation d($id: ID!) { carrierServiceDelete(id: $id) { deletedId userErrors { message } } }`, { id: ours.id });
   }
-  await ensureDeliveryCustomization(admin);
   return { mode: "manual", zones, currency };
 }
 
@@ -293,25 +308,36 @@ export async function setupCheckout(admin, shop) {
 
   const style = settings.checkoutStyle === "widget" ? "widget" : "list";
   await publishCheckoutStyle(admin, style);
+  let note = null;
   if (style === "widget") {
     const createdZone = await ensureHomeZone(admin, enabled);
-    const r = await setupWidgetOnly(admin, settings, enabled);
-    await prisma.shopSettings.update({ where: { shop }, data: { checkoutMode: "manual" } });
-    return { ...r, style, createdZone };
+    try {
+      const r = await setupWidgetOnly(admin, settings, enabled);
+      await prisma.shopSettings.update({ where: { shop }, data: { checkoutMode: "manual" } });
+      return { ...r, style, createdZone };
+    } catch (e) {
+      if (!isFunctionsPlanError(e)) throw e;
+      // The carrier service also answers with just the option chosen in the cart; it only
+      // can't hide the store's own rates
+      note = "functions_need_plus";
+    }
   }
 
   const carrier = await ensureCarrierService(admin);
   const createdZone = await ensureHomeZone(admin, enabled);
   let zones;
   let currency = null;
-  if (carrier.mode === "ccs") zones = await attachCarrier(admin, carrier.carrierServiceId, enabled);
+  if (carrier.mode === "ccs") {
+    zones = await attachCarrier(admin, carrier.carrierServiceId, enabled);
+    await removeManualRates(admin);
+  }
   else {
     ({ zones, currency } = await syncManualRates(admin, settings, enabled));
     await ensureDeliveryCustomization(admin);
   }
 
   await prisma.shopSettings.update({ where: { shop }, data: { checkoutMode: carrier.mode } });
-  return { mode: carrier.mode, zones, currency, reason: carrier.reason, createdZone, style };
+  return { mode: carrier.mode, zones, currency, reason: carrier.reason, createdZone, style, note };
 }
 
 // Keeps manual rates in step with the fees after the merchant saves settings

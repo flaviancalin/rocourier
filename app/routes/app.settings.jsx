@@ -498,7 +498,9 @@ export default function Settings() {
     else if (actionData?.saved && actionData.styleResult) {
       setCheckoutMode(actionData.styleResult.mode);
       setCarrierMsg((actionData.styleResult.zones || []).join(", ") || "—");
-      setToast(actionData.styleResult.style === "widget" ? "✅ Salvat. Checkout-ul arată acum doar opțiunea aleasă în coș." : "✅ Salvat. Checkout-ul arată lista de opțiuni Picklo.");
+      setToast(actionData.styleResult.note === "functions_need_plus"
+        ? "✅ Salvat. Checkout-ul arată opțiunea aleasă în coș prin calculul de curier. Tarifele vechi ale magazinului nu pot fi ascunse din aplicația privată (cere Shopify Plus): șterge-le sau redenumește-le din Setări → Livrare în Shopify."
+        : actionData.styleResult.style === "widget" ? "✅ Salvat. Checkout-ul arată acum doar opțiunea aleasă în coș." : "✅ Salvat. Checkout-ul arată lista de opțiuni Picklo.");
     }
     else if (actionData?.saved) setToast(`✅ ${t("save_settings")}!`);
     else if (actionData?.testResult?.success) setToast(`✅ ${t("conn_success")}`);
@@ -509,6 +511,7 @@ export default function Settings() {
         setCarrierStatus("registered");
         setCheckoutMode(r.mode);
         setCarrierMsg((r.zones || []).join(", ") || "—");
+        if (r.note === "functions_need_plus") setToast("✅ Checkout configurat prin calculul de curier: arată opțiunea aleasă în coș. Tarifele vechi ale magazinului nu pot fi ascunse din aplicația privată (cere Shopify Plus): șterge-le sau redenumește-le din Setări → Livrare în Shopify.");
       } else {
         setCarrierStatus("error");
         setCarrierMsg(r.error || t("carrier_service_error"));
@@ -1109,7 +1112,7 @@ export default function Settings() {
                           <Button variant="primary" onClick={handleCarrierRegister} loading={carrierStatus === "loading"}>
                             {t("checkout_setup_btn")}
                           </Button>
-                          {checkoutMode && !confirmRemove && (
+                          {!confirmRemove && (
                             <Button tone="critical" variant="plain" onClick={() => setConfirmRemove(true)}>Scoate opțiunile Picklo din checkout</Button>
                           )}
                           {/* Checkout blocks must be placed once by the merchant in the checkout editor */}
