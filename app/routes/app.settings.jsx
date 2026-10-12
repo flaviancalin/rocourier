@@ -1,5 +1,5 @@
 // app/routes/app.settings.jsx
-import { setupCheckout, resyncManualRatesIfNeeded } from "../services/checkout-setup.server.js";
+import { setupCheckout, resyncManualRatesIfNeeded, removeCheckout } from "../services/checkout-setup.server.js";
 import { json } from "@remix-run/node";
 import { boundary } from "@shopify/shopify-app-remix/server";
 import { useLoaderData, useActionData, useNavigation, useSubmit } from "@remix-run/react";
@@ -163,6 +163,15 @@ export async function action({ request }) {
       return json({ carrierResult: { success: true, ...r } });
     } catch (e) {
       return json({ carrierResult: { success: false, error: e.message } });
+    }
+  }
+
+  if (intent === "checkout-remove") {
+    try {
+      const r = await removeCheckout(admin, session.shop);
+      return json({ removeResult: { success: true, ...r } });
+    } catch (e) {
+      return json({ removeResult: { success: false, error: e.message } });
     }
   }
 
@@ -465,6 +474,7 @@ export default function Settings() {
   const [checkoutMode,  setCheckoutMode]  = useState(settings.checkoutMode || null);
   const [lockerCount,   setLockerCount]   = useState(String(settings.checkoutLockerCount ?? 5));
   const [carrierMsg,    setCarrierMsg]    = useState("");
+  const [confirmRemove, setConfirmRemove] = useState(false);
 
   const { t } = useTranslation();
 
@@ -485,6 +495,18 @@ export default function Settings() {
       } else {
         setCarrierStatus("error");
         setCarrierMsg(r.error || t("carrier_service_error"));
+      }
+    }
+    else if (actionData?.removeResult) {
+      const r = actionData.removeResult;
+      setConfirmRemove(false);
+      if (!r.success) setToast(`❌ ${r.error}`);
+      else {
+        if (!r.skipped?.length) { setCheckoutMode(null); setCarrierStatus(null); }
+        setCarrierMsg("");
+        setToast(r.skipped?.length
+          ? `⚠️ Scos din: ${r.cleaned.join(", ") || "—"}. Rămas în: ${r.skipped.join(", ")} (Picklo e singura livrare acolo)`
+          : `✅ Opțiunile Picklo au fost scoase din checkout${r.cleaned.length ? ` (${r.cleaned.join(", ")})` : ""}`);
       }
     }
     else if (actionData?.refreshResult) {
@@ -1061,11 +1083,21 @@ export default function Settings() {
                           <Button variant="primary" onClick={handleCarrierRegister} loading={carrierStatus === "loading"}>
                             {t("checkout_setup_btn")}
                           </Button>
+                          {checkoutMode && !confirmRemove && (
+                            <Button tone="critical" variant="plain" onClick={() => setConfirmRemove(true)}>Scoate opțiunile Picklo din checkout</Button>
+                          )}
                           {/* Checkout blocks must be placed once by the merchant in the checkout editor */}
                           <Button url={`https://${shop}/admin/settings/checkout/editor?page=thank-you&context=apps`} target="_top">
                             {t("thankyou_block_btn")}
                           </Button>
                         </InlineStack>
+                        {confirmRemove && (
+                          <Banner tone="warning" title="Scoți opțiunile Picklo din checkout?"
+                            action={{ content: "Da, scoate-le", onAction: () => submit({ intent: "checkout-remove" }, { method: "post" }), loading: saving }}
+                            secondaryAction={{ content: "Renunță", onAction: () => setConfirmRemove(false) }}>
+                            <Text>Se șterg doar tarifele adăugate de Picklo (lockere și livrare acasă). Tarifele tale rămân. Widget-ul din coș continuă să funcționeze. Le poți pune înapoi oricând cu butonul de configurare.</Text>
+                          </Banner>
+                        )}
                         <Text tone="subdued" variant="bodySm">{t("thankyou_block_help")}</Text>
                       </BlockStack>
                     </Card>

@@ -284,3 +284,44 @@ export async function resyncManualRatesIfNeeded(admin, shop) {
   const enabled = COURIERS.filter((c) => settings[`${c}Enabled`]);
   return enabled.length ? syncManualRates(admin, settings, enabled) : null;
 }
+
+// Takes Picklo out of checkout: deletes its carrier-service rates and fixed rates, then the
+// carrier service itself, and turns off the delivery customization. A zone where Picklo is
+// the only way to ship is left alone, so shoppers there can still check out.
+export async function removeCheckout(admin, shop) {
+  const list = await gql(admin, `{ carrierServices(first: 50) { nodes { id callbackUrl } } }`);
+  const ours = list.carrierServices.nodes.find((c) => c.callbackUrl === CARRIER_CALLBACK_URL);
+  const ownNames = new Set(COURIERS.flatMap((c) => Object.values(manualRateNames(c))));
+  const isOurs = (m) => (ours && m.rateProvider?.carrierService?.id === ours.id)
+    || (ownNames.has(m.name) && m.rateProvider?.__typename === "DeliveryRateDefinition");
+
+  const { zones } = await readZones(admin);
+  const cleaned = [], skipped = [];
+  for (const zone of zones) {
+    const mine = zone.methods.filter(isOurs);
+    if (!mine.length) continue;
+    const others = zone.methods.filter((m) => !isOurs(m) && m.active);
+    if (!others.length) { skipped.push(zone.zoneName); continue; }
+    await updateZone(admin, zone, { remove: mine.map((m) => m.id) });
+    cleaned.push(zone.zoneName);
+  }
+
+  // Keep the carrier service while a skipped zone still relies on it
+  let carrierRemoved = false;
+  if (ours && !skipped.length) {
+    const del = await gql(admin, `mutation d($id: ID!) { carrierServiceDelete(id: $id) { deletedId userErrors { message } } }`, { id: ours.id });
+    const err = del.carrierServiceDelete.userErrors[0];
+    if (err) throw new Error(`Serviciul de calcul Picklo: ${err.message}`);
+    carrierRemoved = true;
+  }
+
+  const dc = await gql(admin, `{ deliveryCustomizations(first: 25) { nodes { id enabled title } } }`);
+  for (const d of dc.deliveryCustomizations.nodes) {
+    if (!d.enabled || !/picklo/i.test(d.title || "")) continue;
+    await gql(admin, `mutation u($id: ID!, $c: DeliveryCustomizationInput!) {
+      deliveryCustomizationUpdate(id: $id, deliveryCustomization: $c) { userErrors { message } } }`, { id: d.id, c: { enabled: false } });
+  }
+
+  if (!skipped.length) await prisma.shopSettings.update({ where: { shop }, data: { checkoutMode: null } });
+  return { cleaned, skipped, carrierRemoved };
+}
