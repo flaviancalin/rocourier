@@ -1,4 +1,7 @@
 query CartDeliveryOptionsTransformRunInput {
+  shop {
+    style: metafield(namespace: "$app:picklo", key: "checkout_style") { value }
+  }
   cart {
     method: attribute(key: "_rc_method") { value }
     courier: attribute(key: "_rc_courier") { value }

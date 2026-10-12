@@ -1,7 +1,7 @@
 // Taking Picklo out of checkout. Run: npm test
 import test from "node:test";
 import assert from "node:assert/strict";
-import { removeCheckout, CARRIER_CALLBACK_URL } from "../app/services/checkout-setup.server.js";
+import { removeCheckout, setupCheckout, CARRIER_CALLBACK_URL } from "../app/services/checkout-setup.server.js";
 import { prisma } from "../app/db.server.js";
 
 function fakeAdmin(zoneMethods) {
@@ -15,6 +15,9 @@ function fakeAdmin(zoneMethods) {
     else if (q.includes("nodes(ids")) data = { nodes: [] };
     else if (q.includes("deliveryProfileUpdate")) data = { deliveryProfileUpdate: { profile: { id: "p1" }, userErrors: [] } };
     else if (q.includes("carrierServiceDelete")) data = { carrierServiceDelete: { deletedId: "cs1", userErrors: [] } };
+    else if (q.includes("{ shop { id } }")) data = { shop: { id: "gid://shopify/Shop/1" } };
+    else if (q.includes("metafieldsSet")) data = { metafieldsSet: { userErrors: [] } };
+    else if (q.includes("shopifyFunctions(")) data = { shopifyFunctions: { nodes: [{ id: "fn1" }] }, deliveryCustomizations: { nodes: [{ id: "dc1", enabled: true, functionId: "fn1" }] } };
     else if (q.includes("deliveryCustomizations(")) data = { deliveryCustomizations: { nodes: [{ id: "dc1", enabled: true, title: "Picklo — locker ales în coș" }] } };
     else data = { deliveryCustomizationUpdate: { userErrors: [] } };
     return new Response(JSON.stringify({ data }));
@@ -41,4 +44,19 @@ test("a zone where Picklo is the only option is left alone, and so is the carrie
   assert.deepEqual(r.skipped, ["Aria 1 GLS"]);
   assert.equal(r.carrierRemoved, false);
   assert.ok(!calls.some((c) => c.q.includes("carrierServiceDelete")));
+});
+
+test("widget style: fixed Picklo rates, carrier service taken out, style published for the function", async () => {
+  await prisma.shopSettings.upsert({ where: { shop: "style-test.myshopify.com" },
+    update: { checkoutStyle: "widget", fanEnabled: false, samedayEnabled: true, samedayHomeDeliveryFee: 19, samedayPickupFee: 12, checkoutMode: "ccs" },
+    create: { shop: "style-test.myshopify.com", checkoutStyle: "widget", fanEnabled: false, samedayEnabled: true, samedayHomeDeliveryFee: 19, samedayPickupFee: 12, checkoutMode: "ccs" } });
+  const { admin, calls } = fakeAdmin([["Domestic", [picklo, own]]]);
+  const r = await setupCheckout(admin, "style-test.myshopify.com");
+  assert.equal(r.mode, "manual");
+  assert.equal(r.style, "widget");
+  const meta = calls.find((c) => c.q.includes("metafieldsSet"));
+  assert.deepEqual([meta.variables.m[0].key, meta.variables.m[0].value], ["checkout_style", "widget"]);
+  const created = calls.filter((c) => c.q.includes("deliveryProfileUpdate")).flatMap((c) => c.variables.profile.locationGroupsToUpdate?.[0]?.zonesToUpdate?.[0]?.methodDefinitionsToCreate || []);
+  assert.deepEqual(created.map((m) => [m.name, m.rateDefinition.price.amount]).sort(), [["Sameday easybox — Ridicare din punct", "12.00"], ["Sameday — Livrare la domiciliu", "19.00"]]);
+  assert.ok(calls.some((c) => c.q.includes("carrierServiceDelete")));
 });

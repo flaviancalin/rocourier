@@ -193,6 +193,9 @@ model ShopSettings {
   returnsEnabled         Boolean @default(false)
   // Order confirmation on WhatsApp: a button on the Thank you page opens the merchant's
   // own WhatsApp Business chat with a prefilled message (no Meta API, no cost per message)
+  // Checkout: "list" = Picklo rates as usual (nearest lockers with CCS);
+  // "widget" = only the option chosen in the cart widget, other rates hidden
+  checkoutStyle          String  @default("list")
   whatsappConfirm        Boolean @default(false)
   whatsappPhone          String?  // international digits, e.g. 40761034629
   whatsappName           String?  // shown on the block, e.g. "AMA Beauty"

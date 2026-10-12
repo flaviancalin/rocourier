@@ -21,6 +21,16 @@ const POINT_LABELS = {
   dpd: "DPDbox / Punct DPD",
 };
 
+// Home delivery rate names: "<courier> — Livrare la domiciliu" (app/utils/couriers.js)
+const HOME_NAMES = {
+  fan: "FAN Courier",
+  sameday: "Sameday",
+  cargus: "Cargus",
+  gls: "GLS",
+  packeta: "Packeta",
+  dpd: "DPD",
+};
+
 /** @type {CartDeliveryOptionsTransformRunResult} */
 const NO_CHANGES = { operations: [] };
 
@@ -32,11 +42,24 @@ export function cartDeliveryOptionsTransformRun(input) {
   const method = input.cart.method?.value;
   const courier = input.cart.courier?.value || "";
   const pointName = (input.cart.pointName?.value || "").trim();
+  // "widget": checkout shows only what the shopper chose in the cart (every other rate hidden)
+  const widgetOnly = input.shop?.style?.value === "widget";
+
+  if (method === "home_delivery") {
+    if (!widgetOnly || !HOME_NAMES[courier]) return NO_CHANGES;
+    const operations = [];
+    for (const group of input.cart.deliveryGroups) {
+      const home = group.deliveryOptions.find((o) => isPickloRate(o) && o.title === `${HOME_NAMES[courier]} — Livrare la domiciliu`);
+      if (!home) continue; // never leave the shopper without an option
+      hideAllBut(group, home, operations);
+    }
+    return { operations };
+  }
+
   const label = POINT_LABELS[courier];
   if (method !== "pickup_point" || !pointName || !label) return NO_CHANGES;
 
-  const isPickupRate = (o, pointLabel) =>
-    !String(o.code || "").startsWith("RC_") && (o.title || "").startsWith(`${pointLabel} — `);
+  const isPickupRate = (o, pointLabel) => isPickloRate(o) && (o.title || "").startsWith(`${pointLabel} — `);
 
   const operations = [];
   for (const group of input.cart.deliveryGroups) {
@@ -44,6 +67,10 @@ export function cartDeliveryOptionsTransformRun(input) {
     if (index === -1) continue;
     const option = group.deliveryOptions[index];
     operations.push({ deliveryOptionRename: { deliveryOptionHandle: option.handle, title: `${label} — ${pointName}`.slice(0, 255) } });
+    if (widgetOnly) {
+      hideAllBut(group, option, operations);
+      continue;
+    }
     // Pre-select the shopper's locker only when no other option is cheaper:
     // the cheapest option must stay first (App Store requirement 1.1.10)
     const cost = (o) => Number(o.cost?.amount ?? Infinity);
@@ -60,4 +87,15 @@ export function cartDeliveryOptionsTransformRun(input) {
     }
   }
   return { operations };
+}
+
+// Picklo's fixed rates (carrier-service rates carry "RC_" codes and are already specific)
+function isPickloRate(o) {
+  return !String(o.code || "").startsWith("RC_");
+}
+
+function hideAllBut(group, keep, operations) {
+  for (const other of group.deliveryOptions) {
+    if (other.handle !== keep.handle) operations.push({ deliveryOptionHide: { deliveryOptionHandle: other.handle } });
+  }
 }

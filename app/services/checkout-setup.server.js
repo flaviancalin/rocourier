@@ -256,12 +256,49 @@ async function ensureDeliveryCustomization(admin) {
   return true;
 }
 
+// The delivery function reads this to know whether to hide everything but the widget choice
+async function publishCheckoutStyle(admin, style) {
+  const shopId = (await gql(admin, `{ shop { id } }`)).shop.id;
+  const set = await gql(admin, `mutation ($m: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $m) { userErrors { message } } }`,
+    { m: [{ ownerId: shopId, namespace: "$app:picklo", key: "checkout_style", type: "single_line_text_field", value: style }] });
+  const err = set.metafieldsSet.userErrors[0];
+  if (err) throw new Error(`Shopify: ${err.message}`);
+}
+
+// "Only the cart choice": fixed Picklo rates (one per courier and kind) that the delivery
+// function narrows to the option picked in the widget. The carrier service would list
+// several lockers instead, so it's taken out of the zones and removed.
+async function setupWidgetOnly(admin, settings, enabled) {
+  const { zones, currency } = await syncManualRates(admin, settings, enabled);
+  const list = await gql(admin, `{ carrierServices(first: 50) { nodes { id callbackUrl } } }`);
+  const ours = list.carrierServices.nodes.find((c) => c.callbackUrl === CARRIER_CALLBACK_URL);
+  if (ours) {
+    const fresh = await readZones(admin);
+    for (const zone of fresh.zones) {
+      const remove = zone.methods.filter((m) => m.rateProvider?.carrierService?.id === ours.id).map((m) => m.id);
+      await updateZone(admin, zone, { remove });
+    }
+    await gql(admin, `mutation d($id: ID!) { carrierServiceDelete(id: $id) { deletedId userErrors { message } } }`, { id: ours.id });
+  }
+  await ensureDeliveryCustomization(admin);
+  return { mode: "manual", zones, currency };
+}
+
 // Detects the mode and sets checkout up. Safe to run repeatedly.
 export async function setupCheckout(admin, shop) {
   const settings = await prisma.shopSettings.findUnique({ where: { shop } });
   if (!settings) throw new Error("Shop not configured");
   const enabled = COURIERS.filter((c) => settings[`${c}Enabled`]);
   if (!enabled.length) throw new Error("Enable at least one courier first");
+
+  const style = settings.checkoutStyle === "widget" ? "widget" : "list";
+  await publishCheckoutStyle(admin, style);
+  if (style === "widget") {
+    const createdZone = await ensureHomeZone(admin, enabled);
+    const r = await setupWidgetOnly(admin, settings, enabled);
+    await prisma.shopSettings.update({ where: { shop }, data: { checkoutMode: "manual" } });
+    return { ...r, style, createdZone };
+  }
 
   const carrier = await ensureCarrierService(admin);
   const createdZone = await ensureHomeZone(admin, enabled);
@@ -274,7 +311,7 @@ export async function setupCheckout(admin, shop) {
   }
 
   await prisma.shopSettings.update({ where: { shop }, data: { checkoutMode: carrier.mode } });
-  return { mode: carrier.mode, zones, currency, reason: carrier.reason, createdZone };
+  return { mode: carrier.mode, zones, currency, reason: carrier.reason, createdZone, style };
 }
 
 // Keeps manual rates in step with the fees after the merchant saves settings

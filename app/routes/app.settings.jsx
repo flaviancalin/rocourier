@@ -280,6 +280,7 @@ export async function action({ request }) {
       dpdHomeDeliveryFee:      parseFloat(get("dpdHomeDeliveryFee"))      || 0,
       dpdPickupFee:            parseFloat(get("dpdPickupFee"))            || 0,
       checkoutLockerCount:     Math.min(10, Math.max(1, parseInt(get("checkoutLockerCount"), 10) || 5)),
+      ...(get("checkoutStyle") ? { checkoutStyle: get("checkoutStyle") === "widget" ? "widget" : "list" } : {}),
     };
     const fanPw = get("fanPassword");
     if (fanPw) data.fanPassword = fanPw;
@@ -309,7 +310,7 @@ export async function action({ request }) {
       try { data.routingRules = rules ? JSON.parse(rules) : null; } catch (_) { /* keep the stored rules */ }
     }
 
-    const settingsBefore = await prisma.shopSettings.findUnique({ where: { shop: session.shop }, select: { blockCodAfterRefusals: true } });
+    const settingsBefore = await prisma.shopSettings.findUnique({ where: { shop: session.shop }, select: { blockCodAfterRefusals: true, checkoutStyle: true, checkoutMode: true } });
     await prisma.shopSettings.upsert({
       where:  { shop: session.shop },
       update: data,
@@ -317,10 +318,19 @@ export async function action({ request }) {
     });
     // Stores without carrier-calculated shipping: keep the checkout rates priced like the dashboard
     let ratesSynced = null;
+    let styleResult = null;
+    const styleChanged = data.checkoutStyle && data.checkoutStyle !== settingsBefore?.checkoutStyle;
     try {
-      ratesSynced = await resyncManualRatesIfNeeded(admin, session.shop);
+      if (styleChanged && settingsBefore?.checkoutMode) {
+        // Checkout already set up: switch it to the new style right away
+        styleResult = await setupCheckout(admin, session.shop);
+        ratesSynced = true;
+      } else {
+        ratesSynced = await resyncManualRatesIfNeeded(admin, session.shop);
+      }
     } catch (e) {
       console.error("[settings] rate resync failed:", e.message);
+      if (styleChanged) styleResult = { error: e.message };
     }
     // Refusal protection: refresh the hidden-COD list (and turn the checkout rule on)
     let codGuard = null;
@@ -333,7 +343,7 @@ export async function action({ request }) {
         codGuard = { error: msg };
       }
     }
-    return json({ saved: true, ratesSynced: !!ratesSynced, codGuard });
+    return json({ saved: true, ratesSynced: !!ratesSynced, codGuard, styleResult });
   }
 
   return json({ error: "Unknown intent" }, { status: 400 });
@@ -473,6 +483,7 @@ export default function Settings() {
   const [carrierStatus, setCarrierStatus] = useState(null); // null | "loading" | "registered" | "error"
   const [checkoutMode,  setCheckoutMode]  = useState(settings.checkoutMode || null);
   const [lockerCount,   setLockerCount]   = useState(String(settings.checkoutLockerCount ?? 5));
+  const [checkoutStyle, setCheckoutStyle] = useState(settings.checkoutStyle || "list");
   const [carrierMsg,    setCarrierMsg]    = useState("");
   const [confirmRemove, setConfirmRemove] = useState(false);
 
@@ -482,6 +493,12 @@ export default function Settings() {
   useEffect(() => {
     if (actionData?.saved && (actionData.codGuard?.error || actionData.codGuard?.customization?.error)) {
       setToast(`⚠️ ${t("save_settings")} — ${actionData.codGuard.error || actionData.codGuard.customization.error}`);
+    }
+    else if (actionData?.saved && actionData.styleResult?.error) setToast(`⚠️ Salvat, dar checkout-ul nu s-a actualizat: ${actionData.styleResult.error}`);
+    else if (actionData?.saved && actionData.styleResult) {
+      setCheckoutMode(actionData.styleResult.mode);
+      setCarrierMsg((actionData.styleResult.zones || []).join(", ") || "—");
+      setToast(actionData.styleResult.style === "widget" ? "✅ Salvat. Checkout-ul arată acum doar opțiunea aleasă în coș." : "✅ Salvat. Checkout-ul arată lista de opțiuni Picklo.");
     }
     else if (actionData?.saved) setToast(`✅ ${t("save_settings")}!`);
     else if (actionData?.testResult?.success) setToast(`✅ ${t("conn_success")}`);
@@ -566,6 +583,7 @@ export default function Settings() {
       cargusHomeDeliveryFee, cargusPickupFee, glsHomeDeliveryFee, glsPickupFee,
       packetaHomeDeliveryFee, packetaPickupFee,
       checkoutLockerCount: lockerCount,
+      checkoutStyle,
     };
     if (fanPassword) data.fanPassword = fanPassword;
     if (samedayPassword) data.samedayPassword = samedayPassword;
@@ -1075,7 +1093,15 @@ export default function Settings() {
                             <Text>{carrierMsg}</Text>
                           </Banner>
                         )}
-                        {checkoutMode === "ccs" && (
+                        <Select label="Ce vede clientul în checkout" value={checkoutStyle} onChange={setCheckoutStyle}
+                          options={[
+                            { label: "Doar opțiunea aleasă în coș (recomandat cu widget-ul)", value: "widget" },
+                            { label: "Lista de opțiuni Picklo (lockere apropiate, livrare acasă)", value: "list" },
+                          ]}
+                          helpText={checkoutStyle === "widget"
+                            ? "Clientul alege curierul și lockerul în coș, iar în checkout vede doar acea opțiune, cu prețul tău. Celelalte tarife (inclusiv cele vechi ale magazinului) se ascund când există o alegere din coș. Salvează ca să se aplice."
+                            : "În checkout apar opțiunile Picklo pentru fiecare curier; cu calcul automat (CCS), și cele mai apropiate lockere. Salvează ca să se aplice."} />
+                        {checkoutMode === "ccs" && checkoutStyle !== "widget" && (
                           <TextField label={t("checkout_locker_count")} value={lockerCount} onChange={setLockerCount}
                             type="number" min="1" max="10" autoComplete="off" />
                         )}
