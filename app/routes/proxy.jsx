@@ -46,6 +46,8 @@ export async function loader({ request }) {
       freeShipping: settings?.freeShippingThreshold > 0
         ? { threshold: settings.freeShippingThreshold, scope: settings.freeShippingScope || "all" } : null,
       eta: settings ? { show: settings.showDeliveryEstimate, cutoffHour: settings.dispatchCutoffHour, processingDays: settings.processingDays } : null,
+      // The widget shows exactly the couriers enabled in the app (theme checkboxes can be stale)
+      couriers: settings ? Object.keys(COURIER_LABELS).filter((c) => settings[`${c}Enabled`]) : null,
     });
   }
 

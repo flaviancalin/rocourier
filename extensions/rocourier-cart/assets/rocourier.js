@@ -42,6 +42,7 @@
       eta_cutoff:        "Comandă în {time} și coletul pleacă azi",
       months:            "ian.,feb.,mar.,apr.,mai,iun.,iul.,aug.,sept.,oct.,nov.,dec.",
       days:              "duminică,luni,marți,miercuri,joi,vineri,sâmbătă",
+      at_checkout: "Se calculează la checkout",
       f_sat: "Deschis sâmbătă", f_sun: "Deschis duminică", f_card: "Plată cu cardul", open_247: "Non-stop", closed: "închis", wd_short: "L,Ma,Mi,J,V,S,D", card_ok: "Card la ridicare",
     },
     en: {
@@ -71,6 +72,7 @@
       eta_cutoff:        "Order within {time} and it ships today",
       months:            "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec",
       days:              "Sunday,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday",
+      at_checkout: "Calculated at checkout",
       f_sat: "Open Saturday", f_sun: "Open Sunday", f_card: "Card payment", open_247: "Open 24/7", closed: "closed", wd_short: "Mo,Tu,We,Th,Fr,Sa,Su", card_ok: "Card on pickup",
     },
     de: {
@@ -100,6 +102,7 @@
       eta_cutoff:        "Bestelle in {time} und es geht heute raus",
       months:            "Jan.,Feb.,März,Apr.,Mai,Juni,Juli,Aug.,Sept.,Okt.,Nov.,Dez.",
       days:              "Sonntag,Montag,Dienstag,Mittwoch,Donnerstag,Freitag,Samstag",
+      at_checkout: "Wird an der Kasse berechnet",
       f_sat: "Samstags offen", f_sun: "Sonntags offen", f_card: "Kartenzahlung", open_247: "Rund um die Uhr", closed: "geschlossen", wd_short: "Mo,Di,Mi,Do,Fr,Sa,So", card_ok: "Kartenzahlung bei Abholung",
     },
     hu: {
@@ -129,6 +132,7 @@
       eta_cutoff:        "Rendelj {time} belül, és ma feladjuk",
       months:            "jan.,febr.,márc.,ápr.,máj.,jún.,júl.,aug.,szept.,okt.,nov.,dec.",
       days:              "vasárnap,hétfő,kedd,szerda,csütörtök,péntek,szombat",
+      at_checkout: "A pénztárnál számoljuk",
       f_sat: "Szombaton nyitva", f_sun: "Vasárnap nyitva", f_card: "Kártyás fizetés", open_247: "Éjjel-nappal", closed: "zárva", wd_short: "H,K,Sze,Cs,P,Szo,V", card_ok: "Kártya átvételkor",
     },
     cs: {
@@ -158,6 +162,7 @@
       eta_cutoff:        "Objednejte do {time} a odešleme dnes",
       months:            "led.,ún.,bře.,dub.,kvě.,čvn.,čvc.,srp.,zář.,říj.,lis.,pro.",
       days:              "neděle,pondělí,úterý,středa,čtvrtek,pátek,sobota",
+      at_checkout: "Vypočítá se v pokladně",
       f_sat: "Otevřeno v sobotu", f_sun: "Otevřeno v neděli", f_card: "Platba kartou", open_247: "Nonstop", closed: "zavřeno", wd_short: "Po,Út,St,Čt,Pá,So,Ne", card_ok: "Karta při vyzvednutí",
     },
   };
@@ -204,9 +209,15 @@
     translateUI();
 
     // Fetch language override from app settings via App Proxy (same-origin, no CSP issues)
-    fetch("/apps/rocourier/widget-config")
+    const configReady = fetch("/apps/rocourier/widget-config")
       .then((r) => r.json())
-      .then(({ widgetLanguage, fees, freeShipping, eta }) => {
+      .then(({ widgetLanguage, fees, freeShipping, eta, couriers }) => {
+        // Couriers enabled in the app win over the theme block checkboxes: the server only
+        // serves points (and checkout only charges) for those, so the widget must match
+        if (Array.isArray(couriers) && couriers.length) {
+          Object.keys(COURIERS).forEach((c) => { ENABLED[c] = couriers.includes(c); });
+          applyEnabledCouriers();
+        }
         if (widgetLanguage && widgetLanguage !== "auto" && STRINGS[widgetLanguage] && widgetLanguage !== lang) {
           lang = widgetLanguage;
           translateUI();
@@ -220,7 +231,7 @@
           Object.keys(fees).forEach((c) => {
             if (FEES[c]) FEES[c] = { home: Number(fees[c].home) || 0, pickup: Number(fees[c].pickup) || 0 };
           });
-          const wasDefault = _method === "home_delivery" && _courier === defaultCourier;
+          const wasDefault = _method === "home_delivery" && (_courier === defaultCourier || !ENABLED[_courier]);
           defaultCourier = cheapestHomeCourier();
           if (wasDefault) onHomeSelected();
           else if (_method === "home_delivery" && homeFeeEl) homeFeeEl.textContent = feeLabel(feeFor(_courier, "home"));
@@ -229,17 +240,25 @@
       })
       .catch(() => {});
 
-    // Which couriers are enabled
+    // Which couriers are enabled (theme block first, then the app settings from widget-config)
     const ENABLED = {};
     Object.keys(COURIERS).forEach((c) => {
       ENABLED[c] = widget.dataset[c + "Enabled"] !== "false";
     });
 
-    // Hide filter buttons for disabled couriers
-    document.querySelectorAll(".rc-filter-btn[data-courier]").forEach((btn) => {
-      const c = btn.dataset.courier;
-      if (c && c !== "all" && !ENABLED[c]) btn.style.display = "none";
-    });
+    // Hide filter buttons and pickup labels of disabled couriers; runs again when the app settings arrive
+    function applyEnabledCouriers() {
+      document.querySelectorAll(".rc-filter-btn[data-courier]").forEach((btn) => {
+        const c = btn.dataset.courier;
+        if (c && c !== "all") btn.style.display = ENABLED[c] ? "" : "none";
+      });
+      const sub = document.getElementById("rc-pickup-sub");
+      if (sub) {
+        const names = Object.entries(COURIERS).filter(([c]) => ENABLED[c]).map(([, cfg]) => cfg.pickupLabel);
+        sub.textContent = names.length ? names.join(", ") : t("pickup_sub_none");
+      }
+    }
+    applyEnabledCouriers();
 
     // Fee table: { fan: { home: 0, pickup: 0 }, ... }
     const FEES = {};
@@ -267,7 +286,9 @@
     // so the widget shows the same amount as checkout.
     const FX_RATE = Number(window.Shopify?.currency?.rate) || 1;
     function feeLabel(amount) {
-      if (!amount) return t("free");
+      // A 0 fee below the free-delivery threshold means no price was set in the app:
+      // checkout decides, so don't promise "free"
+      if (!amount) return FREE.threshold && !(cartTotal != null && cartTotal >= FREE.threshold * FX_RATE) ? t("at_checkout") : t("free");
       const shown = FX_RATE === 1 ? amount : Math.ceil(amount * FX_RATE);
       return shown.toLocaleString("ro-RO", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + " " + CURRENCY;
     }
@@ -432,8 +453,7 @@
     let _userMarker      = null;
 
     // Default courier for home delivery: the cheapest enabled one (App Store rule 1.1.10)
-    const enabledCouriers  = Object.keys(COURIERS).filter((c) => ENABLED[c]);
-    const cheapestHomeCourier = () => enabledCouriers.reduce(
+    const cheapestHomeCourier = () => Object.keys(COURIERS).filter((c) => ENABLED[c]).reduce(
       (best, c) => (best === null || FEES[c].home < FEES[best].home ? c : best), null);
     let defaultCourier = cheapestHomeCourier();
 
@@ -728,6 +748,7 @@
 
     // ── Fetch pickup points ────────────────────────────────────────────────────
     async function fetchPoints() {
+      try { await configReady; } catch (_) {}
       if (listLoading) listLoading.style.display = "flex";
       if (listEmpty)   listEmpty.style.display   = "none";
       if (pointsList)  pointsList.innerHTML       = "";
