@@ -1,6 +1,7 @@
 // app/services/awb.server.js
 // Deletes an AWB at the courier, cancels the Shopify fulfillment that carries it
 // and clears it from the order. Used by the "Delete AWB" button and by automations.
+import { resolveShipLocation, senderSettingsFor } from "./ship-locations.server.js";
 import { prisma } from "../db.server.js";
 import { fanDeleteAwb, fanCreateAwb } from "./fan-courier.server.js";
 import { samedayDeleteAwb, samedayCreateAwb, samedayGetClientPickupPoints, samedayGetServices, samedayServiceFor } from "./sameday.server.js";
@@ -103,17 +104,22 @@ export async function generateAwbForOrder(admin, shop, orderId, options = {}) {
     recipientAddress, recipientCity, recipientCounty, recipientZip, recipientCountry,
     codAmountOverride, declaredValue, shipmentPayer,
     cargusReimbursement,
-    notifyCustomer, markAsDispatched,
+    notifyCustomer, markAsDispatched, shipFromLocationId,
   } = options;
 
   // Load order and settings
-  const [order, settings] = await Promise.all([
+  const [order, baseSettings] = await Promise.all([
     prisma.order.findFirst({ where: { shop, id: orderId } }),
     prisma.shopSettings.findUnique({ where: { shop } }),
   ]);
 
   if (!order) throw awbError("Order not found", 404);
-  if (!settings) throw awbError("Shop not configured", 400);
+  if (!baseSettings) throw awbError("Shop not configured", 400);
+  // Several locations: the parcel leaves from the chosen location, or the one Shopify assigned
+  const shipLocation = baseSettings.multiLocationEnabled
+    ? await resolveShipLocation(admin, shop, order, shipFromLocationId || null).catch(() => null)
+    : null;
+  const settings = senderSettingsFor(baseSettings, shipLocation);
 
   // ── Trial / plan gate ────────────────────────────────────────────────────────
   const TRIAL_LIMIT = 10;
@@ -211,7 +217,7 @@ export async function generateAwbForOrder(admin, shop, orderId, options = {}) {
         }),
       ]);
 
-      const senderPickupPoint = senderPickupPoints[0];
+      const senderPickupPoint = senderPickupPoints.find((p) => settings._samedayPickupPointId && String(p.id) === String(settings._samedayPickupPointId)) || senderPickupPoints[0];
       if (!senderPickupPoint) {
         throw awbError("No sender pickup point configured in Sameday. Contact software@sameday.ro", 400);
       }
@@ -250,7 +256,7 @@ export async function generateAwbForOrder(admin, shop, orderId, options = {}) {
         password: settings.cargusPassword,
       });
 
-      const senderLocation = senderLocations[0];
+      const senderLocation = senderLocations.find((l) => settings._cargusLocationId && String(l.LocationId ?? l.locationId) === String(settings._cargusLocationId)) || senderLocations[0];
       if (!senderLocation) {
         throw awbError("No sender location configured in Cargus. Contact urgentcargus.ro", 400);
       }
@@ -341,6 +347,7 @@ export async function generateAwbForOrder(admin, shop, orderId, options = {}) {
       awbNumber: awbResult.awbNumber,
       awbStatus: "generated",
       courierType: courier,
+      shipFromLocationId: shipLocation?.id || null,
       // GLS: store the label PDF (already returned by PrintLabels) so download works without GetPrintedLabels
       // Packeta: store the numeric packetId (needed for packetLabelPdf — barcode won't work)
       ...(courier === "gls" && (awbResult.labelBase64 || awbResult.parcelId) ? { awbPdfUrl: glsStoreRef(awbResult.parcelId, awbResult.labelBase64) } : {}),

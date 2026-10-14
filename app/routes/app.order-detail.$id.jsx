@@ -2,6 +2,8 @@
 import { json } from "@remix-run/node";
 import { boundary } from "@shopify/shopify-app-remix/server";
 import { useLoaderData, useNavigate } from "@remix-run/react";
+import { orderLocations } from "../services/ship-locations.server.js";
+import { computeProfit } from "../services/profit.server.js";
 import { authenticate } from "../shopify.server.js";
 import { getOrder } from "../models/order.server.js";
 import { orderWarnings, courierFromRules } from "../services/order-checks.server.js";
@@ -16,7 +18,7 @@ import {
 } from "@shopify/polaris";
 
 export async function loader({ request, params }) {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const order = await getOrder(session.shop, params.id);
   if (!order) throw new Response("Not found", { status: 404 });
 
@@ -26,6 +28,8 @@ export async function loader({ request, params }) {
       fanEnabled: true, samedayEnabled: true,
       cargusEnabled: true, glsEnabled: true, packetaEnabled: true, dpdEnabled: true,
       validateAddresses: true, refusalWarnThreshold: true, routingRules: true,
+      invoiceProvider: true, smartbillTVA: true, oblioTVA: true, fgoTVA: true, paymentFeePercent: true,
+      multiLocationEnabled: true,
     },
   });
   const [warnings, activity, returns] = await Promise.all([
@@ -35,7 +39,19 @@ export async function loader({ request, params }) {
   ]);
   // Routing rules suggest a courier for the AWB wizard
   const suggestedCourier = order.awbNumber ? null : courierFromRules({ ...settings, routingRules: settings?.routingRules }, order);
-  return json({ order, settings, warnings, activity, returns, suggestedCourier });
+  const profit = computeProfit(order, settings);
+  // Several ship-from locations: the wizard offers them, preselecting the one Shopify assigned
+  let shipFrom = null;
+  if (settings?.multiLocationEnabled) {
+    const locations = await prisma.shipLocation.findMany({ where: { shop: session.shop, active: true }, orderBy: { name: "asc" },
+      select: { id: true, name: true, city: true, isSupplier: true, shopifyLocationId: true } });
+    const current = order.shipFromLocationId ? locations.find((l) => l.id === order.shipFromLocationId) : null;
+    let assigned = [];
+    if (!order.awbNumber && locations.length) assigned = await orderLocations(admin, order);
+    const suggested = locations.find((l) => l.shopifyLocationId === assigned[0]?.shopifyLocationId) || null;
+    shipFrom = { locations, current, suggestedId: suggested?.id || "", split: assigned.length > 1 ? assigned.map((a) => a.name) : null };
+  }
+  return json({ order, settings, warnings, activity, returns, suggestedCourier, profit, shipFrom });
 }
 
 // ── Static service lists (fallback if live fetch fails) ───────────────────────
@@ -148,7 +164,7 @@ function RateCompare({ orderId, current }) {
 }
 
 export default function OrderDetail() {
-  const { order, settings, warnings = [], activity = [], returns = [], suggestedCourier } = useLoaderData();
+  const { order, settings, warnings = [], activity = [], returns = [], suggestedCourier, profit, shipFrom } = useLoaderData();
   const navigate = useNavigate();
   const { t }    = useTranslation();
   const FAN_OBSERVATIONS = FAN_OBS_KEYS.map((k) => t(k));
@@ -214,6 +230,7 @@ export default function OrderDetail() {
   const [codAmount,    setCodAmount]    = useState(String(order.codAmount || 0));
   const [declaredValue, setDeclaredValue] = useState("0");
   const [shipmentPayer, setShipmentPayer] = useState("recipient");
+  const [shipFromId, setShipFromId] = useState(shipFrom?.suggestedId || "");
   const [insuredValue,  setInsuredValue]  = useState("0");
 
   // ── Step 4: Observations ──────────────────────────────────────────────────
@@ -335,6 +352,7 @@ export default function OrderDetail() {
           // Step 4
           notifyCustomer:   notifyCustomer   || undefined,
           markAsDispatched: markAsDispatched || undefined,
+          shipFromLocationId: shipFromId || undefined,
         }),
       });
       const data = await res.json();
@@ -716,6 +734,15 @@ export default function OrderDetail() {
               onChange={setDeclaredValue} min="0" step="0.01" suffix="RON"
               helpText={t("wizard_declared_help")} />
           </FormLayout.Group>
+          {shipFrom?.locations?.length > 0 && (
+            <BlockStack gap="100">
+              <Select label="Pleacă din" value={shipFromId} onChange={setShipFromId}
+                options={[{ label: "Adresa expeditorului din Setări", value: "" },
+                  ...shipFrom.locations.map((l) => ({ label: `${l.name}${l.city ? `, ${l.city}` : ""}${l.isSupplier ? " (furnizor)" : ""}`, value: l.id }))]}
+                helpText={shipFrom.suggestedId ? "Locația din care Shopify onorează comanda" : undefined} />
+              {shipFrom.split && <Banner tone="warning">{`Produsele comenzii sunt în mai multe locații (${shipFrom.split.join(", ")}). AWB-ul pleacă dintr-una singură; pentru restul generează un AWB separat din locația respectivă.`}</Banner>}
+            </BlockStack>
+          )}
           <FormLayout.Group>
             <Select
               label={t("wizard_payer")}
@@ -894,6 +921,15 @@ export default function OrderDetail() {
                       : `🚚 ${t("home_delivery")}`
                   } />
                   <DetailRow label={t("cod_label")} value={order.codAmount > 0 ? `${order.codAmount.toFixed(2)} RON` : t("paid_online")} />
+                  {shipFrom?.current && <DetailRow label="Expediat din" value={`${shipFrom.current.name}${shipFrom.current.isSupplier ? " (furnizor)" : ""}`} />}
+                  {profit && (order.shippingCost != null || order.cogsAmount != null) && (
+                    <DetailRow label="Profit estimat" value={
+                      <Text as="span" tone={profit.profit < 0 ? "critical" : undefined}>
+                        {`${profit.profit.toFixed(2)} RON`}
+                        <Text as="span" tone="subdued">{` (vânzare ${profit.revenueNet.toFixed(2)} − produse ${profit.cogs.toFixed(2)} − transport ${(profit.shipping + profit.returnCost).toFixed(2)}${profit.paymentFee ? ` − comision ${profit.paymentFee.toFixed(2)}` : ""}${order.cogsMissing ? "; lipsesc costuri de produs" : ""})`}</Text>
+                      </Text>
+                    } />
+                  )}
                   <DetailRow label="Confirmare client" value={
                     <InlineStack gap="200" blockAlign="center" wrap>
                       {confirmedAt

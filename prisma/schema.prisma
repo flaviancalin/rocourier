@@ -191,7 +191,10 @@ model ShopSettings {
 
   // ── Returns ──────────────────────────────────────────────────────────────
   returnsEnabled         Boolean @default(false)
-  withdrawalEnabled      Boolean @default(false) // "withdraw from contract" button (EU 2023/2673, OUG 18/2026)
+  withdrawalEnabled      Boolean @default(false)
+  multiLocationEnabled   Boolean @default(false) // ship from several Shopify locations (warehouses, dropshipping suppliers)
+  paymentFeePercent      Float   @default(0)   // card processor fee for profit (%), COD fee comes with the courier cost
+  sagaCodAccount         String  @default("5311") // SAGA treasury account for courier COD receipts // "withdraw from contract" button (EU 2023/2673, OUG 18/2026)
   // Order confirmation on WhatsApp: a button on the Thank you page opens the merchant's
   // own WhatsApp Business chat with a prefilled message (no Meta API, no cost per message)
   // Checkout: "list" = Picklo rates as usual (nearest lockers with CCS);
@@ -352,6 +355,13 @@ model Order {
   invoiceIssuedAt   DateTime?
   financialStatus   String?   // Shopify financial status (paid, pending, refunded…)
   confirmationNumber String?  // Shopify's order confirmation code, shown on the Thank you page
+  shipFromLocationId String?  // ShipLocation the AWB was sent from (several locations)
+  // Profit per order (from Shopify: product unit costs, taxes, refunds)
+  cogsAmount       Float?    // cost of the goods sold (unit cost × quantity kept)
+  cogsMissing      Boolean   @default(false) // some products have no cost set in Shopify
+  taxAmount        Float?
+  refundedAmount   Float?
+  profitSyncedAt   DateTime?
   customerConfirmedAt DateTime? // customer confirmed the order (e.g. on WhatsApp)
   shopifyCancelledAt DateTime?
 
@@ -501,4 +511,30 @@ model TeamMember {
   lockedUntil  DateTime?
   lastLoginAt  DateTime?
   createdAt    DateTime  @default(now())
+}
+
+// A place the store ships from: a Shopify location (warehouse, shop, dropshipping supplier)
+// with the sender details couriers need. Imported from Shopify, editable in Picklo.
+model ShipLocation {
+  id                    String   @id @default(cuid())
+  shop                  String
+  shopifyLocationId     String   // gid://shopify/Location/…
+  name                  String
+  contactName           String?
+  phone                 String?
+  email                 String?
+  address               String?
+  city                  String?
+  county                String?
+  zip                   String?
+  country               String   @default("RO")
+  isSupplier            Boolean  @default(false) // dropshipping: the supplier ships the parcel
+  active                Boolean  @default(true)
+  samedayPickupPointId  String?  // pickup point of the Sameday account at this address
+  cargusLocationId      String?  // Cargus account location at this address
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([shop, shopifyLocationId])
+  @@index([shop])
 }

@@ -691,6 +691,17 @@ export default function Settings() {
                     </BlockStack>
                   </Card>
                 )}
+                {show("sender") && (
+                  <Card>
+                    <InlineStack align="space-between" blockAlign="center" gap="300" wrap={false}>
+                      <BlockStack gap="100">
+                        <Text variant="headingMd" fontWeight="semibold">Expediez din mai multe locații</Text>
+                        <Text tone="subdued">Depozite, magazine sau furnizori (dropshipping). Fiecare locație din Shopify devine expeditor pe AWB, iar comanda pleacă din locația care o onorează.</Text>
+                      </BlockStack>
+                      <Button url="/app/locations">Locații de expediere</Button>
+                    </InlineStack>
+                  </Card>
+                )}
 
                 {/* ── TAB 1: FAN Courier ────────────────────────────────── */}
                 {show("fan") && (

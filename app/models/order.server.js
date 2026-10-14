@@ -186,7 +186,7 @@ export async function getDashboardStats(shop) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Update AWB data after generation
 // ─────────────────────────────────────────────────────────────────────────────
-export async function updateOrderAwb(id, { awbNumber, awbPdfUrl, awbStatus = "generated", courierType }) {
+export async function updateOrderAwb(id, { awbNumber, awbPdfUrl, awbStatus = "generated", courierType, shipFromLocationId }) {
   return prisma.order.update({
     where: { id },
     data: {
@@ -195,6 +195,7 @@ export async function updateOrderAwb(id, { awbNumber, awbPdfUrl, awbStatus = "ge
       awbStatus,
       updatedAt: new Date(),
       ...(courierType ? { courierType } : {}),
+      ...(shipFromLocationId !== undefined ? { shipFromLocationId } : {}),
     },
   });
 }

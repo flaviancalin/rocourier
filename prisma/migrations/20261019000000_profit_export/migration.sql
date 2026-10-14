@@ -1,0 +1,8 @@
+-- Profit per order and accounting export settings
+ALTER TABLE "Order" ADD COLUMN "cogsAmount" DOUBLE PRECISION;
+ALTER TABLE "Order" ADD COLUMN "cogsMissing" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Order" ADD COLUMN "taxAmount" DOUBLE PRECISION;
+ALTER TABLE "Order" ADD COLUMN "refundedAmount" DOUBLE PRECISION;
+ALTER TABLE "Order" ADD COLUMN "profitSyncedAt" TIMESTAMP(3);
+ALTER TABLE "ShopSettings" ADD COLUMN "paymentFeePercent" DOUBLE PRECISION NOT NULL DEFAULT 0;
+ALTER TABLE "ShopSettings" ADD COLUMN "sagaCodAccount" TEXT NOT NULL DEFAULT '5311';
