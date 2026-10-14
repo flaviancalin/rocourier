@@ -1,0 +1,12 @@
+api_version = "2026-07"
+
+[[extensions]]
+type = "ui_extension"
+name = "Picklo — retragere din contract"
+handle = "picklo-account"
+
+# Order action on the Order index and Order status pages in customer accounts:
+# opens the store's "withdraw from contract" page for that order.
+[[extensions.targeting]]
+module = "./src/WithdrawAction.jsx"
+target = "customer-account.order.action.menu-item.render"

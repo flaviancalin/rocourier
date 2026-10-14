@@ -1,0 +1,10 @@
+{
+  "name": "picklo-account",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@preact/signals": "^2.3.0",
+    "@shopify/ui-extensions": "2026.7.x",
+    "preact": "^10.10.0"
+  }
+}

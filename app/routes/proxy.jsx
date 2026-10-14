@@ -15,6 +15,7 @@ import { prisma } from "../db.server.js";
 import { getPickupPoints, formatForWidget } from "../models/pickup-points.server.js";
 import { COURIER_LABELS } from "../utils/couriers.js";
 import { trackingPage, returnsPage, submitReturn } from "../services/storefront-pages.server.js";
+import { withdrawalPage } from "../services/withdrawal.server.js";
 
 export async function loader({ request }) {
   // App proxy requests are authenticated differently — using HMAC signature
@@ -29,6 +30,9 @@ export async function loader({ request }) {
   }
   if (url.pathname.endsWith("/returns")) {
     return liquid(await returnsPage(shop, url.searchParams, admin));
+  }
+  if (url.pathname.endsWith("/withdraw")) {
+    return liquid(await withdrawalPage(shop, url.searchParams, admin, { loggedInCustomerId: url.searchParams.get("logged_in_customer_id") || null }));
   }
 
   // Route: /apps/rocourier/widget-config
@@ -94,6 +98,10 @@ export async function action({ request }) {
   const { liquid, admin } = await authenticate.public.appProxy(request);
   const url  = new URL(request.url);
   const shop = url.searchParams.get("shop");
+  if (url.pathname.endsWith("/withdraw")) {
+    const form = await request.formData();
+    return liquid(await withdrawalPage(shop, url.searchParams, admin, { loggedInCustomerId: url.searchParams.get("logged_in_customer_id") || null, form }));
+  }
   if (!url.pathname.endsWith("/returns")) return json({ error: "Not found" }, { status: 404 });
   const form = await request.formData();
   const result = await submitReturn(shop, form);

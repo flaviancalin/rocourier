@@ -1,0 +1,22 @@
+{%- comment -%}
+  Picklo lockers in cash-on-delivery forms (Releasit): when the shopper picks a locker
+  shipping rate in the form, Picklo opens its map and saves the chosen locker on the order.
+{%- endcomment -%}
+<div id="picklo-cod-config" hidden
+  data-leaflet-js="{{ 'leaflet.js' | asset_url }}"
+  data-leaflet-css="{{ 'leaflet.css' | asset_url }}"
+  data-keywords="{{ block.settings.keywords | escape }}"
+  data-country="{{ localization.country.iso_code | downcase | default: 'ro' }}"
+  data-lang="{{ request.locale.iso_code | slice: 0, 2 | downcase }}"></div>
+<script src="{{ 'picklo-cod.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "Picklo — lockere în formular COD",
+  "target": "body",
+  "settings": [
+    { "type": "paragraph", "content": "Pentru formularele de comandă cu ramburs (Releasit). În formular, creează un tarif de livrare care conține unul dintre cuvintele de mai jos (de exemplu „Livrare la easybox”). Când clientul îl alege, Picklo îi deschide harta cu lockere." },
+    { "type": "text", "id": "keywords", "label": "Cuvinte care marchează un tarif de locker", "default": "locker,easybox,fanbox,ship & go,parcelshop,z-box,packeta,dpdbox,punct" }
+  ]
+}
+{% endschema %}

@@ -281,5 +281,6 @@ export function formatForWidget(points) {
       // "24/7", or 7 entries Mon..Sun ("HH:MM-HH:MM" / null = closed); absent when unknown
       ...(Array.isArray(p.schedule) ? { hours: isAlwaysOpen(p.schedule) ? "24/7" : p.schedule } : {}),
       ...(typeof p.cardAtPickup === "boolean" ? { card: p.cardAtPickup } : {}),
+      ...(p.availability ? { avail: p.availability } : {}),
     }));
 }

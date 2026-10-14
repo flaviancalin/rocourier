@@ -191,6 +191,7 @@ model ShopSettings {
 
   // ── Returns ──────────────────────────────────────────────────────────────
   returnsEnabled         Boolean @default(false)
+  withdrawalEnabled      Boolean @default(false) // "withdraw from contract" button (EU 2023/2673, OUG 18/2026)
   // Order confirmation on WhatsApp: a button on the Thank you page opens the merchant's
   // own WhatsApp Business chat with a prefilled message (no Meta API, no cost per message)
   // Checkout: "list" = Picklo rates as usual (nearest lockers with CCS);
@@ -271,6 +272,10 @@ model ReturnRequest {
   returnAwbNumber  String?
   dropoffPassword  String?  // Packeta returns: code the customer gives at the drop-off point
   returnLabelRef   String?  // label reference, same format as Order.awbPdfUrl (GLS label + parcel id, Packeta id)
+  kind             String   @default("return") // return | withdrawal (right of withdrawal, no reason needed)
+  requestedVia     String?  // site | account
+  refundDueAt      DateTime? // withdrawal: refund within 14 days of the request
+  confirmationSentAt DateTime? // when the acknowledgement email went out
   merchantNote     String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -414,6 +419,7 @@ model PickupPoint {
   type       String?  // "fanbox" | "easybox" | "pudo" | "packeta_point" | "zbox"
   schedule     Json?    // 7 entries Mon..Sun: "HH:MM-HH:MM" or null (closed); null = unknown
   cardAtPickup Boolean? // card payment possible at the point; null = unknown
+  availability String?  // "full" | "busy" (from the courier); null = no data / free
   isActive   Boolean  @default(true)
   updatedAt  DateTime @updatedAt
 

@@ -152,6 +152,7 @@ export async function fanGetPickupPoints({ clientId, username, password }) {
       lng:        parseFloat(p.longitude) || null,
       schedule:   fanSchedule(p.schedule),
       cardAtPickup: Array.isArray(p.paymentMethods) ? p.paymentMethods.includes("card") : null,
+      availability: p.highDemand ? "busy" : null,
     };
   });
 }

@@ -38,7 +38,7 @@ const STYLE = `<style>
 .pk-items input[type=number]{width:64px}
 </style>`;
 
-const page = (title, body) => `${STYLE}<div class="pk-wrap"><h1>${esc(title)}</h1>${body}</div>`;
+export const page = (title, body) => `${STYLE}<div class="pk-wrap"><h1>${esc(title)}</h1>${body}</div>`;
 const fmtDate = (d) => new Date(d).toLocaleString("ro-RO", { timeZone: "Europe/Bucharest", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 
 function lookupForm(action, { orderName = "", contact = "", error = null, button = "Caută comanda" } = {}) {
@@ -86,7 +86,7 @@ ${settings?.returnsEnabled && order.awbStatus === "delivered" ? `<p><a href="/ap
 }
 
 // ── Returns ──────────────────────────────────────────────────────────────────
-async function lineItemsFor(admin, order) {
+export async function lineItemsFor(admin, order) {
   if (!admin) return [];
   try {
     const res = await admin.graphql(`query ($id: ID!) { order(id: $id) { lineItems(first: 50) { nodes { name sku quantity currentQuantity } } } }`,

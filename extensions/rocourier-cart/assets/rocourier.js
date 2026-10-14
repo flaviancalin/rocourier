@@ -42,6 +42,7 @@
       eta_cutoff:        "Comandă în {time} și coletul pleacă azi",
       months:            "ian.,feb.,mar.,apr.,mai,iun.,iul.,aug.,sept.,oct.,nov.,dec.",
       days:              "duminică,luni,marți,miercuri,joi,vineri,sâmbătă",
+      busy: "Aproape plin",
       at_checkout: "Se calculează la checkout",
       f_sat: "Deschis sâmbătă", f_sun: "Deschis duminică", f_card: "Plată cu cardul", open_247: "Non-stop", closed: "închis", wd_short: "L,Ma,Mi,J,V,S,D", card_ok: "Card la ridicare",
     },
@@ -72,6 +73,7 @@
       eta_cutoff:        "Order within {time} and it ships today",
       months:            "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec",
       days:              "Sunday,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday",
+      busy: "Almost full",
       at_checkout: "Calculated at checkout",
       f_sat: "Open Saturday", f_sun: "Open Sunday", f_card: "Card payment", open_247: "Open 24/7", closed: "closed", wd_short: "Mo,Tu,We,Th,Fr,Sa,Su", card_ok: "Card on pickup",
     },
@@ -102,6 +104,7 @@
       eta_cutoff:        "Bestelle in {time} und es geht heute raus",
       months:            "Jan.,Feb.,März,Apr.,Mai,Juni,Juli,Aug.,Sept.,Okt.,Nov.,Dez.",
       days:              "Sonntag,Montag,Dienstag,Mittwoch,Donnerstag,Freitag,Samstag",
+      busy: "Fast voll",
       at_checkout: "Wird an der Kasse berechnet",
       f_sat: "Samstags offen", f_sun: "Sonntags offen", f_card: "Kartenzahlung", open_247: "Rund um die Uhr", closed: "geschlossen", wd_short: "Mo,Di,Mi,Do,Fr,Sa,So", card_ok: "Kartenzahlung bei Abholung",
     },
@@ -132,6 +135,7 @@
       eta_cutoff:        "Rendelj {time} belül, és ma feladjuk",
       months:            "jan.,febr.,márc.,ápr.,máj.,jún.,júl.,aug.,szept.,okt.,nov.,dec.",
       days:              "vasárnap,hétfő,kedd,szerda,csütörtök,péntek,szombat",
+      busy: "Majdnem tele",
       at_checkout: "A pénztárnál számoljuk",
       f_sat: "Szombaton nyitva", f_sun: "Vasárnap nyitva", f_card: "Kártyás fizetés", open_247: "Éjjel-nappal", closed: "zárva", wd_short: "H,K,Sze,Cs,P,Szo,V", card_ok: "Kártya átvételkor",
     },
@@ -162,6 +166,7 @@
       eta_cutoff:        "Objednejte do {time} a odešleme dnes",
       months:            "led.,ún.,bře.,dub.,kvě.,čvn.,čvc.,srp.,zář.,říj.,lis.,pro.",
       days:              "neděle,pondělí,úterý,středa,čtvrtek,pátek,sobota",
+      busy: "Téměř plné",
       at_checkout: "Vypočítá se v pokladně",
       f_sat: "Otevřeno v sobotu", f_sun: "Otevřeno v neděli", f_card: "Platba kartou", open_247: "Nonstop", closed: "zavřeno", wd_short: "Po,Út,St,Čt,Pá,So,Ne", card_ok: "Karta při vyzvednutí",
     },
@@ -873,6 +878,7 @@
       const bits = [];
       if (h) bits.push(`<span class="rc-item-hours">${esc(h)}</span>`);
       if (p.card === true) bits.push(`<span class="rc-item-card">${esc(t("card_ok"))}</span>`);
+      if (p.avail === "busy") bits.push(`<span class="rc-item-busy">${esc(t("busy"))}</span>`);
       return bits.length ? `<span class="rc-item-meta">${bits.join("")}</span>` : "";
     }
     // Chips appear only when the loaded points carry the data behind them
@@ -908,6 +914,7 @@
       const words = raw ? raw.split(/\s+/).filter((w) => w.length >= 2) : [];
       filtered = allPoints.filter((p) => {
         if (currentFilter !== "all" && p.courier !== currentFilter) return false;
+        if (p.avail === "full") return false; // the courier reports no free compartment
         if (extraFilters.sat && !openOnDay(p, 5)) return false;
         if (extraFilters.sun && !openOnDay(p, 6)) return false;
         if (extraFilters.card && p.card !== true) return false;

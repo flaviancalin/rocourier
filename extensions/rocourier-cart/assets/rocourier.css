@@ -723,3 +723,4 @@
 .rc-item-meta { display: flex; flex-wrap: wrap; gap: 4px 8px; margin: 2px 0 6px; font-size: 11.5px; color: #555; }
 .rc-item-hours { line-height: 1.35; }
 .rc-item-card { color: #1f7a43; font-weight: 600; }
+.rc-item-busy { color: #a35f00; font-weight: 600; }

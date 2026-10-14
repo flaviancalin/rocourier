@@ -13,6 +13,8 @@ import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
 import { generateReturnAwb, setReturnStatus } from "../services/returns.server.js";
 import { RETURN_COURIERS } from "../utils/returns.js";
+import { mailConfigured } from "../services/mail.server.js";
+import { withdrawalRef } from "../utils/withdrawal.js";
 
 const STATUS = {
   requested:     { label: "Cerere nouă",   tone: "attention" },
@@ -33,14 +35,14 @@ export async function loader({ request }) {
   const tab = TABS.find((t) => t.id === url.searchParams.get("tab")) || TABS[0];
   const [returns, settings, counts] = await Promise.all([
     prisma.returnRequest.findMany({ where: { shop: session.shop, status: { in: tab.statuses } }, orderBy: { createdAt: "desc" }, take: 100, omit: { returnLabelRef: true } }),
-    prisma.shopSettings.findUnique({ where: { shop: session.shop }, select: { returnsEnabled: true, returnsCourier: true } }),
+    prisma.shopSettings.findUnique({ where: { shop: session.shop }, select: { returnsEnabled: true, returnsCourier: true, withdrawalEnabled: true, senderEmail: true } }),
     prisma.returnRequest.count({ where: { shop: session.shop, status: "requested" } }),
   ]);
   const orders = await prisma.order.findMany({
     where: { id: { in: returns.map((r) => r.orderId) } },
     select: { id: true, courierType: true, shippingAddress1: true, shippingCity: true, codAmount: true, orderTotal: true },
   });
-  return json({ returns, settings, newCount: counts, orders: Object.fromEntries(orders.map((o) => [o.id, o])), shop: session.shop, tab: tab.id });
+  return json({ returns, settings, newCount: counts, orders: Object.fromEntries(orders.map((o) => [o.id, o])), shop: session.shop, tab: tab.id, mailReady: mailConfigured() });
 }
 
 export async function action({ request }) {
@@ -48,6 +50,11 @@ export async function action({ request }) {
   const form = await request.formData();
   const id = form.get("id");
   const actor = session.onlineAccessInfo?.associated_user?.email || "staff";
+  if (form.get("intent") === "withdrawal-toggle") {
+    const on = form.get("value") === "true";
+    await prisma.shopSettings.update({ where: { shop: session.shop }, data: { withdrawalEnabled: on } });
+    return json({ ok: on ? "Butonul de retragere e pornit" : "Butonul de retragere e oprit" });
+  }
   const owned = await prisma.returnRequest.findFirst({ where: { id, shop: session.shop } });
   if (!owned) return json({ error: "Cererea nu există" }, { status: 404 });
   try {
@@ -78,8 +85,49 @@ export async function action({ request }) {
   }
 }
 
+function WithdrawalCard({ settings, shop, mailReady, onToggle, busy }) {
+  const url = `https://${shop}/apps/rocourier/withdraw`;
+  const [copied, setCopied] = useState(false);
+  const copy = () => navigator.clipboard?.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }).catch(() => {});
+  return (
+    <Card>
+      <BlockStack gap="300">
+        <InlineStack align="space-between" blockAlign="center" wrap>
+          <InlineStack gap="200" blockAlign="center">
+            <Text variant="headingMd">Retragere din contract</Text>
+            <Badge tone={settings?.withdrawalEnabled ? "success" : undefined}>{settings?.withdrawalEnabled ? "Pornit" : "Oprit"}</Badge>
+          </InlineStack>
+          <Button variant={settings?.withdrawalEnabled ? "secondary" : "primary"} loading={busy} onClick={() => onToggle(!settings?.withdrawalEnabled)}>
+            {settings?.withdrawalEnabled ? "Oprește" : "Pornește butonul de retragere"}
+          </Button>
+        </InlineStack>
+        <Text tone="subdued">Obligatoriu pentru vânzările online către clienți din UE (Directiva 2023/2673; în România OUG 18/2026). Clientul renunță la comandă în 14 zile de la primire, fără motiv, în doi pași (alege produsele, apoi confirmă), și primește confirmarea. Cererile apar aici, marcate „Retragere”, cu termenul de rambursare de 14 zile.</Text>
+        {settings?.withdrawalEnabled && (
+          <BlockStack gap="200">
+            <Text fontWeight="semibold">Unde apare butonul</Text>
+            <Text>1. <strong>În contul clientului</strong>, la fiecare comandă: „Retragere din contract”. Apare singur după instalarea versiunii noi a aplicației.</Text>
+            <InlineStack gap="200" blockAlign="center" wrap>
+              <Text>2. <strong>Pe site</strong>: adaugă linkul în meniul din subsol (Online Store → Navigation → Footer → Add menu item):</Text>
+              <Text as="span" fontWeight="semibold">{url}</Text>
+              <Button size="slim" onClick={copy}>{copied ? "Copiat" : "Copiază linkul"}</Button>
+              <Button size="slim" url={`https://${shop}/admin/menus`} target="_top">Deschide meniurile</Button>
+            </InlineStack>
+            <Text tone="subdued">Numește linkul „Retragere din contract” (textul cerut de lege trebuie să fie clar).</Text>
+            {!mailReady && (
+              <Banner tone="info">Confirmarea apare acum pe ecran și se salvează pe comanda din Shopify (eticheta „retragere-contract”) și în Picklo. Trimiterea automată pe email se activează după configurarea serviciului de email Picklo.</Banner>
+            )}
+            {mailReady && !settings?.senderEmail && (
+              <Banner tone="warning">Completează emailul expeditorului în Setări → Expeditor ca să primești și tu notificarea pentru fiecare retragere.</Banner>
+            )}
+          </BlockStack>
+        )}
+      </BlockStack>
+    </Card>
+  );
+}
+
 export default function Returns() {
-  const { returns, settings, newCount, orders, shop, tab } = useLoaderData();
+  const { returns, settings, newCount, orders, shop, tab, mailReady } = useLoaderData();
   const actionData = useActionData();
   const submit = useSubmit();
   const nav = useNavigation();
@@ -108,6 +156,9 @@ export default function Returns() {
                 </Banner>
               )}
               {actionData?.error && <Banner tone="critical" title="Nu s-a putut finaliza">{actionData.error}</Banner>}
+              <WithdrawalCard settings={settings} shop={shop} mailReady={mailReady}
+                busy={nav.state !== "idle" && nav.formData?.get("intent") === "withdrawal-toggle"}
+                onToggle={(v) => submit({ intent: "withdrawal-toggle", value: String(v) }, { method: "post" })} />
 
               <Card padding="0">
                 <Tabs tabs={TABS} selected={selectedTab} onSelect={(i) => { params.set("tab", TABS[i].id); setParams(params); }} />
@@ -129,6 +180,12 @@ export default function Returns() {
                                 <InlineStack gap="200" blockAlign="center">
                                   <Text variant="headingMd">{r.shopifyOrderName}</Text>
                                   <Badge tone={st.tone}>{st.label}</Badge>
+                                  {r.kind === "withdrawal" && <Badge tone="warning">{`Retragere ${withdrawalRef(r.id)}`}</Badge>}
+                                  {r.kind === "withdrawal" && r.refundDueAt && !["refunded", "rejected"].includes(r.status) && (
+                                    <Badge tone={new Date(r.refundDueAt) - Date.now() < 3 * 864e5 ? "critical" : "info"}>
+                                      {`Rambursare până la ${new Date(r.refundDueAt).toLocaleDateString("ro-RO")}`}
+                                    </Badge>
+                                  )}
                                 </InlineStack>
                                 <Text tone="subdued">{new Date(r.createdAt).toLocaleString("ro-RO", { timeZone: "Europe/Bucharest" })}</Text>
                               </InlineStack>

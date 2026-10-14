@@ -88,6 +88,8 @@ export async function findNearestPoints({ origin, couriers, country, limit = 5, 
     const rows = await prisma.pickupPoint.findMany({
       where: {
         country: cc, isActive: true, courier: { in: couriers },
+        // No checkout rate for a locker the courier reports as full
+        OR: [{ availability: null }, { availability: { not: "full" } }],
         lat: { gte: origin.lat - dLat, lte: origin.lat + dLat },
         lng: { gte: origin.lng - dLng, lte: origin.lng + dLng },
       },

@@ -52,3 +52,13 @@ test("DPD: dated schedule wins, Full/Half/DayOff as fallback", () => {
   const apt = dpdSchedule({ ...base, workingTimeSchedule: [{ date: "2026-10-18", workingTimeFrom: "00:00", workingTimeTo: "23:59", standardSchedule: true }] });
   assert.equal(apt[6], ALL);
 });
+
+test("availability: Sameday full/busy and FAN high demand reach the widget payload", async () => {
+  const { formatForWidget } = await import("../app/models/pickup-points.server.js");
+  const rows = formatForWidget([
+    { courier: "sameday", externalId: "1", name: "a", address: "x", lat: 44, lng: 26, availability: "full" },
+    { courier: "fan", externalId: "2", name: "b", address: "y", lat: 44, lng: 26, availability: "busy" },
+    { courier: "gls", externalId: "3", name: "c", address: "z", lat: 44, lng: 26, availability: null },
+  ]);
+  assert.deepEqual(rows.map((r) => r.avail ?? null), ["full", "busy", null]);
+});

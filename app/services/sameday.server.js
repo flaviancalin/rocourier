@@ -184,6 +184,8 @@ export async function samedayGetLockers({ username, password, sandbox = false })
         schedule: samedaySchedule(l.schedule),
         // supportedPayment: 0 = none, 1 = card at the locker
         cardAtPickup: l.supportedPayment == null ? null : Number(l.supportedPayment) > 0,
+        // capacityExceeded = no free compartment; occupancyLevel climbs as the locker fills
+        availability: Number(l.capacityExceeded) > 0 ? "full" : Number(l.occupancyLevel) >= 2 ? "busy" : null,
       }));
   } catch (oohErr) {
     // OOH endpoint not available on sandbox or older API contracts — fall back

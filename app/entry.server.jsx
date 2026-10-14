@@ -51,6 +51,13 @@ async function startCrons() {
 
   console.log("[Cron] Pickup point sync scheduled every 24 hours");
 
+  // ── Locker availability (Sameday occupancy, FAN high demand): every 20 minutes ──
+  setInterval(async () => {
+    try { await refreshPickupPointsCache({ couriers: ["sameday", "fan"] }); }
+    catch (e) { console.error("[Cron/availability]", e.message); }
+  }, 20 * 60 * 1000);
+  console.log("[Cron] Locker availability refresh scheduled every 20 minutes");
+
   // ── COD payouts reported by courier APIs (DPD): every 6 hours ─────────────
   const { syncCodForAllShops } = await import("./services/cod.server.js");
   setInterval(async () => {
