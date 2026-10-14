@@ -1412,9 +1412,25 @@
     restore();
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
+  // Once per widget element: cart drawers re-render their HTML (section rendering) after an
+  // add to cart, which drops our listeners, so a new widget element gets initialised again
+  function tryInit() {
+    const widget = $("rocourier-widget");
+    if (widget && !widget._rcInitialized) {
+      widget._rcInitialized = true;
+      init();
+    }
   }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", tryInit);
+  } else {
+    tryInit();
+  }
+
+  let _moTimer = null;
+  new MutationObserver(() => {
+    if (_moTimer) return;
+    _moTimer = setTimeout(() => { _moTimer = null; tryInit(); }, 150);
+  }).observe(document.documentElement, { childList: true, subtree: true });
 })();
