@@ -9,7 +9,8 @@ import { logError } from "../utils/log.server.js";
 import { upsertOrderFromWebhook } from "../models/order.server.js";
 import { prisma } from "../db.server.js";
 import { generateInvoiceForOrder } from "../services/invoice.server.js";
-import { orderWarnings, courierFromRules } from "../services/order-checks.server.js";
+import { orderWarnings } from "../services/order-checks.server.js";
+import { chooseCourier } from "../services/courier-choice.server.js";
 import { logActivity } from "../services/activity.server.js";
 
 // Problems that make an automatic AWB fail or bounce; others (e.g. past refusals) only warn
@@ -53,11 +54,13 @@ async function runOrderCreatedAutomations(shop, payload, order) {
           message: `AWB automat oprit: ${blocking.map((w) => w.message).join("; ")}` });
       } else try {
         const { admin } = await unauthenticated.admin(shop);
+        const choice = await chooseCourier(settings, fresh).catch(() => ({}));
         await generateAwbForOrder(admin, shop, order.id, {
           markAsDispatched: settings.autoAwbMarkShipped,
           notifyCustomer:   settings.autoAwbNotifyCustomer,
           recipientPhone:   fresh.customerPhone || undefined,
-          courierOverride:  courierFromRules(settings, fresh) || undefined,
+          courierOverride:  choice.courier || undefined,
+          courierReason:    choice.reason || undefined,
           actor:            "automation",
         });
       } catch (awbErr) {

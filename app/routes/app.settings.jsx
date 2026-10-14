@@ -232,6 +232,7 @@ export async function action({ request }) {
       blockCodAfterRefusals: Math.max(0, parseInt(get("blockCodAfterRefusals"), 10) || 0),
       returnsEnabled:        get("returnsEnabled") === "true",
       returnsWindowDays:     Math.min(90, Math.max(1, parseInt(get("returnsWindowDays"), 10) || 14)),
+      autoCourierMode:       get("autoCourierMode") === "cheapest" ? "cheapest" : "off",
       returnsCourier:        get("returnsCourier") || null,
       returnsInstructions:   get("returnsInstructions") || null,
       xconnectorEnabled: get("xconnectorEnabled") === "true",
@@ -305,6 +306,13 @@ export async function action({ request }) {
     const fgoKey = get("fgoPrivateKey");
     if (fgoKey) data.fgoPrivateKey = fgoKey;
     // Routing rules arrive as JSON from the rules editor
+    const fixedPrices = get("autoCourierPrices");
+    if (fixedPrices != null) {
+      try {
+        const parsed = JSON.parse(fixedPrices || "{}");
+        data.autoCourierPrices = Object.fromEntries(Object.entries(parsed).map(([k, v]) => [k, Number.parseFloat(String(v).replace(",", "."))]).filter(([, v]) => Number.isFinite(v) && v > 0));
+      } catch (_) { /* keep the stored prices */ }
+    }
     const rules = get("routingRules");
     if (rules != null) {
       try { data.routingRules = rules ? JSON.parse(rules) : null; } catch (_) { /* keep the stored rules */ }
@@ -424,6 +432,8 @@ export default function Settings() {
   const [blockCodAfterRefusals, setBlockCodAfterRefusals] = useState(String(settings.blockCodAfterRefusals ?? 0));
   const [returnsEnabled,        setReturnsEnabled]        = useState(!!settings.returnsEnabled);
   const [returnsWindowDays,     setReturnsWindowDays]     = useState(String(settings.returnsWindowDays ?? 14));
+  const [autoCourierMode,       setAutoCourierMode]       = useState(settings.autoCourierMode || "off");
+  const [autoCourierPrices,     setAutoCourierPrices]     = useState(() => Object.fromEntries(Object.entries(settings.autoCourierPrices || {}).map(([k, v]) => [k, String(v)])));
   const [returnsCourier,        setReturnsCourier]        = useState(settings.returnsCourier || "");
   const [returnsInstructions,   setReturnsInstructions]   = useState(settings.returnsInstructions || "");
   const [routingRules,          setRoutingRules]          = useState(Array.isArray(settings.routingRules) ? settings.routingRules : []);
@@ -559,6 +569,7 @@ export default function Settings() {
       dispatchCutoffHour, processingDays,
       validateAddresses: String(validateAddresses), refusalWarnThreshold, blockCodAfterRefusals,
       returnsEnabled: String(returnsEnabled), returnsWindowDays, returnsCourier, returnsInstructions,
+      autoCourierMode, autoCourierPrices: JSON.stringify(autoCourierPrices),
       routingRules: JSON.stringify(routingRules.filter((rule) => rule.courier)),
       xconnectorEnabled: String(xconnectorEnabled),
       smartbillEnabled: String(smartbillEnabled), smartbillEmail, smartbillCompanyCIF, smartbillSeries, smartbillTVA, smartbillCurrency,
@@ -619,6 +630,7 @@ export default function Settings() {
       fgoEnabled, fgoSandbox, fgoCui, fgoPrivateKey, fgoSeries, fgoTVA, fgoCurrency,
       freeShippingThreshold, freeShippingScope, showDeliveryEstimate, dispatchCutoffHour, processingDays,
       validateAddresses, refusalWarnThreshold, blockCodAfterRefusals, returnsEnabled, returnsWindowDays, returnsCourier, returnsInstructions,
+      autoCourierMode, autoCourierPrices,
       routingRules, submit]);
 
   const handleTest = useCallback((courier) => {
@@ -1482,6 +1494,27 @@ export default function Settings() {
                         <InlineStack>
                           <Button onClick={() => setRoutingRules([...routingRules, { field: "county", value: "", courier: "" }])}>{t("routing_add")}</Button>
                         </InlineStack>
+                      </BlockStack>
+                    </Card>
+
+                    <Card>
+                      <BlockStack gap="400">
+                        <Text variant="headingMd" fontWeight="semibold">Alegere automată a curierului</Text>
+                        <Text tone="subdued">Pentru comenzile cu livrare acasă la care nu alegi tu curierul (AWB automat, generare în masă), Picklo cere tariful fiecărui curier conectat și îl alege pe cel mai ieftin. Regulile de mai sus au prioritate, iar comenzile cu locker rămân la curierul lockerului ales de client.</Text>
+                        <Select label="Mod" value={autoCourierMode} onChange={setAutoCourierMode}
+                          options={[{ label: "Oprit: curierul din comandă", value: "off" }, { label: "Cel mai ieftin curier", value: "cheapest" }]} />
+                        {autoCourierMode === "cheapest" && (
+                          <BlockStack gap="200">
+                            <Text variant="bodySm" tone="subdued">FAN, Sameday, DPD și Cargus au tarife din API, după contractul tău. Pentru ceilalți curieri scrie prețul tău mediu pe colet (cu TVA), ca să intre în comparație. Gol = nu intră.</Text>
+                            <FormLayout.Group condensed>
+                              {["gls", "packeta", "cargus", "dpd"].map((c) => (
+                                <TextField key={c} label={`${c.toUpperCase()} (RON)`} type="number" min="0" step="0.01" autoComplete="off"
+                                  value={autoCourierPrices[c] || ""} onChange={(v) => setAutoCourierPrices((p) => ({ ...p, [c]: v }))}
+                                  helpText={c === "cargus" || c === "dpd" ? "Doar dacă API-ul nu dă tarif" : undefined} />
+                              ))}
+                            </FormLayout.Group>
+                          </BlockStack>
+                        )}
                       </BlockStack>
                     </Card>
 

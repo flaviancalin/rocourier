@@ -9,10 +9,13 @@ import { Page, Layout, Card, BlockStack, InlineStack, Text, TextField, Checkbox,
 import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
 import { syncWhatsappMetafield } from "../services/whatsapp-confirm.server.js";
+import { mailConfigured } from "../services/mail.server.js";
+import { PICKUP_HOLD_DAYS } from "../services/pickup-reminders.server.js";
 import { logActivity } from "../services/activity.server.js";
 import { WHATSAPP_DEFAULTS, WHATSAPP_PLACEHOLDERS, normalizeWhatsappPhone, renderWhatsappMessage, whatsappLink } from "../utils/whatsapp-confirm.js";
 
-const FIELDS = ["whatsappConfirm", "whatsappPhone", "whatsappName", "whatsappTitle", "whatsappText", "whatsappButton", "whatsappMessage", "whatsappCodOnly"];
+const FIELDS = ["whatsappConfirm", "whatsappPhone", "whatsappName", "whatsappTitle", "whatsappText", "whatsappButton", "whatsappMessage", "whatsappCodOnly",
+  "pickupReminderEnabled", "pickupReminderHours", "pickupReminderLastDay"];
 
 export async function loader({ request }) {
   const { session, admin } = await authenticate.admin(request);
@@ -22,13 +25,22 @@ export async function loader({ request }) {
   });
   let shopName = "";
   try { shopName = (await (await admin.graphql(`{ shop { name } }`)).json()).data?.shop?.name || ""; } catch (_) {}
-  const confirmed = await prisma.order.count({ where: { shop: session.shop, customerConfirmedAt: { not: null } } });
-  return json({ settings: settings || {}, shop: session.shop, shopName, confirmed });
+  const [confirmed, reminded] = await Promise.all([
+    prisma.order.count({ where: { shop: session.shop, customerConfirmedAt: { not: null } } }),
+    prisma.order.count({ where: { shop: session.shop, pickupRemindersSent: { gt: 0 } } }),
+  ]);
+  return json({ settings: settings || {}, shop: session.shop, shopName, confirmed, reminded, mailReady: mailConfigured(), holdDays: PICKUP_HOLD_DAYS });
 }
 
 export async function action({ request }) {
   const { session, admin } = await authenticate.admin(request);
   const form = await request.formData();
+  if (form.get("intent") === "pickup-reminders") {
+    const hours = Math.min(96, Math.max(2, parseInt(form.get("pickupReminderHours"), 10) || 24));
+    const data = { pickupReminderEnabled: form.get("pickupReminderEnabled") === "true", pickupReminderHours: hours, pickupReminderLastDay: form.get("pickupReminderLastDay") !== "false" };
+    await prisma.shopSettings.upsert({ where: { shop: session.shop }, update: data, create: { shop: session.shop, ...data } });
+    return json({ ok: data.pickupReminderEnabled ? `Reamintirile de ridicare sunt pornite (după ${hours} ore).` : "Reamintirile de ridicare sunt oprite." });
+  }
   const enabled = form.get("whatsappConfirm") === "true";
   const rawPhone = String(form.get("whatsappPhone") || "").trim();
   const phone = rawPhone ? normalizeWhatsappPhone(rawPhone) : null;
@@ -56,7 +68,7 @@ export async function action({ request }) {
 }
 
 export default function WhatsAppPage() {
-  const { settings: s, shop, shopName, confirmed } = useLoaderData();
+  const { settings: s, shop, shopName, confirmed, reminded, mailReady, holdDays } = useLoaderData();
   const actionData = useActionData();
   const submit = useSubmit();
   const nav = useNavigation();
@@ -88,10 +100,9 @@ export default function WhatsAppPage() {
 
   return (
     <Page
-      title="Confirmare WhatsApp"
-      subtitle="Clientul confirmă comanda printr-un mesaj pe WhatsApp-ul tău, chiar după ce o plasează. Gratuit, pe orice plan Shopify."
-      titleMetadata={live ? <Badge tone="success">Pornită</Badge> : <Badge>Oprită</Badge>}
-      primaryAction={{ content: "Salvează", onAction: save, loading: busy, disabled: !dirty }}
+      title="Mesaje către clienți"
+      subtitle="Confirmarea comenzii pe WhatsApp și reamintirile pe email pentru coletele care așteaptă în locker."
+      primaryAction={{ content: "Salvează WhatsApp", onAction: save, loading: busy, disabled: !dirty }}
     >
       <Layout>
         {actionData?.error && <Layout.Section><Banner tone="critical">{actionData.error}</Banner></Layout.Section>}
@@ -115,7 +126,7 @@ export default function WhatsAppPage() {
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
-              <Text variant="headingMd">Setări</Text>
+              <InlineStack gap="200" blockAlign="center"><Text variant="headingMd">Confirmare pe WhatsApp</Text>{live ? <Badge tone="success">Pornită</Badge> : <Badge>Oprită</Badge>}</InlineStack>
               <Checkbox label="Pornește confirmarea pe WhatsApp" checked={f.whatsappConfirm} onChange={set("whatsappConfirm")} />
               <TextField label="Numărul tău de WhatsApp Business" value={f.whatsappPhone} onChange={set("whatsappPhone")} autoComplete="tel"
                 placeholder="+40 761 034 629"
@@ -135,6 +146,10 @@ export default function WhatsAppPage() {
                 helpText={`Poți folosi ${WHATSAPP_PLACEHOLDERS.join(", ")}: codul comenzii, numele magazinului și totalul.`} />
             </BlockStack>
           </Card>
+        </Layout.Section>
+
+        <Layout.Section>
+          <PickupRemindersCard s={s} mailReady={mailReady} reminded={reminded} holdDays={holdDays} />
         </Layout.Section>
 
         <Layout.Section variant="oneThird">
@@ -175,6 +190,35 @@ export default function WhatsAppPage() {
         </Layout.Section>
       </Layout>
     </Page>
+  );
+}
+
+const COURIER_NAMES = { sameday: "Sameday easybox", fan: "FANbox", cargus: "Cargus Ship & Go", gls: "GLS ParcelShop", dpd: "DPD Pickup", packeta: "Packeta" };
+
+function PickupRemindersCard({ s, mailReady, reminded, holdDays }) {
+  const submit = useSubmit();
+  const nav = useNavigation();
+  const [on, setOn] = useState(!!s.pickupReminderEnabled);
+  const [hours, setHours] = useState(String(s.pickupReminderHours || 24));
+  const [lastDay, setLastDay] = useState(s.pickupReminderLastDay !== false);
+  const busy = nav.state !== "idle" && nav.formData?.get("intent") === "pickup-reminders";
+  return (
+    <Card>
+      <BlockStack gap="300">
+        <InlineStack align="space-between" blockAlign="center">
+          <InlineStack gap="200" blockAlign="center"><Text variant="headingMd">Reamintire ridicare colet</Text>{s.pickupReminderEnabled ? <Badge tone="success">Pornită</Badge> : <Badge>Oprită</Badge>}</InlineStack>
+          <Button loading={busy} onClick={() => submit({ intent: "pickup-reminders", pickupReminderEnabled: String(on), pickupReminderHours: hours, pickupReminderLastDay: String(lastDay) }, { method: "post" })}>Salvează</Button>
+        </InlineStack>
+        <Text tone="subdued">Când coletul ajunge în locker sau la punctul de ridicare și clientul nu îl ia, Picklo îi trimite un email cu adresa punctului, AWB-ul și suma de plată. Merge la toți curierii. Mai puține colete returnate înseamnă mai puțin transport plătit de două ori.</Text>
+        {!mailReady && <Banner tone="warning">Trimiterea de emailuri nu e încă configurată pe server. Setările se salvează, iar emailurile pleacă de când e configurată.</Banner>}
+        <Checkbox label="Trimite reamintiri pe email" checked={on} onChange={setOn} />
+        <TextField label="Prima reamintire după" type="number" suffix="ore" value={hours} onChange={setHours} min={2} max={96} autoComplete="off"
+          helpText="Socotite de când coletul a ajuns în locker, după tracking." />
+        <Checkbox label="A doua reamintire în ultima zi, înainte să se întoarcă la tine" checked={lastDay} onChange={setLastDay}
+          helpText={`Cât păstrează curierii coletul, de obicei: ${Object.entries(holdDays || {}).map(([c, d]) => `${COURIER_NAMES[c]} ${d} zile`).join(", ")}.`} />
+        <Text tone="subdued" variant="bodySm">Pe WhatsApp reamintirea ar costa per mesaj (clientul nu ți-a scris în ultimele 24 de ore), de aceea folosim emailul, care e gratuit.{reminded > 0 ? ` Până acum: ${reminded} comenzi reamintite.` : ""}</Text>
+      </BlockStack>
+    </Card>
   );
 }
 

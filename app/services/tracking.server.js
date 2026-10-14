@@ -86,7 +86,12 @@ export async function refreshOrderTracking(order, settings, { actor = "tracking"
   if (changed) {
     await prisma.order.update({
       where: { id: order.id },
-      data: { awbStatus: status, ...(status === "delivered" && !order.deliveredAt ? { deliveredAt: new Date() } : {}) },
+      data: {
+        awbStatus: status,
+        ...(status === "delivered" && !order.deliveredAt ? { deliveredAt: new Date() } : {}),
+        // Locker / pickup point parcels: "out_for_delivery" means it's in the box, waiting (pickup reminders)
+        ...(status === "out_for_delivery" && order.shippingMethod === "pickup_point" && !order.readyForPickupAt ? { readyForPickupAt: new Date() } : {}),
+      },
     });
     await logActivity({ shop: order.shop, order, action: `status_${status}`, message: `Status AWB ${order.awbNumber}: ${status}`, actor });
     flowStatusChanged(order.shop, order, status);

@@ -4,20 +4,24 @@ import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server.js";
 import { generateAwbForOrder } from "../services/awb.server.js";
 import { prisma } from "../db.server.js";
-import { courierFromRules } from "../services/order-checks.server.js";
+import { chooseCourier } from "../services/courier-choice.server.js";
 
 export async function action({ request }) {
   const { session, admin } = await authenticate.admin(request);
   const { orderId, ...options } = await request.json();
   try {
     const actor = session.onlineAccessInfo?.associated_user?.email || "staff";
-    // Bulk generation without a wizard: apply the merchant's courier rules
+    // Bulk generation without a wizard: courier rules, then the automatic (cheapest) choice
     if (options.useRules && !options.courierOverride) {
       const [order, settings] = await Promise.all([
         prisma.order.findFirst({ where: { shop: session.shop, id: orderId } }),
         prisma.shopSettings.findUnique({ where: { shop: session.shop } }),
       ]);
-      if (order && settings) options.courierOverride = courierFromRules(settings, order) || undefined;
+      if (order && settings) {
+        const choice = await chooseCourier(settings, order).catch(() => ({}));
+        options.courierOverride = choice.courier || undefined;
+        if (choice.reason) options.courierReason = choice.reason;
+      }
     }
     delete options.useRules;
     const { awbNumber, order } = await generateAwbForOrder(admin, session.shop, orderId, { ...options, actor });

@@ -3,6 +3,7 @@ import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
 import { compareRates } from "../services/rates-compare.server.js";
+import { chooseCourier, withFixedPrices } from "../services/courier-choice.server.js";
 
 export async function loader({ request }) {
   const { session } = await authenticate.admin(request);
@@ -12,5 +13,7 @@ export async function loader({ request }) {
     prisma.shopSettings.findUnique({ where: { shop: session.shop } }),
   ]);
   if (!order || !settings) return json({ rates: [] }, { status: 404 });
-  return json({ rates: await compareRates(settings, order) });
+  const rates = await compareRates(settings, order);
+  const choice = await chooseCourier(settings, order, { rates });
+  return json({ rates: withFixedPrices(rates, settings), choice: choice.courier ? choice : null });
 }

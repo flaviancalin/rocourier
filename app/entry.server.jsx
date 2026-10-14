@@ -64,6 +64,14 @@ async function startCrons() {
     try { await syncCodForAllShops(); } catch (e) { console.error("[Cron/cod]", e.message); }
   }, 6 * 60 * 60 * 1000);
   console.log("[Cron] COD payout sync scheduled every 6 hours");
+
+  // ── Pickup reminders (parcel waiting in a locker): every hour ─────────────
+  const { runPickupReminders } = await import("./services/pickup-reminders.server.js");
+  setInterval(async () => {
+    try { const r = await runPickupReminders(); if (r.sent) console.log(`[Cron/pickup-reminders] sent ${r.sent}`); }
+    catch (e) { console.error("[Cron/pickup-reminders]", e.message); }
+  }, 60 * 60 * 1000);
+  console.log("[Cron] Pickup reminders scheduled every hour");
 }
 
 // Start crons when server boots

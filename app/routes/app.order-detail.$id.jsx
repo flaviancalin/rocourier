@@ -9,7 +9,7 @@ import { getOrder } from "../models/order.server.js";
 import { orderWarnings, courierFromRules } from "../services/order-checks.server.js";
 import { listActivity } from "../services/activity.server.js";
 import { prisma } from "../db.server.js";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "../context/i18n.jsx";
 import {
   Page, Layout, Card, BlockStack, InlineStack, Text, Badge,
@@ -29,7 +29,7 @@ export async function loader({ request, params }) {
       cargusEnabled: true, glsEnabled: true, packetaEnabled: true, dpdEnabled: true,
       validateAddresses: true, refusalWarnThreshold: true, routingRules: true,
       invoiceProvider: true, smartbillTVA: true, oblioTVA: true, fgoTVA: true, paymentFeePercent: true,
-      multiLocationEnabled: true,
+      multiLocationEnabled: true, autoCourierMode: true,
     },
   });
   const [warnings, activity, returns] = await Promise.all([
@@ -131,17 +131,21 @@ function defaultServiceFor(courier, isPickup, services) {
 }
 
 // Contract prices from every connected courier, cheapest first
-function RateCompare({ orderId, current }) {
+function RateCompare({ orderId, current, auto, onChoose }) {
   const [rates, setRates] = useState(null);
+  const [choice, setChoice] = useState(null);
   const [loading, setLoading] = useState(false);
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/compare-rates?orderId=${encodeURIComponent(orderId)}`);
-      setRates((await res.json()).rates || []);
+      const body = await (await fetch(`/api/compare-rates?orderId=${encodeURIComponent(orderId)}`)).json();
+      setRates(body.rates || []);
+      setChoice(body.choice || null);
     } catch (_) { setRates([]); }
     setLoading(false);
   };
+  // Automatic courier choice is on: show the recommendation without a click
+  useEffect(() => { if (auto) load(); }, [auto, orderId]);
   return (
     <Card>
       <BlockStack gap="200">
@@ -158,6 +162,13 @@ function RateCompare({ orderId, current }) {
           </InlineStack>
         )))}
         {rates?.some((r) => r.error) && <Text tone="subdued" variant="bodySm">{rates.filter((r) => r.error).map((r) => `${r.name}: ${r.error}`).join(" · ")}</Text>}
+        {rates?.some((r) => r.source === "fixed") && <Text tone="subdued" variant="bodySm">Unde curierul nu are API de tarife, e folosit prețul din Setări → Livrare &amp; verificări.</Text>}
+        {choice?.courier && choice.courier !== current && (
+          <Banner tone="info" title={`Recomandat: ${COURIER_LABELS[choice.courier] || choice.courier}`}
+            action={onChoose ? { content: "Generează AWB cu acest curier", onAction: () => onChoose(choice.courier) } : undefined}>
+            <Text>{choice.reason}</Text>
+          </Banner>
+        )}
       </BlockStack>
     </Card>
   );
@@ -283,7 +294,10 @@ export default function OrderDetail() {
   }
 
   // ── Open wizard ───────────────────────────────────────────────────────────
-  async function openWizard() {
+  async function openWizard(forCourier) {
+    // Called with a courier from the price recommendation; from buttons it gets the click event
+    const c = typeof forCourier === "string" ? forCourier : courier;
+    if (c !== courier) { setCourier(c); setFanObservations([]); }
     setWizardStep(1);
     setError(null);
     setWizardOpen(true);
@@ -292,12 +306,12 @@ export default function OrderDetail() {
       const res  = await fetch("/api/courier-services");
       const data = await res.json();
       setLiveServices(data);
-      const opts = data[courier] || COURIER_SERVICES[courier] || [];
-      const svc  = defaultServiceFor(courier, isPickupOrder, opts);
+      const opts = data[c] || COURIER_SERVICES[c] || [];
+      const svc  = defaultServiceFor(c, isPickupOrder, opts);
       setService(svc);
-      if (needsPickupPoint(courier, svc, glsParcelShop)) loadPickupPointsForCourier(courier);
+      if (needsPickupPoint(c, svc, glsParcelShop)) loadPickupPointsForCourier(c);
     } catch (_) {
-      if (needsPickupPoint(courier, service, glsParcelShop)) loadPickupPointsForCourier(courier);
+      if (needsPickupPoint(c, service, glsParcelShop)) loadPickupPointsForCourier(c);
     } finally {
       setLoadingServices(false);
     }
@@ -1024,7 +1038,8 @@ export default function OrderDetail() {
             </Card>
 
             {!order.awbNumber && (
-              <Box paddingBlockStart="400"><RateCompare orderId={order.id} current={order.courierType} /></Box>
+              <Box paddingBlockStart="400"><RateCompare orderId={order.id} current={order.courierType} auto={settings?.autoCourierMode === "cheapest"}
+                onChoose={(c) => openWizard(c)} /></Box>
             )}
 
             {returns.length > 0 && (

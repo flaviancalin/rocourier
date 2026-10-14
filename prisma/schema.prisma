@@ -192,6 +192,11 @@ model ShopSettings {
   // ── Returns ──────────────────────────────────────────────────────────────
   returnsEnabled         Boolean @default(false)
   withdrawalEnabled      Boolean @default(false)
+  autoCourierMode        String  @default("off") // off | cheapest: courier for orders nobody picked one for
+  autoCourierPrices      Json?   // { gls: 17.5 } prices for couriers without a price API
+  pickupReminderEnabled  Boolean @default(false) // email the customer while the parcel waits in a locker
+  pickupReminderHours    Int     @default(24)
+  pickupReminderLastDay  Boolean @default(true)  // second email on the last day before it goes back
   multiLocationEnabled   Boolean @default(false) // ship from several Shopify locations (warehouses, dropshipping suppliers)
   paymentFeePercent      Float   @default(0)   // card processor fee for profit (%), COD fee comes with the courier cost
   sagaCodAccount         String  @default("5311") // SAGA treasury account for courier COD receipts // "withdraw from contract" button (EU 2023/2673, OUG 18/2026)
@@ -373,6 +378,9 @@ model Order {
   // Shipping cost charged by the courier for this AWB (when the API returns it)
   shippingCost     Float?
   deliveredAt      DateTime?
+  readyForPickupAt DateTime? // parcel arrived in the locker / pickup point
+  pickupRemindersSent Int    @default(0)
+  pickupReminderAt DateTime?
 
   // COD reconciliation — money transferred by the courier
   codCollectedAmount Float?

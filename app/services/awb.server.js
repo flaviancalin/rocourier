@@ -357,7 +357,7 @@ export async function generateAwbForOrder(admin, shop, orderId, options = {}) {
     if (awbResult.price != null) {
       await prisma.order.update({ where: { id: order.id }, data: { shippingCost: Number(awbResult.price) } }).catch(() => {});
     }
-    await logActivity({ shop, order, action: "awb_generated", message: `AWB ${awbResult.awbNumber} generat la ${courier}`, actor: options.actor || null });
+    await logActivity({ shop, order, action: "awb_generated", message: `AWB ${awbResult.awbNumber} generat la ${courier}${options.courierReason ? ` (${options.courierReason})` : ""}${settings._shipLocationId && shipLocation ? `, din ${shipLocation.name}` : ""}`, actor: options.actor || null });
     flowAwbCreated(shop, admin, order, awbResult.awbNumber, courier);
 
     // Sync to Shopify fulfillment (makes xConnector compatible)
