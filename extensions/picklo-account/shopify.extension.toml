@@ -1,8 +1,9 @@
 api_version = "2026-07"
 
 [[extensions]]
+uid = "7e9c6297-59d5-5eba-abce-dec58fdde9d5d313f9ac"
 type = "ui_extension"
-name = "Picklo — retragere din contract"
+name = "Picklo retragere"
 handle = "picklo-account"
 
 # Order action on the Order index and Order status pages in customer accounts:
