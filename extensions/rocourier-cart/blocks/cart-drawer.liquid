@@ -1,0 +1,284 @@
+{% comment %}
+  Picklo — the same delivery widget as the cart page block, for cart drawers. The markup sits in
+  a <template>; rocourier.js places it above the drawer's checkout button and places it again
+  whenever the theme re-renders the drawer.
+{% endcomment %}
+
+<template id="picklo-drawer-template"
+  data-anchor="{{ block.settings.anchor_selector | escape }}"
+  data-cart-page="{{ block.settings.cart_page }}">
+  {% render 'picklo-widget', s: block.settings %}
+</template>
+
+<link rel="stylesheet" href="{{ 'leaflet.css' | asset_url }}">
+<link rel="stylesheet" href="{{ 'MarkerCluster.css' | asset_url }}">
+<link rel="stylesheet" href="{{ 'MarkerCluster.Default.css' | asset_url }}">
+<link rel="stylesheet" href="{{ 'rocourier.css' | asset_url }}">
+<script src="{{ 'leaflet.js' | asset_url }}" defer></script>
+<script src="{{ 'leaflet.markercluster.js' | asset_url }}" defer></script>
+<script src="{{ 'rocourier.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "Picklo în coșul glisant",
+  "target": "body",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Unde apare"
+    },
+    {
+      "type": "paragraph",
+      "content": "Widgetul se pune singur deasupra butonului de checkout din coșul glisant, la fel ca în pagina coșului. Dacă tema ta are alt coș, scrie mai jos selectorul elementului înaintea căruia să apară."
+    },
+    {
+      "type": "text",
+      "id": "anchor_selector",
+      "label": "Selector CSS (opțional)",
+      "info": "Ex.: .cart-drawer__footer .cart__ctas. Gol = automat."
+    },
+    {
+      "type": "checkbox",
+      "id": "cart_page",
+      "label": "Pune-l și în pagina coșului, dacă nu ai adăugat acolo blocul Picklo",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Aspect widget"
+    },
+    {
+      "type": "color",
+      "id": "primary_color",
+      "label": "Culoare principală",
+      "default": "#222222"
+    },
+    {
+      "type": "color",
+      "id": "widget_bg",
+      "label": "Fundal widget",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "border_color",
+      "label": "Culoare bordură",
+      "default": "#e0e0e0"
+    },
+    {
+      "type": "select",
+      "id": "border_radius",
+      "label": "Colțuri",
+      "options": [
+        {
+          "value": "sharp",
+          "label": "Drepte (0px)"
+        },
+        {
+          "value": "rounded",
+          "label": "Rotunjite (10px)"
+        },
+        {
+          "value": "pill",
+          "label": "Pill (24px)"
+        }
+      ],
+      "default": "rounded"
+    },
+    {
+      "type": "select",
+      "id": "widget_padding",
+      "label": "Spațiu interior (padding)",
+      "options": [
+        {
+          "value": "none",
+          "label": "Fără (0px)"
+        },
+        {
+          "value": "small",
+          "label": "Mic (8px)"
+        },
+        {
+          "value": "medium",
+          "label": "Mediu (16px)"
+        },
+        {
+          "value": "large",
+          "label": "Mare (24px)"
+        }
+      ],
+      "default": "none"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_title",
+      "label": "Afișează titlul secțiunii",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "title",
+      "label": "Titlu secțiune",
+      "default": "Metoda de livrare:"
+    },
+    {
+      "type": "text",
+      "id": "search_placeholder",
+      "label": "Placeholder căutare",
+      "default": "Oraș, cod poștal, adresă..."
+    },
+    {
+      "type": "header",
+      "content": "Curieri în coș"
+    },
+    {
+      "type": "paragraph",
+      "content": "Datele de cont și prețurile se setează în aplicația Picklo. Aici alegi doar unde apare fiecare curier configurat acolo."
+    },
+    {
+      "type": "select",
+      "id": "fan_mode",
+      "label": "FAN Courier",
+      "default": "both",
+      "options": [
+        {
+          "value": "both",
+          "label": "Acasă și locker"
+        },
+        {
+          "value": "home",
+          "label": "Doar livrare acasă"
+        },
+        {
+          "value": "pickup",
+          "label": "Doar locker / punct"
+        },
+        {
+          "value": "off",
+          "label": "Ascuns"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "sameday_mode",
+      "label": "Sameday",
+      "default": "both",
+      "options": [
+        {
+          "value": "both",
+          "label": "Acasă și locker"
+        },
+        {
+          "value": "home",
+          "label": "Doar livrare acasă"
+        },
+        {
+          "value": "pickup",
+          "label": "Doar locker / punct"
+        },
+        {
+          "value": "off",
+          "label": "Ascuns"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "cargus_mode",
+      "label": "Cargus",
+      "default": "both",
+      "options": [
+        {
+          "value": "both",
+          "label": "Acasă și locker"
+        },
+        {
+          "value": "home",
+          "label": "Doar livrare acasă"
+        },
+        {
+          "value": "pickup",
+          "label": "Doar locker / punct"
+        },
+        {
+          "value": "off",
+          "label": "Ascuns"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "gls_mode",
+      "label": "GLS",
+      "default": "both",
+      "options": [
+        {
+          "value": "both",
+          "label": "Acasă și locker"
+        },
+        {
+          "value": "home",
+          "label": "Doar livrare acasă"
+        },
+        {
+          "value": "pickup",
+          "label": "Doar locker / punct"
+        },
+        {
+          "value": "off",
+          "label": "Ascuns"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "packeta_mode",
+      "label": "Packeta",
+      "default": "both",
+      "options": [
+        {
+          "value": "both",
+          "label": "Acasă și locker"
+        },
+        {
+          "value": "home",
+          "label": "Doar livrare acasă"
+        },
+        {
+          "value": "pickup",
+          "label": "Doar locker / punct"
+        },
+        {
+          "value": "off",
+          "label": "Ascuns"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "dpd_mode",
+      "label": "DPD",
+      "default": "both",
+      "options": [
+        {
+          "value": "both",
+          "label": "Acasă și locker"
+        },
+        {
+          "value": "home",
+          "label": "Doar livrare acasă"
+        },
+        {
+          "value": "pickup",
+          "label": "Doar locker / punct"
+        },
+        {
+          "value": "off",
+          "label": "Ascuns"
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

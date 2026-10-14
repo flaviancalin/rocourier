@@ -1,6 +1,9 @@
 // RoCourier Cart Widget — Unified: Home Delivery + Pickup Point
 (function () {
   "use strict";
+  // The cart page block and the cart drawer embed both load this file: run it once
+  if (window.__pickloWidgetLoaded) return;
+  window.__pickloWidgetLoaded = true;
 
   // ── Courier config ────────────────────────────────────────────────────────────
   // Colors and labels — logos loaded dynamically from widget data attributes
@@ -1306,6 +1309,8 @@
 
     // ── Checkout guard ─────────────────────────────────────────────────────────
     function blockCheckout(e) {
+      // A re-rendered drawer has a new widget with its own handler: this one is stale
+      if (!widget.isConnected) return true;
       if (!_method) {
         e.preventDefault(); e.stopPropagation();
         showError(t("err_no_method"));
@@ -1332,18 +1337,22 @@
     }
     let _checkoutPending = false;
 
+    // One mark per widget instance, so a widget placed again after a drawer re-render
+    // guards the new buttons itself
+    const GUARDED = Symbol("rcGuarded");
     function attachCheckoutGuard() {
+      if (!widget.isConnected) return;
       const intercept = (el) => {
-        if (el._rcGuarded) return;
-        el._rcGuarded = true;
+        if (el[GUARDED]) return;
+        el[GUARDED] = true;
         el.addEventListener("click", blockCheckout, true);
       };
       document.querySelectorAll(
         'button[name="checkout"], input[name="checkout"], a[href="/checkout"], [href*="/checkout"]'
       ).forEach(intercept);
       document.querySelectorAll('form[action="/cart"], form[action*="/cart"]').forEach((form) => {
-        if (form._rcGuarded) return;
-        form._rcGuarded = true;
+        if (form[GUARDED]) return;
+        form[GUARDED] = true;
         form.addEventListener("submit", (e) => {
           if (e.submitter?.name === "checkout" || e.submitter?.value === "checkout") blockCheckout(e);
         }, true);
@@ -1414,7 +1423,41 @@
 
   // Once per widget element: cart drawers re-render their HTML (section rendering) after an
   // add to cart, which drops our listeners, so a new widget element gets initialised again
+  // ── Cart drawer embed: place the widget above the drawer's checkout button ──
+  const DRAWERS = 'cart-drawer, cart-notification, #CartDrawer, #cart-drawer, #Cart-Drawer, #CartSidebar, #sidebar-cart, ' +
+    '.cart-drawer, .drawer--cart, .mini-cart, .side-cart, [id*="CartDrawer"], [class*="cart-drawer"], [class*="CartDrawer"], [class*="mini-cart"]';
+  const CHECKOUT = 'button[name="checkout"], input[name="checkout"], a[href$="/checkout"], [href*="/checkout?"]';
+  const CTA_WRAPS = '.cart__ctas, .drawer__footer-buttons, .cart-drawer__buttons, .cart-drawer__checkout, .cart__checkout-wrapper, .mini-cart__buttons';
+
+  function drawerAnchor(tpl) {
+    const custom = (tpl.dataset.anchor || "").trim();
+    if (custom) { try { return document.querySelector(custom); } catch (_) { return null; } }
+    const buttons = [...document.querySelectorAll(CHECKOUT)].filter((b) => !b.closest("template, #rc-modal"));
+    const inDrawer = buttons.find((b) => b.closest(DRAWERS));
+    const onCartPage = tpl.dataset.cartPage !== "false" && /\/cart\/?$/.test(location.pathname) ? buttons[0] : null;
+    const btn = inDrawer || onCartPage;
+    if (!btn) return null;
+    return btn.closest(CTA_WRAPS) || btn;
+  }
+
+  function placeDrawerWidget() {
+    const tpl = $("picklo-drawer-template");
+    if (!tpl || $("rocourier-widget")) return; // no embed, or the widget is already on the page
+    if ($("picklo-drawer-widget")) return;      // the older hand-installed drawer widget is still in the theme
+    const anchor = drawerAnchor(tpl);
+    if (!anchor || !anchor.parentNode) return;
+    const frag = tpl.content.cloneNode(true);
+    // The map modal goes to <body>: drawers use transforms that break position:fixed inside them.
+    // A re-rendered drawer gets a fresh modal, so the old one (bound to the old widget) goes.
+    const modal = frag.querySelector("#rc-modal");
+    const old = $("rc-modal");
+    if (old) old.remove();
+    if (modal) document.body.appendChild(modal);
+    anchor.parentNode.insertBefore(frag, anchor);
+  }
+
   function tryInit() {
+    placeDrawerWidget();
     const widget = $("rocourier-widget");
     if (widget && !widget._rcInitialized) {
       widget._rcInitialized = true;
